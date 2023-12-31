@@ -108,7 +108,7 @@
 #               Added row name insert variables - e.g. <##rn> for row number
 # build: 1043 - Fixed AsOfDateChooser.getAsOfDateInt() to return Integer.intValue() (instead of Integer)
 # build: 1044 - Added long/short-term capital gains calculations; New/enhanced final calculation adjustment features
-#               Address UOR chaining loss of decimal precision...; added (this) row maths calculation (rmc)
+#               Address UOR chaining loss of decimal precision...; added (this) row maths calculation (rmc); switched to single format as % option...
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -548,6 +548,7 @@ else:
     GlobalVars.extn_param_NEW_averageByFractionalsTable_NAB  = None
     GlobalVars.extn_param_NEW_rowMathsCalculationTable_NAB   = None
     GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB = None
+    GlobalVars.extn_param_NEW_formatAsPercentTable_NAB       = None
     GlobalVars.extn_param_NEW_operateOnAnotherRowTable_NAB   = None
     GlobalVars.extn_param_NEW_UUIDTable_NAB                  = None
     GlobalVars.extn_param_NEW_disableWidgetTitle_NAB         = None
@@ -3257,7 +3258,7 @@ Visit: %s (Author's site)
 
 
         #######################################
-        # Migrate / upgrade old parameters....:
+        # Migrate / upgrade / delete old parameters....:
         old_extn_param_NEW_incomeExpenseDateRange_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_incomeExpenseDateRange_NAB", None)
         old_extn_param_NEW_customDatesTable_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_customDatesTable_NAB", None)
 
@@ -3296,7 +3297,7 @@ Visit: %s (Author's site)
                     GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB.append(NAB.finalMathsCalculationDefault())
                     GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB[i][NAB.FINAL_MATHS_CALC_VALUE_IDX] = old_extn_param_NEW_adjustCalcByTable_NAB[i]
                     GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB[i][NAB.FINAL_MATHS_CALC_OPERATOR_IDX] = "+"
-                    GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB[i][NAB.FINAL_MATHS_CALC_WANTPERCENT_IDX] = False
+                    GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB[i][NAB.FINAL_MATHS_CALC_UNUSED_IDX] = None
                     myPrint("B", "... Converted row: %s '%s' into '%s'" %(i+1, old_extn_param_NEW_adjustCalcByTable_NAB[i], GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB[i]))
             else:
                 myPrint("B", "... NO - 'extn_param_NEW_finalMathsCalculationTable_NAB' already set, so leaving new param alone: '%s'" %(GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB))
@@ -8546,6 +8547,7 @@ Visit: %s (Author's site)
             self.rowMathsApplied = False                    # type: bool
             self.mathsUORApplied = False                    # type: bool
             self.finalMathsApplied = False                  # type: bool
+            self.formatAsPercent100Applied = False          # type: bool
             self.UORChain = []                              # type: [int]
             if self.UORError: self.setUORError(UORError)
             self.updateLastUpdated()
@@ -8558,6 +8560,8 @@ Visit: %s (Author's site)
         def setRowMathsApplied(self, rowMathsApplied): self.rowMathsApplied = rowMathsApplied
         def getFinalMathsApplied(self): return self.finalMathsApplied
         def setFinalMathsApplied(self, finalMathsApplied): self.finalMathsApplied = finalMathsApplied
+        def getFormatAsPercent100Applied(self): return self.formatAsPercent100Applied
+        def setFormatAsPercent100Applied(self, formatAsPercent100Applied): self.formatAsPercent100Applied = formatAsPercent100Applied
         def getUORChain(self): return self.UORChain
         def setUORChain(self, newChain): self.UORChain = newChain
         def setRowNumber(self, rowNumber): self.rowNumber = rowNumber
@@ -8586,11 +8590,12 @@ Visit: %s (Author's site)
             clonedBalObj.setRowMathsApplied(self.getRowMathsApplied())
             clonedBalObj.setMathsUORApplied(self.getMathsUORApplied())
             clonedBalObj.setFinalMathsApplied(self.getFinalMathsApplied())
+            clonedBalObj.setFormatAsPercent100Applied(self.getFormatAsPercent100Applied())
             clonedBalObj.setUORChain(self.getUORChain())
             return clonedBalObj
 
-        def __str__(self):      return  "[uuid: '%s', row name: '%s', curr: '%s', balance: %s, balanceWithDecimals: %s, extra row txt: '%s', isUORError: %s, rowNumber: %s, avgByApplied: %s, rowMathsApplied: %s, MUORApplied: %s, finalMathsApplied: %s, UORChain: %s]"\
-                                        %(self.getUUID(), self.getRowName(), self.getCurrencyType(), self.getBalance(), self.getBalanceWithDecimalsPreserved(), self.getExtraRowTxt(), self.isUORError(), self.getRowNumber(), self.getAverageByApplied(), self.getRowMathsApplied(), self.getMathsUORApplied(), self.getFinalMathsApplied(), self.getUORChain())
+        def __str__(self):      return  "[uuid: '%s', row name: '%s', curr: '%s', balance: %s, balanceWithDecimals: %s, extra row txt: '%s', isUORError: %s, rowNumber: %s, avgByApplied: %s, rowMathsApplied: %s, MUORApplied: %s, finalMathsApplied: %s, formatAsPercent100Applied: %s, UORChain: %s]"\
+                                        %(self.getUUID(), self.getRowName(), self.getCurrencyType(), self.getBalance(), self.getBalanceWithDecimalsPreserved(), self.getExtraRowTxt(), self.isUORError(), self.getRowNumber(), self.getAverageByApplied(), self.getRowMathsApplied(), self.getMathsUORApplied(), self.getFinalMathsApplied(), self.getFormatAsPercent100Applied(), self.getUORChain())
         def __repr__(self):     return self.__str__()
         def toString(self):     return self.__str__()
 
@@ -8811,24 +8816,24 @@ Visit: %s (Author's site)
             self.savedOperateOnAnotherRowTable  = None
             self.OPERATE_OTHER_ROW_ROW          = 0
             self.OPERATE_OTHER_ROW_OPERATOR     = 1
-            self.OPERATE_OTHER_ROW_WANTPERCENT  = 2
+            self.OPERATE_OTHER_ROW_UNUSED       = 2
 
             self.savedRowMathsCalculationTable   = None
             self.ROW_MATHS_CALC_VALUE_IDX    = 0
             self.ROW_MATHS_CALC_OPERATOR_IDX = 1
-            self.ROW_MATHS_CALC_UNUSED       = 2
+            self.ROW_MATHS_CALC_UNUSED_IDX   = 2
 
             self.savedFinalMathsCalculationTable = None
             self.FINAL_MATHS_CALC_VALUE_IDX       = 0
             self.FINAL_MATHS_CALC_OPERATOR_IDX    = 1
-            self.FINAL_MATHS_CALC_WANTPERCENT_IDX = 2
+            self.FINAL_MATHS_CALC_UNUSED_IDX      = 2
 
             self.savedFormatAsPercentTable = None
             self.FORMAT_AS_PERCENT_IDX            = 0
             self.FORMAT_AS_PERCENT_MULT100_IDX    = 1
 
-            self.savedUUIDTable                 = None
-            self.savedGroupIDTable              = None
+            self.savedUUIDTable                     = None
+            self.savedGroupIDTable                  = None
 
             self.savedShowPrintIcon                 = None
             self.savedAutoSumDefault                = None
@@ -8909,11 +8914,12 @@ Visit: %s (Author's site)
 
             self.rowMathsCalculationAdjustValue_JRF   = None
             self.rowMathsCalculationOperator_COMBO    = None
-            # self.rowMathsCalculationIsPercent_CB      = None
 
             self.finalMathsCalculationAdjustValue_JRF = None
             self.finalMathsCalculationOperator_COMBO  = None
-            self.finalMathsCalculationIsPercent_CB    = None
+
+            self.formatAsPercent_CB                   = None
+            self.formatAsPercentMult100_CB            = None
 
             self.blinkRow_CB                          = None
             self.hideDecimals_CB                      = None
@@ -8927,7 +8933,6 @@ Visit: %s (Author's site)
 
             self.utiliseOtherRow_JTFAI                = None
             self.otherRowMathsOperator_COMBO          = None
-            self.otherRowIsPercent_CB                 = None
 
             self.showWarnings_LBL                     = None
 
@@ -9327,6 +9332,7 @@ Visit: %s (Author's site)
             GlobalVars.extn_param_NEW_averageByFractionalsTable_NAB  = copy.deepcopy(NAB.savedAverageByFractionalsTable)
             GlobalVars.extn_param_NEW_rowMathsCalculationTable_NAB   = copy.deepcopy(NAB.savedRowMathsCalculationTable)
             GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB = copy.deepcopy(NAB.savedFinalMathsCalculationTable)
+            GlobalVars.extn_param_NEW_formatAsPercentTable_NAB       = copy.deepcopy(NAB.savedFormatAsPercentTable)
             GlobalVars.extn_param_NEW_operateOnAnotherRowTable_NAB   = copy.deepcopy(NAB.savedOperateOnAnotherRowTable)
             GlobalVars.extn_param_NEW_UUIDTable_NAB                  = copy.deepcopy(NAB.savedUUIDTable)
             GlobalVars.extn_param_NEW_groupIDTable_NAB               = copy.deepcopy(NAB.savedGroupIDTable)
@@ -9991,9 +9997,10 @@ Visit: %s (Author's site)
         def displayAverageDefault(self):                return 1.0
         def averageByCalUnitDefault(self):              return 0
         def averageByFractionalsDefault(self):          return True
-        def operateOnAnotherRowDefault(self):           return [None, None, None]   # int(row), str(operator), bool(%?)
+        def operateOnAnotherRowDefault(self):           return [None, None, None]   # int(row), str(operator), None(unused)
         def rowMathsCalculationDefault(self):           return [0.0, None, None]    # float(adjustValue), str(operator), None(unused)
-        def finalMathsCalculationDefault(self):         return [0.0, None, None]    # float(adjustValue), str(operator), bool(%?)
+        def finalMathsCalculationDefault(self):         return [0.0, None, None]    # float(adjustValue), str(operator), None(unused)
+        def formatAsPercentDefault(self):               return [False, False]
         def disableWidgetTitleDefault(self):            return False
         def showDashesInsteadOfZerosDefault(self):      return False
         def disableWarningIconDefault(self):            return False
@@ -10088,6 +10095,10 @@ Visit: %s (Author's site)
                 self.savedFinalMathsCalculationTable = [self.finalMathsCalculationDefault() for i in range(0, self.getNumberOfRows())]
                 myPrint("B", "New parameter savedFinalMathsCalculationTable detected, pre-populating with %s (= 0.0 = no adjustment to final calculation)" %(self.savedFinalMathsCalculationTable))
 
+            if self.savedFormatAsPercentTable == [self.formatAsPercentDefault()] and len(self.savedFormatAsPercentTable) != self.getNumberOfRows():
+                self.savedFormatAsPercentTable = [self.formatAsPercentDefault() for i in range(0, self.getNumberOfRows())]
+                myPrint("B", "New parameter savedFormatAsPercentTable detected, pre-populating with %s (= False, False = no display as %%, no multiply by 100)" %(self.savedFormatAsPercentTable))
+
             if self.savedRowSeparatorTable == [self.rowSeparatorDefault()] and len(self.savedRowSeparatorTable) != self.getNumberOfRows():
                 self.savedRowSeparatorTable = [self.rowSeparatorDefault() for i in range(0, self.getNumberOfRows())]
                 myPrint("B", "New parameter savedRowSeparatorTable detected, pre-populating with %s (= Default no row separators)" %(self.savedRowSeparatorTable))
@@ -10150,8 +10161,10 @@ Visit: %s (Author's site)
                 self.resetParameters(37)
             elif self.savedFinalMathsCalculationTable is None or not isinstance(self.savedFinalMathsCalculationTable, list) or len(self.savedFinalMathsCalculationTable) < 1:
                 self.resetParameters(38)
-            elif self.savedAutoSumDefault is None or not isinstance(self.savedAutoSumDefault, bool):
+            elif self.savedFormatAsPercentTable is None or not isinstance(self.savedFormatAsPercentTable, list) or len(self.savedFormatAsPercentTable) < 1:
                 self.resetParameters(39)
+            elif self.savedAutoSumDefault is None or not isinstance(self.savedAutoSumDefault, bool):
+                self.resetParameters(40)
             elif self.savedShowPrintIcon is None or not isinstance(self.savedShowPrintIcon, bool):
                 self.resetParameters(41)
             elif self.savedShowDashesInsteadOfZeros is None or not isinstance(self.savedShowDashesInsteadOfZeros, bool):
@@ -10310,12 +10323,15 @@ Visit: %s (Author's site)
                     if self.savedOperateOnAnotherRowTable[i] is None or not isinstance(self.savedOperateOnAnotherRowTable[i], list) or len(self.savedOperateOnAnotherRowTable[i]) != 3:
                         printResetMessage("savedOperateOnAnotherRowTable", self.savedOperateOnAnotherRowTable[i], self.operateOnAnotherRowDefault(), i)
                         self.savedOperateOnAnotherRowTable[i] = self.operateOnAnotherRowDefault()
+
                     if self.savedRowSeparatorTable[i] is None or not isinstance(self.savedRowSeparatorTable[i], int) or self.savedRowSeparatorTable[i] < GlobalVars.ROW_SEPARATOR_NEVER or self.savedRowSeparatorTable[i] > GlobalVars.ROW_SEPARATOR_BOTH:
                         printResetMessage("savedRowSeparatorTable", self.savedRowSeparatorTable[i], self.rowSeparatorDefault(), i)
                         self.savedRowSeparatorTable[i] = self.rowSeparatorDefault()
+
                     if self.savedBlinkTable[i] is None or not isinstance(self.savedBlinkTable[i], bool):
                         printResetMessage("savedBlinkTable", self.savedBlinkTable[i], self.blinkDefault(), i)
                         self.savedBlinkTable[i] = self.blinkDefault()
+
                     if self.savedHideDecimalsTable[i] is None or not isinstance(self.savedHideDecimalsTable[i], bool):
                         printResetMessage("savedHideDecimalsTable", self.savedHideDecimalsTable[i], self.hideDecimalsDefault(), i)
                         self.savedHideDecimalsTable[i] = self.hideDecimalsDefault()
@@ -10328,6 +10344,7 @@ Visit: %s (Author's site)
                     if not self.isValidAndFixOperateOnAnotherRowParams(self.savedOperateOnAnotherRowTable[i]):
                         printResetMessage("savedOperateOnAnotherRowTable", self.savedOperateOnAnotherRowTable[i], self.operateOnAnotherRowDefault(), i)
                         self.savedOperateOnAnotherRowTable[i] = self.operateOnAnotherRowDefault()
+
                     if self.savedShowWarningsTable[i] is None or not isinstance(self.savedShowWarningsTable[i], bool):
                         printResetMessage("savedShowWarningsTable", self.savedShowWarningsTable[i], self.showWarningsDefault(), i)
                         self.savedShowWarningsTable[i] = self.showWarningsDefault()
@@ -10361,16 +10378,42 @@ Visit: %s (Author's site)
                         printResetMessage("savedFinalMathsCalculationTable", self.savedFinalMathsCalculationTable[i], self.finalMathsCalculationDefault(), i)
                         self.savedFinalMathsCalculationTable[i] = self.finalMathsCalculationDefault()
 
+                    if (self.savedFormatAsPercentTable[i] is None or not isinstance(self.savedFormatAsPercentTable[i], list)
+                            or len(self.savedFormatAsPercentTable[i]) != (self.FORMAT_AS_PERCENT_MULT100_IDX + 1)
+                            or not isinstance(self.savedFormatAsPercentTable[i][self.FORMAT_AS_PERCENT_IDX], bool)
+                            or not isinstance(self.savedFormatAsPercentTable[i][self.FORMAT_AS_PERCENT_MULT100_IDX], bool)):
+                        printResetMessage("savedFormatAsPercentTable", self.savedFormatAsPercentTable[i], self.formatAsPercentDefault(), i)
+                        self.savedFormatAsPercentTable[i] = self.formatAsPercentDefault()
+
+                    # Upgrade / migrate this parameter with enhanced format as % field(s)
+                    if (self.savedOperateOnAnotherRowTable[i][self.OPERATE_OTHER_ROW_ROW] is not None
+                            and self.savedOperateOnAnotherRowTable[i][self.OPERATE_OTHER_ROW_UNUSED]):
+                        self.savedFormatAsPercentTable[i][self.FORMAT_AS_PERCENT_IDX] = True
+                        if (self.savedOperateOnAnotherRowTable[i][self.OPERATE_OTHER_ROW_OPERATOR] == "/"):
+                            self.savedFormatAsPercentTable[i][self.FORMAT_AS_PERCENT_MULT100_IDX] = True
+                        myPrint("B", "... Upgrading row: %s saved parameter 'savedFormatAsPercentTable' (from: savedOperateOnAnotherRowTable) to: '%s'" %(i+1, self.savedFormatAsPercentTable[i]))
+
+                    # Upgrade / migrate this parameter with enhanced format as % field(s)
+                    if (self.savedFinalMathsCalculationTable[i][self.FINAL_MATHS_CALC_VALUE_IDX] != 0.0
+                            and self.savedFinalMathsCalculationTable[i][self.FINAL_MATHS_CALC_UNUSED_IDX]):
+                        self.savedFormatAsPercentTable[i][self.FORMAT_AS_PERCENT_IDX] = True
+                        myPrint("B", "... Upgrading row: %s saved parameter 'savedFormatAsPercentTable' (from: savedFinalMathsCalculationTable) to: '%s'" %(i+1, self.savedFormatAsPercentTable[i]))
+
+                    # Kill these old setting(s)
+                    self.savedOperateOnAnotherRowTable[i][self.OPERATE_OTHER_ROW_UNUSED] = None
+                    self.savedRowMathsCalculationTable[i][self.ROW_MATHS_CALC_UNUSED_IDX] = None
+                    self.savedFinalMathsCalculationTable[i][self.FINAL_MATHS_CALC_UNUSED_IDX] = None
+
                 del printResetMessage
 
         def isValidAndFixOperateOnAnotherRowParams(self, operateOnAnotherRowParams):
             NAB = self
             if not isinstance(operateOnAnotherRowParams, list): return False
-            if len(operateOnAnotherRowParams) != (NAB.OPERATE_OTHER_ROW_WANTPERCENT + 1): return False
+            if len(operateOnAnotherRowParams) != (NAB.OPERATE_OTHER_ROW_UNUSED + 1): return False
             # None, None, None is OK
             if not (operateOnAnotherRowParams[NAB.OPERATE_OTHER_ROW_ROW] is None
                     and operateOnAnotherRowParams[NAB.OPERATE_OTHER_ROW_OPERATOR] is None
-                    and operateOnAnotherRowParams[NAB.OPERATE_OTHER_ROW_WANTPERCENT] is None):
+                    and operateOnAnotherRowParams[NAB.OPERATE_OTHER_ROW_UNUSED] is None):
                 if isinstance(operateOnAnotherRowParams[NAB.OPERATE_OTHER_ROW_ROW], (float, long)):
                     myPrint("B", "WARNING: isValidAndFixOperateOnAnotherRowParams(%s) converting other row# to int...." %(operateOnAnotherRowParams))
                     operateOnAnotherRowParams[NAB.OPERATE_OTHER_ROW_ROW] = int(operateOnAnotherRowParams[NAB.OPERATE_OTHER_ROW_ROW])
@@ -10379,18 +10422,18 @@ Visit: %s (Author's site)
                 else:
                     if not isinstance(operateOnAnotherRowParams[NAB.OPERATE_OTHER_ROW_ROW], int):               return False
                     if not isinstance(operateOnAnotherRowParams[NAB.OPERATE_OTHER_ROW_OPERATOR], basestring):   return False
-                    if not isinstance(operateOnAnotherRowParams[NAB.OPERATE_OTHER_ROW_WANTPERCENT], bool):      return False
                     if (operateOnAnotherRowParams[NAB.OPERATE_OTHER_ROW_OPERATOR] not in "+-/*"):               return False
+                    # if not isinstance(operateOnAnotherRowParams[NAB.OPERATE_OTHER_ROW_UNUSED], bool):           return False
             return True
 
         def isValidAndFixRowMathsCalculationParams(self, rowMathsCalculationParams):
             NAB = self
             if not isinstance(rowMathsCalculationParams, list): return False
-            if len(rowMathsCalculationParams) != (NAB.ROW_MATHS_CALC_UNUSED + 1): return False
+            if len(rowMathsCalculationParams) != (NAB.ROW_MATHS_CALC_UNUSED_IDX + 1): return False
             # [0.0, None, None] is OK
             if not (rowMathsCalculationParams[NAB.ROW_MATHS_CALC_VALUE_IDX] == 0.0
                     and rowMathsCalculationParams[NAB.ROW_MATHS_CALC_OPERATOR_IDX] is None
-                    and rowMathsCalculationParams[NAB.ROW_MATHS_CALC_UNUSED] is None):
+                    and rowMathsCalculationParams[NAB.ROW_MATHS_CALC_UNUSED_IDX] is None):
                 if isinstance(rowMathsCalculationParams[NAB.ROW_MATHS_CALC_VALUE_IDX], (int, long)):
                     myPrint("B", "WARNING: isValidAndFixRowMathsCalculationParams(%s) converting operand to float...." %(rowMathsCalculationParams))
                     rowMathsCalculationParams[NAB.ROW_MATHS_CALC_VALUE_IDX] = float(rowMathsCalculationParams[NAB.ROW_MATHS_CALC_VALUE_IDX])
@@ -10400,17 +10443,17 @@ Visit: %s (Author's site)
                     if not isinstance(rowMathsCalculationParams[NAB.ROW_MATHS_CALC_VALUE_IDX], float):          return False
                     if not isinstance(rowMathsCalculationParams[NAB.ROW_MATHS_CALC_OPERATOR_IDX], basestring):  return False
                     if (rowMathsCalculationParams[NAB.ROW_MATHS_CALC_OPERATOR_IDX] not in "+-/*"):              return False
-                    # if not isinstance(rowMathsCalculationParams[NAB.ROW_MATHS_CALC_UNUSED], bool):              return False
+                    # if not isinstance(rowMathsCalculationParams[NAB.ROW_MATHS_CALC_UNUSED_IDX], bool):          return False
             return True
 
         def isValidAndFixFinalMathsCalculationParams(self, finalMathsCalculationParams):
             NAB = self
             if not isinstance(finalMathsCalculationParams, list): return False
-            if len(finalMathsCalculationParams) != (NAB.FINAL_MATHS_CALC_WANTPERCENT_IDX + 1): return False
+            if len(finalMathsCalculationParams) != (NAB.FINAL_MATHS_CALC_UNUSED_IDX + 1): return False
             # [0.0, None, None] is OK
             if not (finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_VALUE_IDX] == 0.0
                     and finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_OPERATOR_IDX] is None
-                    and finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_WANTPERCENT_IDX] is None):
+                    and finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_UNUSED_IDX] is None):
                 if isinstance(finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_VALUE_IDX], (int, long)):
                     myPrint("B", "WARNING: isValidAndFixFinalMathsCalculationParams(%s) converting operand to float...." %(finalMathsCalculationParams))
                     finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_VALUE_IDX] = float(finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_VALUE_IDX])
@@ -10419,8 +10462,8 @@ Visit: %s (Author's site)
                 else:
                     if not isinstance(finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_VALUE_IDX], float):          return False
                     if not isinstance(finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_OPERATOR_IDX], basestring):  return False
-                    if not isinstance(finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_WANTPERCENT_IDX], bool):     return False
                     if (finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_OPERATOR_IDX] not in "+-/*"):              return False
+                    # if not isinstance(finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_UNUSED_IDX], bool):     return False
             return True
 
         def isRowFilteredOutByGroupID(self, thisRowIdx):
@@ -10614,6 +10657,7 @@ Visit: %s (Author's site)
             self.savedAverageByFractionalsTable     = [self.averageByFractionalsDefault()]
             self.savedRowMathsCalculationTable      = [self.rowMathsCalculationDefault()]
             self.savedFinalMathsCalculationTable    = [self.finalMathsCalculationDefault()]
+            self.savedFormatAsPercentTable          = [self.formatAsPercentDefault()]
             self.savedUUIDTable                     = [self.UUIDDefault(newUUID=True)]
             self.savedGroupIDTable                  = [self.groupIDDefault()]
 
@@ -10983,10 +11027,10 @@ Visit: %s (Author's site)
                                       NAB.rowMathsCalculationOperator_COMBO,
                                       NAB.finalMathsCalculationAdjustValue_JRF,
                                       NAB.finalMathsCalculationOperator_COMBO,
-                                      NAB.finalMathsCalculationIsPercent_CB,
+                                      NAB.formatAsPercent_CB,
+                                      NAB.formatAsPercentMult100_CB,
                                       NAB.utiliseOtherRow_JTFAI,
                                       NAB.otherRowMathsOperator_COMBO,
-                                      NAB.otherRowIsPercent_CB,
                                       NAB.hideRowWhenNever_JRB,
                                       NAB.hideRowWhenAlways_JRB,
                                       NAB.hideRowWhenZeroOrX_JRB,
@@ -11088,9 +11132,6 @@ Visit: %s (Author's site)
             otherOperator = NAB.savedOperateOnAnotherRowTable[selectRowIndex][NAB.OPERATE_OTHER_ROW_OPERATOR]
             if otherOperator is None: otherOperator = "/"
             NAB.otherRowMathsOperator_COMBO.setSelectedItem(otherOperator)
-            otherWantsPercent = NAB.savedOperateOnAnotherRowTable[selectRowIndex][NAB.OPERATE_OTHER_ROW_WANTPERCENT]
-            if otherWantsPercent is None: otherWantsPercent = True
-            NAB.otherRowIsPercent_CB.setSelected(otherWantsPercent)
 
             myPrint("DB", "..about to set hideRowWhenNever_JRB, hideRowWhenAlways_JRB, hideRowWhenZeroOrX_JRB, hideRowWhenLtEqZeroOrX_JRB, hideRowWhenGrEqZeroOrX_JRB, hideRowWhenNotZeroOrX_JRB..")
             NAB.hideRowWhenNever_JRB.setSelected(       True if NAB.savedHideRowWhenXXXTable[selectRowIndex] == GlobalVars.HIDE_ROW_WHEN_NEVER            else False)
@@ -11124,9 +11165,6 @@ Visit: %s (Author's site)
             rowMathsCalculationOperator = NAB.savedRowMathsCalculationTable[selectRowIndex][NAB.ROW_MATHS_CALC_OPERATOR_IDX]
             if rowMathsCalculationOperator is None: rowMathsCalculationOperator = "+"
             NAB.rowMathsCalculationOperator_COMBO.setSelectedItem(rowMathsCalculationOperator)
-            # rowMathsCalculationWantsPercent = NAB.savedRowMathsCalculationTable[selectRowIndex][NAB.ROW_MATHS_CALC_WANTPERCENT_IDX]
-            # if rowMathsCalculationWantsPercent is None: rowMathsCalculationWantsPercent = False
-            # NAB.rowMathsCalculationIsPercent_CB.setSelected(rowMathsCalculationWantsPercent)
 
             myPrint("DB", "..about to set savedFinalMathsCalculationTable...")
             finalMathsCalculationOperand = NAB.savedFinalMathsCalculationTable[selectRowIndex][NAB.FINAL_MATHS_CALC_VALUE_IDX]
@@ -11134,9 +11172,10 @@ Visit: %s (Author's site)
             finalMathsCalculationOperator = NAB.savedFinalMathsCalculationTable[selectRowIndex][NAB.FINAL_MATHS_CALC_OPERATOR_IDX]
             if finalMathsCalculationOperator is None: finalMathsCalculationOperator = "+"
             NAB.finalMathsCalculationOperator_COMBO.setSelectedItem(finalMathsCalculationOperator)
-            finalMathsCalculationWantsPercent = NAB.savedFinalMathsCalculationTable[selectRowIndex][NAB.FINAL_MATHS_CALC_WANTPERCENT_IDX]
-            if finalMathsCalculationWantsPercent is None: finalMathsCalculationWantsPercent = False
-            NAB.finalMathsCalculationIsPercent_CB.setSelected(finalMathsCalculationWantsPercent)
+
+            myPrint("DB", "..about to set savedFormatAsPercentTable...")
+            NAB.formatAsPercent_CB.setSelected(NAB.savedFormatAsPercentTable[selectRowIndex][NAB.FORMAT_AS_PERCENT_IDX])
+            NAB.formatAsPercentMult100_CB.setSelected(NAB.savedFormatAsPercentTable[selectRowIndex][NAB.FORMAT_AS_PERCENT_MULT100_IDX])
 
             myPrint("DB", "about to set widget name..")
             NAB.widgetNameField_JTF.setText(NAB.savedWidgetName[selectRowIndex])
@@ -11214,7 +11253,6 @@ Visit: %s (Author's site)
                 myPrint("B", ".....savedOperateOnAnotherRowTable: %s"           %(NAB.savedOperateOnAnotherRowTable[selectRowIndex]))
                 myPrint("B", ".....utiliseOtherRow_JTFAI: %s"                   %(NAB.utiliseOtherRow_JTFAI.getValueIntOrNone()))
                 myPrint("B", ".....otherRowMathsOperator_COMBO: %s"             %(NAB.otherRowMathsOperator_COMBO.getSelectedItem()))
-                myPrint("B", ".....otherRowIsPercent_CB: %s"                    %(NAB.otherRowIsPercent_CB.isSelected()))
                 myPrint("B", ".....savedRowSeparatorTable: %s"                  %(NAB.savedRowSeparatorTable[selectRowIndex]))
                 myPrint("B", ".....separatorSelectorNone_JRB: %s"               %(NAB.separatorSelectorNone_JRB.isSelected()))
                 myPrint("B", ".....separatorSelectorAbove_JRB: %s"              %(NAB.separatorSelectorAbove_JRB.isSelected()))
@@ -11248,7 +11286,9 @@ Visit: %s (Author's site)
                 myPrint("B", ".....savedFinalMathsCalculationTable: %s"         %(NAB.savedFinalMathsCalculationTable[selectRowIndex]))
                 myPrint("B", ".....finalMathsCalculationAdjustValue_JRF: %s"    %(NAB.finalMathsCalculationAdjustValue_JRF.getValue()))
                 myPrint("B", ".....finalMathsCalculationOperator_COMBO: %s"     %(NAB.finalMathsCalculationOperator_COMBO.getSelectedItem()))
-                myPrint("B", ".....finalMathsCalculationIsPercent_CB: %s"       %(NAB.finalMathsCalculationIsPercent_CB.isSelected()))
+                myPrint("B", ".....savedFormatAsPercentTable: %s"               %(NAB.savedFormatAsPercentTable[selectRowIndex]))
+                myPrint("B", ".....formatAsPercent_CB: %s"                      %(NAB.formatAsPercent_CB.isSelected()))
+                myPrint("B", ".....formatAsPercentMult100_CB: %s"               %(NAB.formatAsPercentMult100_CB.isSelected()))
                 myPrint("B", ".....savedBlinkTable: %s"                         %(NAB.savedBlinkTable[selectRowIndex]))
                 myPrint("B", ".....blinkRow_CB: %s"                             %(NAB.blinkRow_CB.isSelected()))
                 myPrint("B", ".....savedHideDecimalsTable: %s"                  %(NAB.savedHideDecimalsTable[selectRowIndex]))
@@ -11413,7 +11453,6 @@ Visit: %s (Author's site)
                     myPrint("DB", "..... saving savedFinalMathsCalculationTable[elements].... was: %s" %(self.savedFinalMathsCalculationTable[self.getSelectedRowIndex()]))
                     self.savedFinalMathsCalculationTable[self.getSelectedRowIndex()][self.FINAL_MATHS_CALC_VALUE_IDX] = txtFieldValue
                     self.savedFinalMathsCalculationTable[self.getSelectedRowIndex()][self.FINAL_MATHS_CALC_OPERATOR_IDX] = self.finalMathsCalculationOperator_COMBO.getSelectedItem()
-                    self.savedFinalMathsCalculationTable[self.getSelectedRowIndex()][self.FINAL_MATHS_CALC_WANTPERCENT_IDX] = self.finalMathsCalculationIsPercent_CB.isSelected()
                     myPrint("DB", "........ now : %s" %(self.savedFinalMathsCalculationTable[self.getSelectedRowIndex()]))
                     self.configSaved = False
 
@@ -11424,7 +11463,6 @@ Visit: %s (Author's site)
                     myPrint("DB", "..... saving savedOperateOnAnotherRowTable[elements].... was: %s" %(self.savedOperateOnAnotherRowTable[self.getSelectedRowIndex()]))
                     self.savedOperateOnAnotherRowTable[self.getSelectedRowIndex()][self.OPERATE_OTHER_ROW_ROW] = txtFieldValue
                     self.savedOperateOnAnotherRowTable[self.getSelectedRowIndex()][self.OPERATE_OTHER_ROW_OPERATOR] = self.otherRowMathsOperator_COMBO.getSelectedItem()
-                    self.savedOperateOnAnotherRowTable[self.getSelectedRowIndex()][self.OPERATE_OTHER_ROW_WANTPERCENT] = self.otherRowIsPercent_CB.isSelected()
                     myPrint("DB", "........ now : %s" %(self.savedOperateOnAnotherRowTable[self.getSelectedRowIndex()]))
                     self.configSaved = False
                     otherRowIdx  = self.getOperateOnAnotherRowRowIdx(self.getSelectedRowIndex())
@@ -11997,6 +12035,7 @@ Visit: %s (Author's site)
                         lUseAverage = NAB.doesRowUseAvgBy(i)
                         lRowMathsCalculation = (NAB.savedRowMathsCalculationTable[i][NAB.ROW_MATHS_CALC_VALUE_IDX] != 0.0)
                         lFinalMathsCalculation = (NAB.savedFinalMathsCalculationTable[i][NAB.FINAL_MATHS_CALC_VALUE_IDX] != 0.0)
+                        lFormatAsPercent = (NAB.savedFormatAsPercentTable[i][NAB.FORMAT_AS_PERCENT_IDX])
                         lUsesOtherRow = (NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_ROW] is not None)
                         lUseTaxDates = (NAB.savedUseTaxDates and isIncomeExpenseDatesSelected(i))
 
@@ -12090,9 +12129,7 @@ Visit: %s (Author's site)
                                 theFormattedValue = "  "
                             else:
                                 fancy = (not NAB.savedDisableCurrencyFormatting[i])
-                                wantsPercent = ((lUsesOtherRow and NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_WANTPERCENT])
-                                                or (lFinalMathsCalculation and NAB.savedFinalMathsCalculationTable[i][NAB.FINAL_MATHS_CALC_WANTPERCENT_IDX]))
-                                # or (lFinalRowCalculation and NAB.savedRowMathsCalculationTable[i][NAB.ROW_MATHS_CALC_WANTPERCENT_IDX]))
+                                wantsPercent = lFormatAsPercent
                                 if wantsPercent: fancy = False
                                 theFormattedValue = formatFancy(balanceObj.getCurrencyType(),
                                                                 balanceOrAverageLong,
@@ -12339,6 +12376,7 @@ Visit: %s (Author's site)
                                    NAB.savedAverageByFractionalsTable,
                                    NAB.savedRowMathsCalculationTable,
                                    NAB.savedFinalMathsCalculationTable,
+                                   NAB.savedRowMathsCalculationTable,
                                    NAB.savedWidgetName,
                                    NAB.savedUUIDTable,
                                    NAB.savedGroupIDTable,
@@ -12457,22 +12495,16 @@ Visit: %s (Author's site)
                         NAB.savedRowSeparatorTable[NAB.getSelectedRowIndex()] = rowSeparatorCodeSelected
                         NAB.configSaved = False
 
-                if event.getSource() is NAB.otherRowIsPercent_CB:
-                    if NAB.savedOperateOnAnotherRowTable[NAB.getSelectedRowIndex()][NAB.OPERATE_OTHER_ROW_WANTPERCENT] != event.getSource().isSelected():
-                        myPrint("DB", ".. setting savedOperateOnAnotherRowTable[wantsPercent] to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
-                        NAB.savedOperateOnAnotherRowTable[NAB.getSelectedRowIndex()][NAB.OPERATE_OTHER_ROW_WANTPERCENT] = event.getSource().isSelected()
+                if event.getSource() is NAB.formatAsPercent_CB:
+                    if NAB.savedFormatAsPercentTable[NAB.getSelectedRowIndex()][NAB.FORMAT_AS_PERCENT_IDX] != event.getSource().isSelected():
+                        myPrint("DB", ".. setting savedFormatAsPercentTable[format%%] to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
+                        NAB.savedFormatAsPercentTable[NAB.getSelectedRowIndex()][NAB.FORMAT_AS_PERCENT_IDX] = event.getSource().isSelected()
                         NAB.configSaved = False
 
-                # if event.getSource() is NAB.rowMathsCalculationIsPercent_CB:
-                #     if NAB.savedRowMathsCalculationTable[NAB.getSelectedRowIndex()][NAB.ROW_MATHS_CALC_WANTPERCENT_IDX] != event.getSource().isSelected():
-                #         myPrint("DB", ".. setting savedRowMathsCalculationTable[wantsPercent] to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
-                #         NAB.savedRowMathsCalculationTable[NAB.getSelectedRowIndex()][NAB.ROW_MATHS_CALC_WANTPERCENT_IDX] = event.getSource().isSelected()
-                #         NAB.configSaved = False
-
-                if event.getSource() is NAB.finalMathsCalculationIsPercent_CB:
-                    if NAB.savedFinalMathsCalculationTable[NAB.getSelectedRowIndex()][NAB.FINAL_MATHS_CALC_WANTPERCENT_IDX] != event.getSource().isSelected():
-                        myPrint("DB", ".. setting savedFinalMathsCalculationTable[wantsPercent] to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
-                        NAB.savedFinalMathsCalculationTable[NAB.getSelectedRowIndex()][NAB.FINAL_MATHS_CALC_WANTPERCENT_IDX] = event.getSource().isSelected()
+                if event.getSource() is NAB.formatAsPercentMult100_CB:
+                    if NAB.savedFormatAsPercentTable[NAB.getSelectedRowIndex()][NAB.FORMAT_AS_PERCENT_MULT100_IDX] != event.getSource().isSelected():
+                        myPrint("DB", ".. setting savedFormatAsPercentTable[mult100] to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
+                        NAB.savedFormatAsPercentTable[NAB.getSelectedRowIndex()][NAB.FORMAT_AS_PERCENT_MULT100_IDX] = event.getSource().isSelected()
                         NAB.configSaved = False
 
                 # ######################################################################################################
@@ -12630,6 +12662,7 @@ Visit: %s (Author's site)
                         NAB.savedAverageByFractionalsTable.insert(NAB.getSelectedRowIndex(),  NAB.averageByFractionalsDefault())
                         NAB.savedRowMathsCalculationTable.insert(NAB.getSelectedRowIndex(),   NAB.rowMathsCalculationDefault())
                         NAB.savedFinalMathsCalculationTable.insert(NAB.getSelectedRowIndex(), NAB.finalMathsCalculationDefault())
+                        NAB.savedFormatAsPercentTable.insert(NAB.getSelectedRowIndex(),       NAB.formatAsPercentDefault())
 
                         self.correctUseOtherRowNumbers(tableAfterChanges=startingTable)
 
@@ -12669,6 +12702,7 @@ Visit: %s (Author's site)
                         NAB.savedAverageByFractionalsTable.insert(NAB.getSelectedRowIndex()+1,  NAB.averageByFractionalsDefault())
                         NAB.savedRowMathsCalculationTable.insert(NAB.getSelectedRowIndex()+1,   NAB.rowMathsCalculationDefault())
                         NAB.savedFinalMathsCalculationTable.insert(NAB.getSelectedRowIndex()+1, NAB.finalMathsCalculationDefault())
+                        NAB.savedFormatAsPercentTable.insert(NAB.getSelectedRowIndex()+1,       NAB.formatAsPercentDefault())
 
                         self.correctUseOtherRowNumbers(tableAfterChanges=startingTable)
 
@@ -13274,6 +13308,7 @@ Visit: %s (Author's site)
                 GlobalVars.extn_param_NEW_averageByFractionalsTable_NAB     = [NAB.averageByFractionalsDefault()]
                 GlobalVars.extn_param_NEW_rowMathsCalculationTable_NAB      = [NAB.rowMathsCalculationDefault()]
                 GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB    = [NAB.finalMathsCalculationDefault()]
+                GlobalVars.extn_param_NEW_formatAsPercentTable_NAB          = [NAB.formatAsPercentDefault()]
                 GlobalVars.extn_param_NEW_operateOnAnotherRowTable_NAB      = [NAB.operateOnAnotherRowDefault()]
                 GlobalVars.extn_param_NEW_UUIDTable_NAB                     = [NAB.UUIDDefault(newUUID=False)]
                 GlobalVars.extn_param_NEW_groupIDTable_NAB                  = [NAB.groupIDDefault()]
@@ -13337,6 +13372,7 @@ Visit: %s (Author's site)
                         self.savedAverageByFractionalsTable     = copy.deepcopy(GlobalVars.extn_param_NEW_averageByFractionalsTable_NAB)
                         self.savedRowMathsCalculationTable      = copy.deepcopy(GlobalVars.extn_param_NEW_rowMathsCalculationTable_NAB)
                         self.savedFinalMathsCalculationTable    = copy.deepcopy(GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB)
+                        self.savedFormatAsPercentTable          = copy.deepcopy(GlobalVars.extn_param_NEW_formatAsPercentTable_NAB)
                         self.savedOperateOnAnotherRowTable      = copy.deepcopy(GlobalVars.extn_param_NEW_operateOnAnotherRowTable_NAB)
                         self.savedUUIDTable                     = copy.deepcopy(GlobalVars.extn_param_NEW_UUIDTable_NAB)
                         self.savedGroupIDTable                  = copy.deepcopy(GlobalVars.extn_param_NEW_groupIDTable_NAB)
@@ -14605,16 +14641,6 @@ Visit: %s (Author's site)
                     operateOnAnotherRow_pnl.add(NAB.otherRowMathsOperator_COMBO, GridC.getc(onUtiliseOtherRowCol, onUtiliseOtherRowRow).leftInset(5))
                     onUtiliseOtherRowCol += 1
 
-                    NAB.otherRowIsPercent_CB = MyJCheckBox("Format as %", True)
-                    NAB.otherRowIsPercent_CB.putClientProperty("%s.id" %(NAB.myModuleID), "otherRowIsPercent_CB")
-                    NAB.otherRowIsPercent_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
-                    NAB.otherRowIsPercent_CB.setName("otherRowIsPercent_CB")
-                    NAB.otherRowIsPercent_CB.setToolTipText("When ticked, then the result will be deemed a percentage...")
-                    NAB.otherRowIsPercent_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    NAB.otherRowIsPercent_CB.addActionListener(NAB.saveActionListener)
-                    operateOnAnotherRow_pnl.add(NAB.otherRowIsPercent_CB, GridC.getc(onUtiliseOtherRowCol, onUtiliseOtherRowRow).leftInset(8))
-                    onUtiliseOtherRowCol += 1
-
                     controlPnl.add(operateOnAnotherRow_pnl, GridC.getc(onCol, onRow).west().leftInset(colInsetFiller).fillx().pady(pady).filly().colspan(2))
                     onRow += 1
 
@@ -14665,17 +14691,36 @@ Visit: %s (Author's site)
                     finalMathsCalculation_pnl.add(NAB.finalMathsCalculationOperator_COMBO, GridC.getc(onFinalMathsCalculationCol, onFinalMathsCalculationRow).leftInset(5))
                     onFinalMathsCalculationCol += 1
 
-                    NAB.finalMathsCalculationIsPercent_CB = MyJCheckBox("Format as %", True)
-                    NAB.finalMathsCalculationIsPercent_CB.putClientProperty("%s.id" %(NAB.myModuleID), "finalMathsCalculationIsPercent_CB")
-                    NAB.finalMathsCalculationIsPercent_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
-                    NAB.finalMathsCalculationIsPercent_CB.setName("finalMathsCalculationIsPercent_CB")
-                    NAB.finalMathsCalculationIsPercent_CB.setToolTipText("When ticked, then the final maths calculation result will be deemed a percentage...")
-                    NAB.finalMathsCalculationIsPercent_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    NAB.finalMathsCalculationIsPercent_CB.addActionListener(NAB.saveActionListener)
-                    finalMathsCalculation_pnl.add(NAB.finalMathsCalculationIsPercent_CB, GridC.getc(onFinalMathsCalculationCol, onFinalMathsCalculationRow).leftInset(8))
-                    onFinalMathsCalculationCol += 1
+                    controlPnl.add(finalMathsCalculation_pnl, GridC.getc(onCol, onRow).west().leftInset(colInsetFiller).fillx().pady(pady).filly().colspan(2))
+                    onCol += 2
 
-                    controlPnl.add(finalMathsCalculation_pnl, GridC.getc(onCol, onRow).west().leftInset(colInsetFiller).fillx().pady(pady).filly().colspan(3))
+                    formatAsPercent_pnl = MyJPanel(GridBagLayout())
+                    formatAsPercent_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+
+                    onformatAsPercentRow = 0
+                    onformatAsPercentCol = 0
+
+                    NAB.formatAsPercent_CB = MyJCheckBox("Format as %", True)
+                    NAB.formatAsPercent_CB.putClientProperty("%s.id" %(NAB.myModuleID), "formatAsPercent_CB")
+                    NAB.formatAsPercent_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    NAB.formatAsPercent_CB.setName("formatAsPercent_CB")
+                    NAB.formatAsPercent_CB.setToolTipText("When ticked, then the calculation result will be displayed as percentage...")
+                    NAB.formatAsPercent_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.formatAsPercent_CB.addActionListener(NAB.saveActionListener)
+                    formatAsPercent_pnl.add(NAB.formatAsPercent_CB, GridC.getc(onformatAsPercentCol, onformatAsPercentRow).leftInset(8))
+                    onformatAsPercentCol += 1
+
+                    NAB.formatAsPercentMult100_CB = MyJCheckBox("Multiply by 100", True)
+                    NAB.formatAsPercentMult100_CB.putClientProperty("%s.id" %(NAB.myModuleID), "formatAsPercentMult100_CB")
+                    NAB.formatAsPercentMult100_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    NAB.formatAsPercentMult100_CB.setName("formatAsPercentMult100_CB")
+                    NAB.formatAsPercentMult100_CB.setToolTipText("When both this and format as % are ticked, then the final calculation will be multiplied by 100...")
+                    NAB.formatAsPercentMult100_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.formatAsPercentMult100_CB.addActionListener(NAB.saveActionListener)
+                    formatAsPercent_pnl.add(NAB.formatAsPercentMult100_CB, GridC.getc(onformatAsPercentCol, onformatAsPercentRow).leftInset(8))
+                    onformatAsPercentCol += 1
+
+                    controlPnl.add(formatAsPercent_pnl, GridC.getc(onCol, onRow).west().leftInset(colInsetFiller).fillx().pady(pady).filly().colspan(1))
                     onRow += 1
 
                     # --------------------------------------------------------------------------------------------------
@@ -16442,6 +16487,7 @@ Visit: %s (Author's site)
                 thisSectionStartTime = System.currentTimeMillis()
 
 
+                ###########################################################
                 # Perform maths using results from other rows (optional)...
                 # First work out the chains...
                 UORChains = {}
@@ -16531,8 +16577,6 @@ Visit: %s (Author's site)
                                     newRowBalWithDecimals = thisRowBalWithDecimals * otherRowBalWithDecimals
                                 elif operator == "/":
                                     newRowBalWithDecimals = thisRowBalWithDecimals / otherRowBalWithDecimals
-                                    if NAB.savedOperateOnAnotherRowTable[onChainedUORIdx][NAB.OPERATE_OTHER_ROW_WANTPERCENT]:
-                                        newRowBalWithDecimals *= 100.0
                                 else: raise Exception("LOGIC ERROR - Unknown operator '%s' on RowIdx: %s" %(operator, onChainedUORIdx))
                                 newRowBalLong = balanceObj.getCurrencyType().getLongValue(newRowBalWithDecimals)
                                 balanceObj.setBalance(newRowBalLong)
@@ -16551,6 +16595,7 @@ Visit: %s (Author's site)
                     myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
                 thisSectionStartTime = System.currentTimeMillis()
 
+                ###################################################
                 # Perform final maths calculations (adjustments)...
                 for i in range(0, len(_totalBalanceTable)):
                     balanceObj = _totalBalanceTable[i]                                                                  # type: CalculatedBalance
@@ -16571,8 +16616,6 @@ Visit: %s (Author's site)
                             finalMathsCalcAdjustedBalanceWithDecimals = (originalBalanceDecimals * finalMathsCalculationOperand)
                         elif operator == "/":
                             finalMathsCalcAdjustedBalanceWithDecimals = (originalBalanceDecimals / finalMathsCalculationOperand)
-                            # if NAB.savedFinalMathsCalculationTable[i][NAB.FINAL_MATHS_CALC_WANTPERCENT_IDX]:
-                            #     finalMathsCalcAdjustedBalanceWithDecimals *= 100.0
                         else: raise Exception("LOGIC ERROR - Unknown final maths calculation operator '%s' on RowIdx: %s" %(operator, i))
                         finalMathsCalcAdjustedBalanceLong = balanceObj.getCurrencyType().getLongValue(finalMathsCalcAdjustedBalanceWithDecimals)
 
@@ -16584,7 +16627,35 @@ Visit: %s (Author's site)
 
                 tookTime = System.currentTimeMillis() - thisSectionStartTime
                 if debug or TIMING_DEBUG:
-                    stage = "6"; stageTxt = "::calculateBalances()"
+                    stage = "6a"; stageTxt = "::calculateBalances()"
+                    myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
+                thisSectionStartTime = System.currentTimeMillis()
+
+
+                ##########################################
+                # Perform very final display as percent...
+                for i in range(0, len(_totalBalanceTable)):
+                    balanceObj = _totalBalanceTable[i]                                                                  # type: CalculatedBalance
+                    if (balanceObj.getBalance() is not None):
+                        if not NAB.savedFormatAsPercentTable[i][NAB.FORMAT_AS_PERCENT_IDX]: continue
+                        if not NAB.savedFormatAsPercentTable[i][NAB.FORMAT_AS_PERCENT_MULT100_IDX]: continue
+
+                        originalBalanceLong = balanceObj.getBalance()
+                        originalBalanceDecimals = balanceObj.getBalanceWithDecimalsPreserved()
+
+                        formatAsPercentAdjustedBalanceWithDecimals = (originalBalanceDecimals * 100.0)
+                        formatAsPercentAdjustedBalanceLong = balanceObj.getCurrencyType().getLongValue(formatAsPercentAdjustedBalanceWithDecimals)
+
+                        balanceObj.setBalance(formatAsPercentAdjustedBalanceLong)
+                        balanceObj.setBalanceWithDecimalsPreserved(formatAsPercentAdjustedBalanceWithDecimals)
+                        balanceObj.setFormatAsPercent100Applied(True)
+
+                        if debug: myPrint("DB", ":: Row: %s format as percent applied - multiplied by 100 - adjusted: %s (%s) to %s (%s)"
+                                          %(i+1, originalBalanceLong, originalBalanceDecimals, formatAsPercentAdjustedBalanceLong, formatAsPercentAdjustedBalanceWithDecimals))
+
+                tookTime = System.currentTimeMillis() - thisSectionStartTime
+                if debug or TIMING_DEBUG:
+                    stage = "6b"; stageTxt = "::calculateBalances()"
                     myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
                 thisSectionStartTime = System.currentTimeMillis()
 
@@ -16828,6 +16899,7 @@ Visit: %s (Author's site)
                                     lUseAverage = NAB.doesRowUseAvgBy(i)
                                     lRowMathsCalculation = (NAB.savedRowMathsCalculationTable[i][NAB.ROW_MATHS_CALC_VALUE_IDX] != 0.0)
                                     lFinalMathsCalculation = (NAB.savedFinalMathsCalculationTable[i][NAB.FINAL_MATHS_CALC_VALUE_IDX] != 0.0)
+                                    lFormatAsPercent = (NAB.savedFormatAsPercentTable[i][NAB.FORMAT_AS_PERCENT_IDX])
                                     lUsesOtherRow = (NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_ROW] is not None)
                                     lUseTaxDates = (NAB.savedUseTaxDates and isIncomeExpenseDatesSelected(i))
 
@@ -16966,9 +17038,7 @@ Visit: %s (Author's site)
                                             theFormattedValue = "  "
                                         else:
                                             fancy = (not NAB.savedDisableCurrencyFormatting[i])
-                                            wantsPercent = ((lUsesOtherRow and NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_WANTPERCENT])
-                                                            or (lFinalMathsCalculation and NAB.savedFinalMathsCalculationTable[i][NAB.FINAL_MATHS_CALC_WANTPERCENT_IDX]))
-                                            # or (lRowMathsCalculation and NAB.savedRowMathsCalculationTable[i][NAB.ROW_MATHS_CALC_WANTPERCENT_IDX]))
+                                            wantsPercent = lFormatAsPercent
                                             if wantsPercent: fancy = False
                                             theFormattedValue = formatFancy(balanceObj.getCurrencyType(),
                                                                             balanceOrAverageLong,

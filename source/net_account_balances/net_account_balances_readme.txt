@@ -217,21 +217,16 @@ CALCULATIONS ON CALCULATED BALANCES:
 
 - Maths using another row: If set, you can retrieve the result from another row(x) and then apply maths
                            to the result of the current row.. E.g. take this row and divide it by the result from row(x)
-                           and treat the result as a percent. For example, this could calculate the value of investments
-                           as a percentage of total networth...
+                           For example, this could calculate the value of investments as a percentage of total networth.
                            UORs can be chained together. E.G. row 3 can use row 2 and row 2 can use row 1
-
-                           NOTE: 'Format as %' with a divide operator MULTIPLIES the result by 100.
 
                            WARNING: There is no currency conversion between chained UORs
 
 - Final maths calculation: If set, then you can apply maths to the row's final calculation as the very last step
                            ... AFTER all other calculations (including other rows) have been applied.
 
-                           NOTE: 'Format as %' with a divide operator does NOT multiply the result by 100.
-
-                           WARNING: 'Format as %' could conflict with the same setting in 'Maths using another row'...
-                                    ... i.e. if either request %, then you will always get a percent!
+- Format as %: When ticked then normal currency formatting is disabled and the '%' symbol is appended.
+               When 'Multiply by 100' is also ticked, then the final result is multipled by 100.
 
 - Hide row when options: Never, Always(Disable), balance = X, balance >= X, balance <= X. DEFAULT FOR X is ZERO
     >> 'Always(Disable)' is ignored in use other row calculations that require this row!
