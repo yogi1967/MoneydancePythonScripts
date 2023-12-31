@@ -109,6 +109,9 @@
 # build: 1043 - Fixed AsOfDateChooser.getAsOfDateInt() to return Integer.intValue() (instead of Integer)
 # build: 1044 - Added long/short-term capital gains calculations; New/enhanced final calculation adjustment features
 #               Address UOR chaining loss of decimal precision...; added (this) row maths calculation (rmc); switched to single format as % option...
+#               Allow RMC when Balance is None... (i.e. no picklist)....
+
+# todo - allow <#TAG xxx> in row name, and to call on this from other rows..?
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -8548,10 +8551,16 @@ Visit: %s (Author's site)
             self.mathsUORApplied = False                    # type: bool
             self.finalMathsApplied = False                  # type: bool
             self.formatAsPercent100Applied = False          # type: bool
+            self.countSelectedAccounts = 0                  # type: int
+            self.autoSum = False                            # type: bool
             self.UORChain = []                              # type: [int]
             if self.UORError: self.setUORError(UORError)
             self.updateLastUpdated()
 
+        def getAutoSum(self): return self.autoSum
+        def setAutoSum(self, autoSum): self.autoSum = autoSum
+        def getCountSelectedAccounts(self): return self.countSelectedAccounts
+        def setCountSelectedAccounts(self, countSelectedAccounts): self.countSelectedAccounts = countSelectedAccounts
         def getAverageByApplied(self): return self.averageByApplied
         def setAverageByApplied(self, applied): self.averageByApplied = applied
         def getMathsUORApplied(self): return self.mathsUORApplied
@@ -8592,12 +8601,14 @@ Visit: %s (Author's site)
             clonedBalObj.setFinalMathsApplied(self.getFinalMathsApplied())
             clonedBalObj.setFormatAsPercent100Applied(self.getFormatAsPercent100Applied())
             clonedBalObj.setUORChain(self.getUORChain())
+            clonedBalObj.setAutoSum(self.getAutoSum())
+            clonedBalObj.setCountSelectedAccounts(self.getCountSelectedAccounts())
             return clonedBalObj
 
-        def __str__(self):      return  "[uuid: '%s', row name: '%s', curr: '%s', balance: %s, balanceWithDecimals: %s, extra row txt: '%s', isUORError: %s, rowNumber: %s, avgByApplied: %s, rowMathsApplied: %s, MUORApplied: %s, finalMathsApplied: %s, formatAsPercent100Applied: %s, UORChain: %s]"\
-                                        %(self.getUUID(), self.getRowName(), self.getCurrencyType(), self.getBalance(), self.getBalanceWithDecimalsPreserved(), self.getExtraRowTxt(), self.isUORError(), self.getRowNumber(), self.getAverageByApplied(), self.getRowMathsApplied(), self.getMathsUORApplied(), self.getFinalMathsApplied(), self.getFormatAsPercent100Applied(), self.getUORChain())
-        def __repr__(self):     return self.__str__()
         def toString(self):     return self.__str__()
+        def __repr__(self):     return self.__str__()
+        def __str__(self):      return  "[uuid: '%s', row name: '%s', curr: '%s', balance: %s, balanceWithDecimals: %s, extra row txt: '%s', isUORError: %s, rowNumber: %s, avgByApplied: %s, rowMathsApplied: %s, MUORApplied: %s, finalMathsApplied: %s, formatAsPercent100Applied: %s, countSelectedAccounts: %s, autoSum: %s, UORChain: %s]"\
+                                        %(self.getUUID(), self.getRowName(), self.getCurrencyType(), self.getBalance(), self.getBalanceWithDecimalsPreserved(), self.getExtraRowTxt(), self.isUORError(), self.getRowNumber(), self.getAverageByApplied(), self.getRowMathsApplied(), self.getMathsUORApplied(), self.getFinalMathsApplied(), self.getFormatAsPercent100Applied(), self.getCountSelectedAccounts(), self.getAutoSum(), self.getUORChain())
 
     def scaleIcon(_icon, scaleFactor):
         bufferedImage = BufferedImage(_icon.getIconWidth(), _icon.getIconHeight(), BufferedImage.TYPE_INT_ARGB)
@@ -12376,7 +12387,7 @@ Visit: %s (Author's site)
                                    NAB.savedAverageByFractionalsTable,
                                    NAB.savedRowMathsCalculationTable,
                                    NAB.savedFinalMathsCalculationTable,
-                                   NAB.savedRowMathsCalculationTable,
+                                   NAB.savedFormatAsPercentTable,
                                    NAB.savedWidgetName,
                                    NAB.savedUUIDTable,
                                    NAB.savedGroupIDTable,
@@ -14613,7 +14624,7 @@ Visit: %s (Author's site)
                     utiliseRow_lbl = MyJLabel("Use result from row:")
                     utiliseRow_lbl.putClientProperty("%s.id" %(NAB.myModuleID), "utiliseRow_lbl")
                     utiliseRow_lbl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    operateOnAnotherRow_pnl.add(utiliseRow_lbl, GridC.getc(onUtiliseOtherRowCol, onUtiliseOtherRowRow).leftInset(5))
+                    operateOnAnotherRow_pnl.add(utiliseRow_lbl, GridC.getc(onUtiliseOtherRowCol, onUtiliseOtherRowRow))
                     onUtiliseOtherRowCol += 1
 
                     NAB.utiliseOtherRow_JTFAI = MyJTextFieldAsIntOtherRow(NAB, 5, NAB.decimal)
@@ -14623,7 +14634,7 @@ Visit: %s (Author's site)
                     NAB.utiliseOtherRow_JTFAI.setName("utiliseOtherRow_JTFAI")
                     NAB.utiliseOtherRow_JTFAI.setToolTipText("[Optional] Enter another row number to perform maths on this row's result using other row's result")
                     NAB.utiliseOtherRow_JTFAI.addFocusListener(NAB.saveFocusListener)
-                    operateOnAnotherRow_pnl.add(NAB.utiliseOtherRow_JTFAI, GridC.getc(onUtiliseOtherRowCol, onUtiliseOtherRowRow).leftInset(5).wx(1.0).fillboth().west())
+                    operateOnAnotherRow_pnl.add(NAB.utiliseOtherRow_JTFAI, GridC.getc(onUtiliseOtherRowCol, onUtiliseOtherRowRow).leftInset(5).wx(1.0).fillboth().padx(18).west())
                     onUtiliseOtherRowCol += 1
 
                     operator_lbl = MyJLabel("Operator:")
@@ -14721,6 +14732,16 @@ Visit: %s (Author's site)
                     onformatAsPercentCol += 1
 
                     controlPnl.add(formatAsPercent_pnl, GridC.getc(onCol, onRow).west().leftInset(colInsetFiller).fillx().pady(pady).filly().colspan(1))
+                    onRow += 1
+
+                    # --------------------------------------------------------------------------------------------------
+                    onCol = 1
+                    topInset = 8
+                    bottomInset = 5
+                    js = MyJSeparator()
+                    js.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    controlPnl.add(js, GridC.getc(onCol, onRow).leftInset(colLeftInset).topInset(topInset).rightInset(colRightInset).bottomInset(bottomInset).colspan(3).fillx())
+
                     onRow += 1
 
                     # --------------------------------------------------------------------------------------------------
@@ -16415,6 +16436,8 @@ Visit: %s (Author's site)
                                                              uuid=NAB.savedUUIDTable[iAccountLoop],
                                                              rowNumber=onRow)
                     calculatedBalanceObj.setBalanceWithDecimalsPreserved(None if (totalBalance is None) else thisRowCurr.getDoubleValue(totalBalance))
+                    calculatedBalanceObj.setCountSelectedAccounts(len(accountsToShow[iAccountLoop]))
+                    calculatedBalanceObj.setAutoSum(NAB.savedAutoSumAccounts[iAccountLoop])
                     _totalBalanceTable.append(calculatedBalanceObj)
 
                 del accountsToShow, totalBalance, parallelFullAccountsList
@@ -16451,34 +16474,40 @@ Visit: %s (Author's site)
                     myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
                 thisSectionStartTime = System.currentTimeMillis()
 
-                # Perform (this) row maths calculations (adjustments)...
+                # RMC: Perform (this) row maths calculations (adjustments)...
                 for i in range(0, len(_totalBalanceTable)):
                     balanceObj = _totalBalanceTable[i]                                                                  # type: CalculatedBalance
-                    if (balanceObj.getBalance() is not None):
-                        rowMathsCalculationOperand = NAB.savedRowMathsCalculationTable[i][NAB.ROW_MATHS_CALC_VALUE_IDX]
-                        lRowMathsCalculation = (rowMathsCalculationOperand != 0.0)
-                        if not lRowMathsCalculation: continue
 
+                    rowMathsCalculationOperand = NAB.savedRowMathsCalculationTable[i][NAB.ROW_MATHS_CALC_VALUE_IDX]
+                    lRowMathsCalculation = (rowMathsCalculationOperand != 0.0)
+                    if not lRowMathsCalculation: continue
+
+                    if (balanceObj.getBalance() is None):
+                        if debug: myPrint("B", "@@ Row: %s - Balance was None (selected accounts: %s, autoSum: %s), but RMC was requested, so passing 0.0 into RMC (%s)..."
+                                                  %(i+1, balanceObj.getCountSelectedAccounts(), balanceObj.getAutoSum(), NAB.savedRowMathsCalculationTable[i]))
+                        originalBalanceLong = 0
+                        originalBalanceDecimals = 0.0
+                    else:
                         originalBalanceLong = balanceObj.getBalance()
                         originalBalanceDecimals = balanceObj.getBalanceWithDecimalsPreserved()
 
-                        operator = NAB.savedRowMathsCalculationTable[i][NAB.ROW_MATHS_CALC_OPERATOR_IDX]
-                        if operator == "+":
-                            rowMathsCalcAdjustedBalanceWithDecimals = (originalBalanceDecimals + rowMathsCalculationOperand)
-                        elif operator == "-":
-                            rowMathsCalcAdjustedBalanceWithDecimals = (originalBalanceDecimals - rowMathsCalculationOperand)
-                        elif operator == "*":
-                            rowMathsCalcAdjustedBalanceWithDecimals = (originalBalanceDecimals * rowMathsCalculationOperand)
-                        elif operator == "/":
-                            rowMathsCalcAdjustedBalanceWithDecimals = (originalBalanceDecimals / rowMathsCalculationOperand)
-                        else: raise Exception("LOGIC ERROR - Unknown (this) row maths calculation operator '%s' on RowIdx: %s" %(operator, i))
-                        rowMathsCalcAdjustedBalanceLong = balanceObj.getCurrencyType().getLongValue(rowMathsCalcAdjustedBalanceWithDecimals)
+                    operator = NAB.savedRowMathsCalculationTable[i][NAB.ROW_MATHS_CALC_OPERATOR_IDX]
+                    if operator == "+":
+                        rowMathsCalcAdjustedBalanceWithDecimals = (originalBalanceDecimals + rowMathsCalculationOperand)
+                    elif operator == "-":
+                        rowMathsCalcAdjustedBalanceWithDecimals = (originalBalanceDecimals - rowMathsCalculationOperand)
+                    elif operator == "*":
+                        rowMathsCalcAdjustedBalanceWithDecimals = (originalBalanceDecimals * rowMathsCalculationOperand)
+                    elif operator == "/":
+                        rowMathsCalcAdjustedBalanceWithDecimals = (originalBalanceDecimals / rowMathsCalculationOperand)
+                    else: raise Exception("LOGIC ERROR - Unknown (this) row maths calculation operator '%s' on RowIdx: %s" %(operator, i))
+                    rowMathsCalcAdjustedBalanceLong = balanceObj.getCurrencyType().getLongValue(rowMathsCalcAdjustedBalanceWithDecimals)
 
-                        balanceObj.setBalance(rowMathsCalcAdjustedBalanceLong)
-                        balanceObj.setBalanceWithDecimalsPreserved(rowMathsCalcAdjustedBalanceWithDecimals)
-                        balanceObj.setRowMathsApplied(True)
-                        if debug: myPrint("DB", ":: Row: %s using (this) row maths calculation adjustment of '%s' adjusted: %s (%s) to %s (%s)"
-                                          %(i+1, NAB.savedRowMathsCalculationTable[i], originalBalanceLong, originalBalanceDecimals, rowMathsCalcAdjustedBalanceLong, rowMathsCalcAdjustedBalanceWithDecimals))
+                    balanceObj.setBalance(rowMathsCalcAdjustedBalanceLong)
+                    balanceObj.setBalanceWithDecimalsPreserved(rowMathsCalcAdjustedBalanceWithDecimals)
+                    balanceObj.setRowMathsApplied(True)
+                    if debug: myPrint("DB", ":: Row: %s using (this) row maths calculation adjustment of '%s' adjusted: %s (%s) to %s (%s)"
+                                      %(i+1, NAB.savedRowMathsCalculationTable[i], originalBalanceLong, originalBalanceDecimals, rowMathsCalcAdjustedBalanceLong, rowMathsCalcAdjustedBalanceWithDecimals))
 
                 tookTime = System.currentTimeMillis() - thisSectionStartTime
                 if debug or TIMING_DEBUG:
@@ -16487,8 +16516,8 @@ Visit: %s (Author's site)
                 thisSectionStartTime = System.currentTimeMillis()
 
 
-                ###########################################################
-                # Perform maths using results from other rows (optional)...
+                ################################################################
+                # UOR: Perform maths using results from other rows (optional)...
                 # First work out the chains...
                 UORChains = {}
                 for i in range(0, len(_totalBalanceTable)):
@@ -16596,7 +16625,7 @@ Visit: %s (Author's site)
                 thisSectionStartTime = System.currentTimeMillis()
 
                 ###################################################
-                # Perform final maths calculations (adjustments)...
+                # FMC: Perform final maths calculations (adjustments)...
                 for i in range(0, len(_totalBalanceTable)):
                     balanceObj = _totalBalanceTable[i]                                                                  # type: CalculatedBalance
                     if (balanceObj.getBalance() is not None):

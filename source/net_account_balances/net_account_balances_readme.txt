@@ -208,23 +208,28 @@ MATH ON CALCULATED BALANCES:
       *** NOTE: DO NOT select to use a date range if no Inc/Exp categories are selected. It will automatically revert
                 back to All dates at a later point when it validates the settings.
 
-- Row maths calculation:   You can apply maths to this row's calculation. This will be applied BEFORE
-                           it's used elsewhere (i.e. used in other rows). RMC occurs after Average by...
-                           - E.g. take this row, divide it by operand(x),  and treat the result as a percentage.
-                             For example, calculate the estimated tax payable as a percentage of dividend income YTD..
-                             ... by multiplying the calculated row * 0.2 (20%), and returning the taxable amount.
+- Row maths calculation (RMC): You can apply maths to this row's calculation. This will be applied BEFORE
+                               it's used elsewhere (i.e. used in other rows). RMC occurs after Average by...
+                               - E.g. take this row, divide it by operand(x),  and treat the result as a percentage.
+                                 For example, calculate the estimated tax payable as a percentage of dividend income YTD
+                                 ... by multiplying the calculated row * 0.2 (20%), and returning the taxable amount.
+
+                           NOTE: You can enter an RMC with no accounts selected in the picklist. The calculation will
+                                 start from 0.0. This is a way to create a reusable row constant for use in other
+                                 rows - e.g. RMC: + 0.22 for a 22% tax rate. NOTE: As soon as you enable this, then the
+                                 following UOR, FMC, Format as %, Multiply by 100 would also trigger for the row...
 
                            WARNING: You can use both average by, and RMC. This could cause strange results!
 
-- Maths using another row: You can retrieve the result from another row(x) and then apply maths
-                           to the result of the current row.. E.g. take this row and divide it by the result from row(x)
-                           For example, this could calculate the value of investments as a percentage of total networth.
-                           UORs can be chained together. E.G. row 3 can use row 2 and row 2 can use row 1
+- Maths using another row (UOR): You can retrieve the result from another row(x) and then apply maths to the result of
+                                 the current row.. E.g. take this row and divide it by the result from row(x).
+                                 E.g. this could calculate the value of investments as a percentage of total networth.
+                                 UORs can be chained together. E.G. row 3 can use row 2 and row 2 can use row 1
 
-                           WARNING: There is no currency conversion between chained UORs
+                                 WARNING: There is no currency conversion between chained UORs
 
-- Final maths calculation: You can apply maths to the row's final calculation as the very last step
-                           ... AFTER all other calculations (including other rows) have been applied.
+- Final maths calculation (FMC): You can apply maths to the row's final calculation as the very last step
+                                 ... AFTER all other calculations (including other rows) have been applied.
 
 - Format as %: When ticked then normal currency formatting is disabled and the '%' symbol is appended.
                When 'Multiply by 100' is also ticked, then the final result is multiplied by 100.
