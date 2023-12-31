@@ -1,5 +1,5 @@
-Author: Stuart Beesley - StuWareSoftSystems (March 2021 - a lockdown project) - Last updated December 2023
-Credit: (slack: @dtd) aka Dan T Davis for his input, testing and suggestions to make a better product......
+Author: Stuart Beesley - StuWareSoftSystems (March 2021 - a lockdown project) - Last updated January 2024
+Credit: (slack: @dtd) aka Dan T Davis for his input, testing and suggestions to make a (MUCH) better product......
 
 Custom Balances works with 2021.1(3056) and newer.
 DISCLAIMER: THIS EXTENSION IS READONLY (IT DOES NOT CHANGE DATA) >> BUT YOU USE AT YOUR OWN RISK!
@@ -133,11 +133,11 @@ CHOICES/CONFIGURATION FOR A ROW:
         - WARNING: tax dates on (non-recorded) reminders cannot be calculated. The 'normal' date will be applied.
         - WARNING: REFER 'PARALLEL BALANCES' BELOW CONCERNING CALCULATION SPEED
 
-- Securities: Return Cost Basis / Unrealised Gains / Capital Gains option(s):
-    - Rtn Value:             [DEFAULT] Cost Basis is not calculated. Returns the normal balance.
+- Securities: Rtn: Value / Cost Basis / Unrealised Gains / Capital Gains option(s):
+    - Rtn Value:             [DEFAULT] Returns the normal balance (i.e. this does not enable cost basis options)
 
     - Rtn Cost Basis:        When selected, the cost basis (**as of the balance / asof date) for selected Security
-                             accounts will be returned (instead of the normal shareholding).
+                             accounts will be returned (instead of the normal shareholding value).
 
     - (CB Incl. cash):       The same as 'Rtn Cost Basis' but includes Investment account's cash balances...
                              When selected then cash balances on (selected) investment accounts will be included too.
@@ -179,6 +179,8 @@ CHOICES/CONFIGURATION FOR A ROW:
 
 - Securities Capital Gains: This option only appears when return capital gains is selected.
 
+
+
 - INC/EXP Date Range: Income/Expense Categories need a date range to provide a balance.
                       Otherwise they have entries for all dates. (Details below)
 
@@ -205,6 +207,14 @@ CALCULATIONS ON CALCULATED BALANCES:
       *** NOTE: DO NOT select to use a date range if no Inc/Exp categories are selected. It will automatically revert
                 back to All dates at a later point when it validates the settings.
 
+- Row maths calculation:   If set, then you can apply maths to this row's calculation. This will be applied BEFORE
+                           it's used elsewhere (i.e. used in other rows). RMC occurs after Average by...
+                           - E.g. take this row, divide it by operand(x),  and treat the result as a percentage.
+                             For example, calculate the estimated tax payable as a percentage of dividend income YTD..
+                             ... by multiplying the calculated row * 0.2 (20%), and returning the taxable amount.
+
+                           WARNING: You can use both average by, and RMC. This could cause strange results!
+
 - Maths using another row: If set, you can retrieve the result from another row(x) and then apply maths
                            to the result of the current row.. E.g. take this row and divide it by the result from row(x)
                            and treat the result as a percent. For example, this could calculate the value of investments
@@ -215,10 +225,8 @@ CALCULATIONS ON CALCULATED BALANCES:
 
                            WARNING: There is no currency conversion between chained UORs
 
-- Final maths calculation: If set, then you can apply maths to the row's final calculation as the very last step.
-                           E.g. take this row, divide it by operand(x),  and treat the result as a percentage.
-                           For example, calculate the estimated tax payable as a percentage of dividend income YTD..
-                           ... by multiplying the calculated row * 0.2 (20%), and returning a percentage.
+- Final maths calculation: If set, then you can apply maths to the row's final calculation as the very last step
+                           ... AFTER all other calculations (including other rows) have been applied.
 
                            NOTE: 'Format as %' with a divide operator does NOT multiply the result by 100.
 
@@ -247,27 +255,6 @@ CALCULATIONS ON CALCULATED BALANCES:
 
                  NOTE: For 'Multi-Warnings Detected' review Help>Console Window for details
                        .. The search for warnings stops after the first occurrence of each type of error it finds....
-
-
-KEY TO ROW FORMATTING ON SUMMARY SCREEN:
-Against each row you may see (in small grey characters) the following (text) with these meanings (when option enabled):
-(curr)          Will display the selected currency's ID when the base currency is not selected - e.g. 'GBP' or 'USD'
-(avg/by: x)     Average by operand
-(balasof)       Balance asof date
-(rems)          Reminders included
-(cb)            Cost Basis (no cash is being included)
-(cb-c)          Cost Basis, including cash from selected investment accounts
-(urg)           Unrealised Gains
-(cg)            Capital Gains
-(cg-s)          Capital Gains - Short Term value
-(cg-l)          Capital Gains - Long Term value
-(fmc)           Final maths calculation is being applied
-(txd)           Tax dates are being used
-(uor: x)        Maths using another row(x) is being applied
-
-NOTE: If you enable debug mode, then these may be expanded into fuller definitions where appropriate.
-(uuid: x)       When debugging, the row's UUID(x) will be shown. Useful when using CMD-SHIFT-I and CMD-SHIFT-L
-
 
 ACCOUNT SELECTION LIST:
 
@@ -345,7 +332,7 @@ BACKUP/RESTORE:
 
 
 
->>>>> DETAILS SECTION <<<<<
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> DETAILS SECTION <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 SELECT ROW INFORMATION:
 
@@ -421,7 +408,8 @@ DATE OFFSET:
       E.g. if you select 'Last year' (i.e. 'period' range is year) and offset -1, then you will get a range date
       calculated that includes 'last year' minus 1 (period) year (=end two years ago). Offset works either -backwards,
       or +forwards .
-      >> Offset does not apply to 'Custom', 'asof end future (all dates)', 'All dates', and 'Last 1 day (yesterday & today)' selection(s)...
+      >> Offset does not apply to 'Custom', 'asof end future (all dates)', 'All dates',
+         and 'Last 1 day (yesterday & today)' selection(s)...
 
 
 ROW NAME FORMATTING:
@@ -485,26 +473,26 @@ USING CATEGORIES (DATE RANGE)
   - NOTE: The 'Balance asof Date' has no bearing on this setting which is used exclusively for Income / Expense txns.
 
   - I/E Date Range options:
-    Example: Given a today's date of 4th November 2023 (20231104), the I/E Date Range filters will return the following:
-    DR_YEAR_TO_DATE                20230101 - 20231104
-    DR_FISCAL_YEAR_TO_DATE         20230406 - 20231104  (assuming a UK tax year starting 6th April 2023)
-    DR_LAST_FISCAL_QUARTER         20230706 - 20231005
-    DR_QUARTER_TO_DATE             20231001 - 20231104
-    DR_MONTH_TO_DATE               20231101 - 20231104
-    DR_THIS_YEAR                   20230101 - 20231231 **future**
-    DR_THIS_FISCAL_YEAR            20230406 - 20240405 **future**
-    DR_THIS_QUARTER                20231001 - 20231231 **future**
-    DR_THIS_MONTH                  20231101 - 20231130 **future**
-    DR_THIS_WEEK                   20231029 - 20231104
-    DR_LAST_YEAR                   20220101 - 20221231
-    DR_LAST_FISCAL_YEAR            20220406 - 20230405
-    DR_LAST_QUARTER                20230701 - 20230930
-    DR_LAST_MONTH                  20231001 - 20231031
-    DR_LAST_WEEK                   20231022 - 20231028
-    DR_LAST_12_MONTHS              20221101 - 20231031
-    DR_LAST_365_DAYS               20221105 - 20231104
-    DR_LAST_30_DAYS                20231006 - 20231104
-    DR_LAST_1_DAY                  20231103 - 20231104  (known as yesterday and today, which is actually 2 days)
+    Example: Given a today's date of 4th November 2024 (20241104), the I/E Date Range filters will return the following:
+    DR_YEAR_TO_DATE                20240101 - 20241104
+    DR_FISCAL_YEAR_TO_DATE         20240406 - 20241104  (assuming a UK tax year starting 6th April 2023)
+    DR_LAST_FISCAL_QUARTER         20240706 - 20241005
+    DR_QUARTER_TO_DATE             20241001 - 20241104
+    DR_MONTH_TO_DATE               20241101 - 20241104
+    DR_THIS_YEAR                   20240101 - 20241231 **future**
+    DR_THIS_FISCAL_YEAR            20240406 - 20250405 **future**
+    DR_THIS_QUARTER                20241001 - 20241231 **future**
+    DR_THIS_MONTH                  20241101 - 20241130 **future**
+    DR_THIS_WEEK                   20241029 - 20241104
+    DR_LAST_YEAR                   20230101 - 20231231
+    DR_LAST_FISCAL_YEAR            20230406 - 20240405
+    DR_LAST_QUARTER                20240701 - 20240930
+    DR_LAST_MONTH                  20241001 - 20241031
+    DR_LAST_WEEK                   20241022 - 20241028
+    DR_LAST_12_MONTHS              20231101 - 20241031
+    DR_LAST_365_DAYS               20231105 - 20241104
+    DR_LAST_30_DAYS                20241006 - 20241104
+    DR_LAST_1_DAY                  20241103 - 20241104  (known as yesterday and today, which is actually 2 days)
     DR_ALL_DATES                   (returns all dates)  (from 1970 thru 2100)
 
     NOTE: The above will interact with your Balance/Current Balance/Cleared setting for that row:
@@ -519,8 +507,28 @@ USING CATEGORIES (DATE RANGE)
     NOTE: All the date options are dynamic and will auto adjust, except 'Custom' dates which remain as you set them
 
 
-DETAILS ON HOW CALCULATIONS OF BALANCES OCCURS:
+KEY TO ROW FORMATTING ON SUMMARY SCREEN:
+Against each row you may see (in small grey characters) the following (text) with these meanings (when option enabled):
+(curr)          Will display the selected currency's ID when the base currency is not selected - e.g. 'GBP' or 'USD'
+(avg/by: x)     Average by operand
+(balasof)       Balance asof date
+(rems)          Reminders included
+(cb)            Cost Basis (no cash is being included)
+(cb-c)          Cost Basis, including cash from selected investment accounts
+(urg)           Unrealised Gains
+(cg)            Capital Gains
+(cg-s)          Capital Gains - Short Term value
+(cg-l)          Capital Gains - Long Term value
+(rmc)           Row maths calculation is being applied
+(fmc)           Final maths calculation is being applied
+(txd)           Tax dates are being used
+(uor: x)        Maths using another row(x) is being applied
 
+NOTE: If you enable debug mode, then these may be expanded into fuller definitions where appropriate.
+(uuid: x)       When debugging, the row's UUID(x) will be shown. Useful when using CMD-SHIFT-I and CMD-SHIFT-L
+
+
+DETAILS ON HOW CALCULATIONS OF BALANCES OCCURS:
 
 >> CALCULATION ORDER: The calculations are performed is this sequence (for all rows, or just the simulation row):
     - Derive all rows required, and/or required within other rows (irrespective of always hide / GroupID filter)
@@ -529,8 +537,12 @@ DETAILS ON HOW CALCULATIONS OF BALANCES OCCURS:
     - Calculate raw balances for derived rows/accounts, including recursive sub accounts for autosum rows
     - Convert calculated balances to target currency
     - Iterate over each row/calculation, apply any average/by calculations
+    - Iterate over each row/calculation, apply any row maths calculations specified
     - Iterate over each row/calculation, apply any Use Other Row (UOR) calculations.. Iterate the whole UOR chain
-    - Lastly, iterate over each row/calculation, apply any final calculation adjustment amounts specified
+    - Iterate over each row/calculation, apply any final maths calculation specified
+    - Lastly, if 'Format as %' AND *100 are selected, then multiply result by 100.
+    NOTE: Format as %, Disable Currency Formatting, Hide Decimal Places only affect the final display, not calculations
+          ... although Hide Decimal Places can cause round-towards-x to be triggered...
 
     WARNING: Rows that are used within other rows are ALWAYS calculated, irrespective of hide/GroupID filter
              >> be mindful of the CPU / speed impact of non-displayed rows especially when using parallel calculations!

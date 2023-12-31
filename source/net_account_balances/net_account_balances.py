@@ -108,9 +108,7 @@
 #               Added row name insert variables - e.g. <##rn> for row number
 # build: 1043 - Fixed AsOfDateChooser.getAsOfDateInt() to return Integer.intValue() (instead of Integer)
 # build: 1044 - Added long/short-term capital gains calculations; New/enhanced final calculation adjustment features
-#               Address UOR chaining loss of decimal precision...
-
-# todo - consider: Change Average by to (Initial Math Calc) Add an Operator picklist to it at the end, that way you can do an average or a +/- adjust
+#               Address UOR chaining loss of decimal precision...; added (this) row maths calculation (rmc)
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -548,6 +546,7 @@ else:
     GlobalVars.extn_param_NEW_displayAverageTable_NAB        = None
     GlobalVars.extn_param_NEW_averageByCalUnitTable_NAB      = None
     GlobalVars.extn_param_NEW_averageByFractionalsTable_NAB  = None
+    GlobalVars.extn_param_NEW_rowMathsCalculationTable_NAB   = None
     GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB = None
     GlobalVars.extn_param_NEW_operateOnAnotherRowTable_NAB   = None
     GlobalVars.extn_param_NEW_UUIDTable_NAB                  = None
@@ -8544,6 +8543,7 @@ Visit: %s (Author's site)
             self.rowNumber = rowNumber                      # type: int            # Only set when needed - otherwise -1
             self.balanceWithDecimalsPreserved = None        # type: float
             self.averageByApplied = False                   # type: bool
+            self.rowMathsApplied = False                    # type: bool
             self.mathsUORApplied = False                    # type: bool
             self.finalMathsApplied = False                  # type: bool
             self.UORChain = []                              # type: [int]
@@ -8554,6 +8554,8 @@ Visit: %s (Author's site)
         def setAverageByApplied(self, applied): self.averageByApplied = applied
         def getMathsUORApplied(self): return self.mathsUORApplied
         def setMathsUORApplied(self, UORapplied): self.mathsUORApplied = UORapplied
+        def getRowMathsApplied(self): return self.rowMathsApplied
+        def setRowMathsApplied(self, rowMathsApplied): self.rowMathsApplied = rowMathsApplied
         def getFinalMathsApplied(self): return self.finalMathsApplied
         def setFinalMathsApplied(self, finalMathsApplied): self.finalMathsApplied = finalMathsApplied
         def getUORChain(self): return self.UORChain
@@ -8581,13 +8583,14 @@ Visit: %s (Author's site)
             clonedBalObj = CalculatedBalance(self.getRowName(), self.getCurrencyType(), self.getBalance(), self.getExtraRowTxt(), self.isUORError(), self.getUUID(), self.getRowNumber())
             clonedBalObj.setBalanceWithDecimalsPreserved(self.getBalanceWithDecimalsPreserved())
             clonedBalObj.setAverageByApplied(self.getAverageByApplied())
+            clonedBalObj.setRowMathsApplied(self.getRowMathsApplied())
             clonedBalObj.setMathsUORApplied(self.getMathsUORApplied())
             clonedBalObj.setFinalMathsApplied(self.getFinalMathsApplied())
             clonedBalObj.setUORChain(self.getUORChain())
             return clonedBalObj
 
-        def __str__(self):      return  "[uuid: '%s', row name: '%s', curr: '%s', balance: %s, balanceWithDecimals: %s, extra row txt: '%s', isUORError: %s, rowNumber: %s, avgByApplied: %s, MUORApplied: %s, finalMathsApplied: %s, UORChain: %s]"\
-                                        %(self.getUUID(), self.getRowName(), self.getCurrencyType(), self.getBalance(), self.getBalanceWithDecimalsPreserved(), self.getExtraRowTxt(), self.isUORError(), self.getRowNumber(), self.getAverageByApplied(), self.getMathsUORApplied(), self.getFinalMathsApplied(), self.getUORChain())
+        def __str__(self):      return  "[uuid: '%s', row name: '%s', curr: '%s', balance: %s, balanceWithDecimals: %s, extra row txt: '%s', isUORError: %s, rowNumber: %s, avgByApplied: %s, rowMathsApplied: %s, MUORApplied: %s, finalMathsApplied: %s, UORChain: %s]"\
+                                        %(self.getUUID(), self.getRowName(), self.getCurrencyType(), self.getBalance(), self.getBalanceWithDecimalsPreserved(), self.getExtraRowTxt(), self.isUORError(), self.getRowNumber(), self.getAverageByApplied(), self.getRowMathsApplied(), self.getMathsUORApplied(), self.getFinalMathsApplied(), self.getUORChain())
         def __repr__(self):     return self.__str__()
         def toString(self):     return self.__str__()
 
@@ -8804,16 +8807,25 @@ Visit: %s (Author's site)
             self.savedDisplayAverageTable        = None
             self.savedAverageByCalUnitTable      = None
             self.savedAverageByFractionalsTable  = None
-            self.savedFinalMathsCalculationTable = None
 
             self.savedOperateOnAnotherRowTable  = None
             self.OPERATE_OTHER_ROW_ROW          = 0
             self.OPERATE_OTHER_ROW_OPERATOR     = 1
             self.OPERATE_OTHER_ROW_WANTPERCENT  = 2
 
+            self.savedRowMathsCalculationTable   = None
+            self.ROW_MATHS_CALC_VALUE_IDX    = 0
+            self.ROW_MATHS_CALC_OPERATOR_IDX = 1
+            self.ROW_MATHS_CALC_UNUSED       = 2
+
+            self.savedFinalMathsCalculationTable = None
             self.FINAL_MATHS_CALC_VALUE_IDX       = 0
             self.FINAL_MATHS_CALC_OPERATOR_IDX    = 1
             self.FINAL_MATHS_CALC_WANTPERCENT_IDX = 2
+
+            self.savedFormatAsPercentTable = None
+            self.FORMAT_AS_PERCENT_IDX            = 0
+            self.FORMAT_AS_PERCENT_MULT100_IDX    = 1
 
             self.savedUUIDTable                 = None
             self.savedGroupIDTable              = None
@@ -8894,6 +8906,10 @@ Visit: %s (Author's site)
             self.displayAverageCal_LBL                = None
             self.averageByCalUnit_COMBO               = None
             self.averageByFractionals_CB              = None
+
+            self.rowMathsCalculationAdjustValue_JRF   = None
+            self.rowMathsCalculationOperator_COMBO    = None
+            # self.rowMathsCalculationIsPercent_CB      = None
 
             self.finalMathsCalculationAdjustValue_JRF = None
             self.finalMathsCalculationOperator_COMBO  = None
@@ -9309,6 +9325,7 @@ Visit: %s (Author's site)
             GlobalVars.extn_param_NEW_displayAverageTable_NAB        = copy.deepcopy(NAB.savedDisplayAverageTable)
             GlobalVars.extn_param_NEW_averageByCalUnitTable_NAB      = copy.deepcopy(NAB.savedAverageByCalUnitTable)
             GlobalVars.extn_param_NEW_averageByFractionalsTable_NAB  = copy.deepcopy(NAB.savedAverageByFractionalsTable)
+            GlobalVars.extn_param_NEW_rowMathsCalculationTable_NAB   = copy.deepcopy(NAB.savedRowMathsCalculationTable)
             GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB = copy.deepcopy(NAB.savedFinalMathsCalculationTable)
             GlobalVars.extn_param_NEW_operateOnAnotherRowTable_NAB   = copy.deepcopy(NAB.savedOperateOnAnotherRowTable)
             GlobalVars.extn_param_NEW_UUIDTable_NAB                  = copy.deepcopy(NAB.savedUUIDTable)
@@ -9975,6 +9992,7 @@ Visit: %s (Author's site)
         def averageByCalUnitDefault(self):              return 0
         def averageByFractionalsDefault(self):          return True
         def operateOnAnotherRowDefault(self):           return [None, None, None]   # int(row), str(operator), bool(%?)
+        def rowMathsCalculationDefault(self):           return [0.0, None, None]    # float(adjustValue), str(operator), None(unused)
         def finalMathsCalculationDefault(self):         return [0.0, None, None]    # float(adjustValue), str(operator), bool(%?)
         def disableWidgetTitleDefault(self):            return False
         def showDashesInsteadOfZerosDefault(self):      return False
@@ -10062,6 +10080,10 @@ Visit: %s (Author's site)
                 self.savedAverageByFractionalsTable = [self.averageByFractionalsDefault() for i in range(0, self.getNumberOfRows())]
                 myPrint("B", "New parameter savedAverageByFractionalsTable detected, pre-populating with %s (= False = only calculate whole/integer Calendar Units for avg/by)" %(self.savedAverageByFractionalsTable))
 
+            if self.savedRowMathsCalculationTable == [self.rowMathsCalculationDefault()] and len(self.savedRowMathsCalculationTable) != self.getNumberOfRows():
+                self.savedRowMathsCalculationTable = [self.rowMathsCalculationDefault() for i in range(0, self.getNumberOfRows())]
+                myPrint("B", "New parameter savedRowMathsCalculationTable detected, pre-populating with %s (= 0.0 = no adjustment to row calculation)" %(self.savedRowMathsCalculationTable))
+
             if self.savedFinalMathsCalculationTable == [self.finalMathsCalculationDefault()] and len(self.savedFinalMathsCalculationTable) != self.getNumberOfRows():
                 self.savedFinalMathsCalculationTable = [self.finalMathsCalculationDefault() for i in range(0, self.getNumberOfRows())]
                 myPrint("B", "New parameter savedFinalMathsCalculationTable detected, pre-populating with %s (= 0.0 = no adjustment to final calculation)" %(self.savedFinalMathsCalculationTable))
@@ -10124,6 +10146,8 @@ Visit: %s (Author's site)
                 self.resetParameters(35)
             elif self.savedAverageByFractionalsTable is None or not isinstance(self.savedAverageByFractionalsTable, list) or len(self.savedAverageByFractionalsTable) < 1:
                 self.resetParameters(36)
+            elif self.savedRowMathsCalculationTable is None or not isinstance(self.savedRowMathsCalculationTable, list) or len(self.savedRowMathsCalculationTable) < 1:
+                self.resetParameters(37)
             elif self.savedFinalMathsCalculationTable is None or not isinstance(self.savedFinalMathsCalculationTable, list) or len(self.savedFinalMathsCalculationTable) < 1:
                 self.resetParameters(38)
             elif self.savedAutoSumDefault is None or not isinstance(self.savedAutoSumDefault, bool):
@@ -10190,6 +10214,8 @@ Visit: %s (Author's site)
                 self.resetParameters(95)
             elif len(self.savedAverageByFractionalsTable) != self.getNumberOfRows():
                 self.resetParameters(96)
+            elif len(self.savedRowMathsCalculationTable) != self.getNumberOfRows():
+                self.resetParameters(97)
             elif len(self.savedFinalMathsCalculationTable) != self.getNumberOfRows():
                 self.resetParameters(98)
             else:
@@ -10327,6 +10353,10 @@ Visit: %s (Author's site)
                         printResetMessage("savedAverageByFractionalsTable", self.savedAverageByFractionalsTable[i], self.averageByFractionalsDefault(), i)
                         self.savedAverageByFractionalsTable[i] = self.averageByFractionalsDefault()
 
+                    if not self.isValidAndFixRowMathsCalculationParams(self.savedRowMathsCalculationTable[i]):
+                        printResetMessage("savedRowMathsCalculationTable", self.savedRowMathsCalculationTable[i], self.rowMathsCalculationDefault(), i)
+                        self.savedRowMathsCalculationTable[i] = self.rowMathsCalculationDefault()
+
                     if not self.isValidAndFixFinalMathsCalculationParams(self.savedFinalMathsCalculationTable[i]):
                         printResetMessage("savedFinalMathsCalculationTable", self.savedFinalMathsCalculationTable[i], self.finalMathsCalculationDefault(), i)
                         self.savedFinalMathsCalculationTable[i] = self.finalMathsCalculationDefault()
@@ -10353,6 +10383,26 @@ Visit: %s (Author's site)
                     if (operateOnAnotherRowParams[NAB.OPERATE_OTHER_ROW_OPERATOR] not in "+-/*"):               return False
             return True
 
+        def isValidAndFixRowMathsCalculationParams(self, rowMathsCalculationParams):
+            NAB = self
+            if not isinstance(rowMathsCalculationParams, list): return False
+            if len(rowMathsCalculationParams) != (NAB.ROW_MATHS_CALC_UNUSED + 1): return False
+            # [0.0, None, None] is OK
+            if not (rowMathsCalculationParams[NAB.ROW_MATHS_CALC_VALUE_IDX] == 0.0
+                    and rowMathsCalculationParams[NAB.ROW_MATHS_CALC_OPERATOR_IDX] is None
+                    and rowMathsCalculationParams[NAB.ROW_MATHS_CALC_UNUSED] is None):
+                if isinstance(rowMathsCalculationParams[NAB.ROW_MATHS_CALC_VALUE_IDX], (int, long)):
+                    myPrint("B", "WARNING: isValidAndFixRowMathsCalculationParams(%s) converting operand to float...." %(rowMathsCalculationParams))
+                    rowMathsCalculationParams[NAB.ROW_MATHS_CALC_VALUE_IDX] = float(rowMathsCalculationParams[NAB.ROW_MATHS_CALC_VALUE_IDX])
+                if rowMathsCalculationParams[NAB.ROW_MATHS_CALC_VALUE_IDX] == 0.0:
+                    pass
+                else:
+                    if not isinstance(rowMathsCalculationParams[NAB.ROW_MATHS_CALC_VALUE_IDX], float):          return False
+                    if not isinstance(rowMathsCalculationParams[NAB.ROW_MATHS_CALC_OPERATOR_IDX], basestring):  return False
+                    if (rowMathsCalculationParams[NAB.ROW_MATHS_CALC_OPERATOR_IDX] not in "+-/*"):              return False
+                    # if not isinstance(rowMathsCalculationParams[NAB.ROW_MATHS_CALC_UNUSED], bool):              return False
+            return True
+
         def isValidAndFixFinalMathsCalculationParams(self, finalMathsCalculationParams):
             NAB = self
             if not isinstance(finalMathsCalculationParams, list): return False
@@ -10370,7 +10420,7 @@ Visit: %s (Author's site)
                     if not isinstance(finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_VALUE_IDX], float):          return False
                     if not isinstance(finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_OPERATOR_IDX], basestring):  return False
                     if not isinstance(finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_WANTPERCENT_IDX], bool):     return False
-                    if (finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_OPERATOR_IDX] not in "+-/*"):                                              return False
+                    if (finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_OPERATOR_IDX] not in "+-/*"):              return False
             return True
 
         def isRowFilteredOutByGroupID(self, thisRowIdx):
@@ -10562,6 +10612,7 @@ Visit: %s (Author's site)
             self.savedDisplayAverageTable           = [self.displayAverageDefault()]
             self.savedAverageByCalUnitTable         = [self.averageByCalUnitDefault()]
             self.savedAverageByFractionalsTable     = [self.averageByFractionalsDefault()]
+            self.savedRowMathsCalculationTable      = [self.rowMathsCalculationDefault()]
             self.savedFinalMathsCalculationTable    = [self.finalMathsCalculationDefault()]
             self.savedUUIDTable                     = [self.UUIDDefault(newUUID=True)]
             self.savedGroupIDTable                  = [self.groupIDDefault()]
@@ -10928,6 +10979,8 @@ Visit: %s (Author's site)
                                       NAB.displayAverage_JRF,
                                       NAB.averageByCalUnit_COMBO,
                                       NAB.averageByFractionals_CB,
+                                      NAB.rowMathsCalculationAdjustValue_JRF,
+                                      NAB.rowMathsCalculationOperator_COMBO,
                                       NAB.finalMathsCalculationAdjustValue_JRF,
                                       NAB.finalMathsCalculationOperator_COMBO,
                                       NAB.finalMathsCalculationIsPercent_CB,
@@ -11065,6 +11118,16 @@ Visit: %s (Author's site)
             myPrint("DB", "about to set averageByFractionals_CB..")
             NAB.averageByFractionals_CB.setSelected(NAB.savedAverageByFractionalsTable[selectRowIndex])
 
+            myPrint("DB", "..about to set savedRowMathsCalculationTable...")
+            rowMathsCalculationOperand = NAB.savedRowMathsCalculationTable[selectRowIndex][NAB.ROW_MATHS_CALC_VALUE_IDX]
+            NAB.rowMathsCalculationAdjustValue_JRF.setValue(rowMathsCalculationOperand)
+            rowMathsCalculationOperator = NAB.savedRowMathsCalculationTable[selectRowIndex][NAB.ROW_MATHS_CALC_OPERATOR_IDX]
+            if rowMathsCalculationOperator is None: rowMathsCalculationOperator = "+"
+            NAB.rowMathsCalculationOperator_COMBO.setSelectedItem(rowMathsCalculationOperator)
+            # rowMathsCalculationWantsPercent = NAB.savedRowMathsCalculationTable[selectRowIndex][NAB.ROW_MATHS_CALC_WANTPERCENT_IDX]
+            # if rowMathsCalculationWantsPercent is None: rowMathsCalculationWantsPercent = False
+            # NAB.rowMathsCalculationIsPercent_CB.setSelected(rowMathsCalculationWantsPercent)
+
             myPrint("DB", "..about to set savedFinalMathsCalculationTable...")
             finalMathsCalculationOperand = NAB.savedFinalMathsCalculationTable[selectRowIndex][NAB.FINAL_MATHS_CALC_VALUE_IDX]
             NAB.finalMathsCalculationAdjustValue_JRF.setValue(finalMathsCalculationOperand)
@@ -11178,6 +11241,10 @@ Visit: %s (Author's site)
                 myPrint("B", ".....averageByCalUnit_COMBO: %s"                  %(NAB.averageByCalUnit_COMBO.getSelectedItem()))
                 myPrint("B", ".....savedAverageByFractionalsTable: %s"          %(NAB.savedAverageByFractionalsTable[selectRowIndex]))
                 myPrint("B", ".....averageByFractionals_CB: %s"                 %(NAB.averageByFractionals_CB.isSelected()))
+                myPrint("B", ".....savedRowMathsCalculationTable: %s"           %(NAB.savedRowMathsCalculationTable[selectRowIndex]))
+                myPrint("B", ".....rowMathsCalculationAdjustValue_JRF: %s"      %(NAB.rowMathsCalculationAdjustValue_JRF.getValue()))
+                myPrint("B", ".....rowMathsCalculationOperator_COMBO: %s"       %(NAB.rowMathsCalculationOperator_COMBO.getSelectedItem()))
+                # myPrint("B", ".....rowMathsCalculationIsPercent_CB: %s"         %(NAB.rowMathsCalculationIsPercent_CB.isSelected()))
                 myPrint("B", ".....savedFinalMathsCalculationTable: %s"         %(NAB.savedFinalMathsCalculationTable[selectRowIndex]))
                 myPrint("B", ".....finalMathsCalculationAdjustValue_JRF: %s"    %(NAB.finalMathsCalculationAdjustValue_JRF.getValue()))
                 myPrint("B", ".....finalMathsCalculationOperator_COMBO: %s"     %(NAB.finalMathsCalculationOperator_COMBO.getSelectedItem()))
@@ -11326,6 +11393,17 @@ Visit: %s (Author's site)
                     self.savedDisplayAverageTable[self.getSelectedRowIndex()] = txtFieldValue
                     self.setAvgByLabel(self.getSelectedRowIndex())
                     self.setAvgByControls(self.getSelectedRowIndex())
+                    self.configSaved = False
+
+                txtFieldValue = self.rowMathsCalculationAdjustValue_JRF.getValue()
+                if self.savedRowMathsCalculationTable[self.getSelectedRowIndex()][self.ROW_MATHS_CALC_VALUE_IDX] != txtFieldValue:
+                    myPrint("DB", ".. selectedRowIndex(): %s savedRowMathsCalculationTable was: '%s', will set to: '%s'"
+                            %(self.getSelectedRowIndex(), self.savedRowMathsCalculationTable[self.getSelectedRowIndex()][self.ROW_MATHS_CALC_VALUE_IDX], txtFieldValue))
+                    myPrint("DB", "..... saving savedRowMathsCalculationTable[elements].... was: %s" %(self.savedRowMathsCalculationTable[self.getSelectedRowIndex()]))
+                    self.savedRowMathsCalculationTable[self.getSelectedRowIndex()][self.ROW_MATHS_CALC_VALUE_IDX] = txtFieldValue
+                    self.savedRowMathsCalculationTable[self.getSelectedRowIndex()][self.ROW_MATHS_CALC_OPERATOR_IDX] = self.rowMathsCalculationOperator_COMBO.getSelectedItem()
+                    # self.savedRowMathsCalculationTable[self.getSelectedRowIndex()][self.ROW_MATHS_CALC_WANTPERCENT_IDX] = self.rowMathsCalculationIsPercent_CB.isSelected()
+                    myPrint("DB", "........ now : %s" %(self.savedRowMathsCalculationTable[self.getSelectedRowIndex()]))
                     self.configSaved = False
 
                 txtFieldValue = self.finalMathsCalculationAdjustValue_JRF.getValue()
@@ -11574,6 +11652,7 @@ Visit: %s (Author's site)
                 myPrint("B", "  %s" %(pad("savedDisplayAverageTable",60)),        NAB.savedDisplayAverageTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedAverageByCalUnitTable",60)),      NAB.savedAverageByCalUnitTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedAverageByFractionalsTable",60)),  NAB.savedAverageByFractionalsTable[iRowIdx])
+                myPrint("B", "  %s" %(pad("savedRowMathsCalculationTable",60)),   NAB.savedRowMathsCalculationTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedFinalMathsCalculationTable",60)), NAB.savedFinalMathsCalculationTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedIncExpDateRangeTable",60)),       NAB.savedIncExpDateRangeTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedUseCostBasisTable",60)),          NAB.savedUseCostBasisTable[iRowIdx])
@@ -11916,6 +11995,7 @@ Visit: %s (Author's site)
                         balanceObj = totalBalanceTable[i]                                                               # type: CalculatedBalance
 
                         lUseAverage = NAB.doesRowUseAvgBy(i)
+                        lRowMathsCalculation = (NAB.savedRowMathsCalculationTable[i][NAB.ROW_MATHS_CALC_VALUE_IDX] != 0.0)
                         lFinalMathsCalculation = (NAB.savedFinalMathsCalculationTable[i][NAB.FINAL_MATHS_CALC_VALUE_IDX] != 0.0)
                         lUsesOtherRow = (NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_ROW] is not None)
                         lUseTaxDates = (NAB.savedUseTaxDates and isIncomeExpenseDatesSelected(i))
@@ -11951,6 +12031,11 @@ Visit: %s (Author's site)
                                 avgByForRow = NAB.getAvgByForRow(i)
                                 showAverageText = " (avg)"
                                 if debug: myPrint("DB", ":: Row: %s using average / by: %s" %(i+1, avgByForRow))
+
+                            showRowMathsCalcText = ""
+                            if lRowMathsCalculation:
+                                showRowMathsCalcText = " (rmc)"
+                                if debug: myPrint("DB", ":: Row: %s using (this) row maths calculation (adjustment): %s" %(i+1, NAB.savedRowMathsCalculationTable[i]))
 
                             showFinalMathsCalcText = ""
                             if lFinalMathsCalculation:
@@ -12007,6 +12092,7 @@ Visit: %s (Author's site)
                                 fancy = (not NAB.savedDisableCurrencyFormatting[i])
                                 wantsPercent = ((lUsesOtherRow and NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_WANTPERCENT])
                                                 or (lFinalMathsCalculation and NAB.savedFinalMathsCalculationTable[i][NAB.FINAL_MATHS_CALC_WANTPERCENT_IDX]))
+                                # or (lFinalRowCalculation and NAB.savedRowMathsCalculationTable[i][NAB.ROW_MATHS_CALC_WANTPERCENT_IDX]))
                                 if wantsPercent: fancy = False
                                 theFormattedValue = formatFancy(balanceObj.getCurrencyType(),
                                                                 balanceOrAverageLong,
@@ -12023,6 +12109,7 @@ Visit: %s (Author's site)
                             resultTxt = wrap_HTML_BIG_small(theFormattedValue,
                                                             showCurrText
                                                             + showAverageText
+                                                            + showRowMathsCalcText
                                                             + showFinalMathsCalcText
                                                             + showUseTaxDatesText
                                                             + showBalanceAsOfText
@@ -12250,6 +12337,7 @@ Visit: %s (Author's site)
                                    NAB.savedDisplayAverageTable,
                                    NAB.savedAverageByCalUnitTable,
                                    NAB.savedAverageByFractionalsTable,
+                                   NAB.savedRowMathsCalculationTable,
                                    NAB.savedFinalMathsCalculationTable,
                                    NAB.savedWidgetName,
                                    NAB.savedUUIDTable,
@@ -12375,6 +12463,12 @@ Visit: %s (Author's site)
                         NAB.savedOperateOnAnotherRowTable[NAB.getSelectedRowIndex()][NAB.OPERATE_OTHER_ROW_WANTPERCENT] = event.getSource().isSelected()
                         NAB.configSaved = False
 
+                # if event.getSource() is NAB.rowMathsCalculationIsPercent_CB:
+                #     if NAB.savedRowMathsCalculationTable[NAB.getSelectedRowIndex()][NAB.ROW_MATHS_CALC_WANTPERCENT_IDX] != event.getSource().isSelected():
+                #         myPrint("DB", ".. setting savedRowMathsCalculationTable[wantsPercent] to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
+                #         NAB.savedRowMathsCalculationTable[NAB.getSelectedRowIndex()][NAB.ROW_MATHS_CALC_WANTPERCENT_IDX] = event.getSource().isSelected()
+                #         NAB.configSaved = False
+
                 if event.getSource() is NAB.finalMathsCalculationIsPercent_CB:
                     if NAB.savedFinalMathsCalculationTable[NAB.getSelectedRowIndex()][NAB.FINAL_MATHS_CALC_WANTPERCENT_IDX] != event.getSource().isSelected():
                         myPrint("DB", ".. setting savedFinalMathsCalculationTable[wantsPercent] to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
@@ -12417,6 +12511,12 @@ Visit: %s (Author's site)
                     if NAB.savedOperateOnAnotherRowTable[NAB.getSelectedRowIndex()][NAB.OPERATE_OTHER_ROW_OPERATOR] != event.getSource().getSelectedItem():
                         myPrint("DB", ".. setting savedOperateOnAnotherRowTable[operator] to: %s for row: %s" %(event.getSource().getSelectedItem(), NAB.getSelectedRow()))
                         NAB.savedOperateOnAnotherRowTable[NAB.getSelectedRowIndex()][NAB.OPERATE_OTHER_ROW_OPERATOR] = event.getSource().getSelectedItem()
+                        NAB.configSaved = False
+
+                if event.getSource() is NAB.rowMathsCalculationOperator_COMBO:
+                    if NAB.savedRowMathsCalculationTable[NAB.getSelectedRowIndex()][NAB.ROW_MATHS_CALC_OPERATOR_IDX] != event.getSource().getSelectedItem():
+                        myPrint("DB", ".. setting savedRowMathsCalculationTable[operator] to: %s for row: %s" %(event.getSource().getSelectedItem(), NAB.getSelectedRow()))
+                        NAB.savedRowMathsCalculationTable[NAB.getSelectedRowIndex()][NAB.ROW_MATHS_CALC_OPERATOR_IDX] = event.getSource().getSelectedItem()
                         NAB.configSaved = False
 
                 if event.getSource() is NAB.finalMathsCalculationOperator_COMBO:
@@ -12528,6 +12628,7 @@ Visit: %s (Author's site)
                         NAB.savedDisplayAverageTable.insert(NAB.getSelectedRowIndex(),        NAB.displayAverageDefault())
                         NAB.savedAverageByCalUnitTable.insert(NAB.getSelectedRowIndex(),      NAB.averageByCalUnitDefault())
                         NAB.savedAverageByFractionalsTable.insert(NAB.getSelectedRowIndex(),  NAB.averageByFractionalsDefault())
+                        NAB.savedRowMathsCalculationTable.insert(NAB.getSelectedRowIndex(),   NAB.rowMathsCalculationDefault())
                         NAB.savedFinalMathsCalculationTable.insert(NAB.getSelectedRowIndex(), NAB.finalMathsCalculationDefault())
 
                         self.correctUseOtherRowNumbers(tableAfterChanges=startingTable)
@@ -12566,6 +12667,7 @@ Visit: %s (Author's site)
                         NAB.savedDisplayAverageTable.insert(NAB.getSelectedRowIndex()+1,        NAB.displayAverageDefault())
                         NAB.savedAverageByCalUnitTable.insert(NAB.getSelectedRowIndex()+1,      NAB.averageByCalUnitDefault())
                         NAB.savedAverageByFractionalsTable.insert(NAB.getSelectedRowIndex()+1,  NAB.averageByFractionalsDefault())
+                        NAB.savedRowMathsCalculationTable.insert(NAB.getSelectedRowIndex()+1,   NAB.rowMathsCalculationDefault())
                         NAB.savedFinalMathsCalculationTable.insert(NAB.getSelectedRowIndex()+1, NAB.finalMathsCalculationDefault())
 
                         self.correctUseOtherRowNumbers(tableAfterChanges=startingTable)
@@ -13170,6 +13272,7 @@ Visit: %s (Author's site)
                 GlobalVars.extn_param_NEW_displayAverageTable_NAB           = [NAB.displayAverageDefault()]
                 GlobalVars.extn_param_NEW_averageByCalUnitTable_NAB         = [NAB.averageByCalUnitDefault()]
                 GlobalVars.extn_param_NEW_averageByFractionalsTable_NAB     = [NAB.averageByFractionalsDefault()]
+                GlobalVars.extn_param_NEW_rowMathsCalculationTable_NAB      = [NAB.rowMathsCalculationDefault()]
                 GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB    = [NAB.finalMathsCalculationDefault()]
                 GlobalVars.extn_param_NEW_operateOnAnotherRowTable_NAB      = [NAB.operateOnAnotherRowDefault()]
                 GlobalVars.extn_param_NEW_UUIDTable_NAB                     = [NAB.UUIDDefault(newUUID=False)]
@@ -13232,6 +13335,7 @@ Visit: %s (Author's site)
                         self.savedDisplayAverageTable           = copy.deepcopy(GlobalVars.extn_param_NEW_displayAverageTable_NAB)
                         self.savedAverageByCalUnitTable         = copy.deepcopy(GlobalVars.extn_param_NEW_averageByCalUnitTable_NAB)
                         self.savedAverageByFractionalsTable     = copy.deepcopy(GlobalVars.extn_param_NEW_averageByFractionalsTable_NAB)
+                        self.savedRowMathsCalculationTable      = copy.deepcopy(GlobalVars.extn_param_NEW_rowMathsCalculationTable_NAB)
                         self.savedFinalMathsCalculationTable    = copy.deepcopy(GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB)
                         self.savedOperateOnAnotherRowTable      = copy.deepcopy(GlobalVars.extn_param_NEW_operateOnAnotherRowTable_NAB)
                         self.savedUUIDTable                     = copy.deepcopy(GlobalVars.extn_param_NEW_UUIDTable_NAB)
@@ -14397,6 +14501,67 @@ Visit: %s (Author's site)
                     pady = 5
 
                     onCol = 0
+                    rowMathsCalculation_pnl = MyJPanel(GridBagLayout())
+                    rowMathsCalculation_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+
+                    onRowMathsCalculationRow = 0
+                    onRowMathsCalculationCol = 0
+
+                    rowMathsCalculation_lbl = MyJLabel("Row maths calculation:")
+                    rowMathsCalculation_lbl.putClientProperty("%s.id" %(NAB.myModuleID), "rowMathsCalculation_lbl")
+                    rowMathsCalculation_lbl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    controlPnl.add(rowMathsCalculation_lbl, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
+                    onCol += 1
+
+                    rowMathsCalcValue_lbl = MyJLabel("Operand value:")
+                    rowMathsCalcValue_lbl.putClientProperty("%s.id" %(NAB.myModuleID), "rowMathsCalcValue_lbl")
+                    rowMathsCalcValue_lbl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    rowMathsCalculation_pnl.add(rowMathsCalcValue_lbl, GridC.getc(onRowMathsCalculationCol, onRowMathsCalculationRow).wx(0.1).east())
+                    onRowMathsCalculationCol += 1
+
+                    NAB.rowMathsCalculationAdjustValue_JRF = MyJRateFieldAdjustCalcBy(12, NAB.decimal)
+                    if isinstance(NAB.rowMathsCalculationAdjustValue_JRF, (MyJRateFieldAdjustCalcBy, JRateField, JTextField)): pass
+                    NAB.rowMathsCalculationAdjustValue_JRF.putClientProperty("%s.id" %(NAB.myModuleID), "rowMathsCalculationAdjustValue_JRF")
+                    NAB.rowMathsCalculationAdjustValue_JRF.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.rowMathsCalculationAdjustValue_JRF.setName("rowMathsCalculationAdjustValue_JRF")
+                    NAB.rowMathsCalculationAdjustValue_JRF.setToolTipText("Adjust this row's calculated balance using an operand (default 0.0) using the chosen maths operator")
+                    NAB.rowMathsCalculationAdjustValue_JRF.addFocusListener(NAB.saveFocusListener)
+                    rowMathsCalculation_pnl.add(NAB.rowMathsCalculationAdjustValue_JRF, GridC.getc(onRowMathsCalculationCol, onRowMathsCalculationRow).leftInset(5).wx(1.0).fillboth().west())
+                    onRowMathsCalculationCol += 1
+
+                    operator_lbl = MyJLabel("Operator:")
+                    operator_lbl.putClientProperty("%s.id" %(NAB.myModuleID), "operator_lbl")
+                    operator_lbl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    rowMathsCalculation_pnl.add(operator_lbl, GridC.getc(onRowMathsCalculationCol, onRowMathsCalculationRow).leftInset(5))
+                    onRowMathsCalculationCol += 1
+
+                    operatorTypes = ["/", "*", "+", "-"]
+                    NAB.rowMathsCalculationOperator_COMBO = MyJComboBox(operatorTypes)
+                    NAB.rowMathsCalculationOperator_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "rowMathsCalculationOperator_COMBO")
+                    NAB.rowMathsCalculationOperator_COMBO.setName("rowMathsCalculationOperator_COMBO")
+                    NAB.rowMathsCalculationOperator_COMBO.setToolTipText("[OPTIONAL] Select this row's maths calculation 'operator' - e.g. '/' = divide by the value entered....")
+                    NAB.rowMathsCalculationOperator_COMBO.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.rowMathsCalculationOperator_COMBO.addActionListener(NAB.saveActionListener)
+                    rowMathsCalculation_pnl.add(NAB.rowMathsCalculationOperator_COMBO, GridC.getc(onRowMathsCalculationCol, onRowMathsCalculationRow).leftInset(5))
+                    onRowMathsCalculationCol += 1
+
+                    # NAB.rowMathsCalculationIsPercent_CB = MyJCheckBox("Format as %", True)
+                    # NAB.rowMathsCalculationIsPercent_CB.putClientProperty("%s.id" %(NAB.myModuleID), "rowMathsCalculationIsPercent_CB")
+                    # NAB.rowMathsCalculationIsPercent_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    # NAB.rowMathsCalculationIsPercent_CB.setName("rowMathsCalculationIsPercent_CB")
+                    # NAB.rowMathsCalculationIsPercent_CB.setToolTipText("When ticked, then this row's maths calculation result will be deemed a percentage...")
+                    # NAB.rowMathsCalculationIsPercent_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    # NAB.rowMathsCalculationIsPercent_CB.addActionListener(NAB.saveActionListener)
+                    # rowMathsCalculation_pnl.add(NAB.rowMathsCalculationIsPercent_CB, GridC.getc(onRowMathsCalculationCol, onRowMathsCalculationRow).leftInset(8))
+                    # onRowMathsCalculationCol += 1
+
+                    controlPnl.add(rowMathsCalculation_pnl, GridC.getc(onCol, onRow).west().leftInset(colInsetFiller).fillx().pady(pady).filly().colspan(3))
+                    onRow += 1
+
+                    # --------------------------------------------------------------------------------------------------
+                    pady = 5
+
+                    onCol = 0
                     operateOnAnotherRow_pnl = MyJPanel(GridBagLayout())
                     operateOnAnotherRow_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
 
@@ -14431,8 +14596,7 @@ Visit: %s (Author's site)
                     operateOnAnotherRow_pnl.add(operator_lbl, GridC.getc(onUtiliseOtherRowCol, onUtiliseOtherRowRow).leftInset(5))
                     onUtiliseOtherRowCol += 1
 
-                    operatorTypes = ["/", "*", "+", "-"]
-                    NAB.otherRowMathsOperator_COMBO = MyJComboBox(operatorTypes)
+                    NAB.otherRowMathsOperator_COMBO = MyJComboBox(operatorTypes)           # operatorTypes defined above
                     NAB.otherRowMathsOperator_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "otherRowMathsOperator_COMBO")
                     NAB.otherRowMathsOperator_COMBO.setName("otherRowMathsOperator_COMBO")
                     NAB.otherRowMathsOperator_COMBO.setToolTipText("Select the maths 'operator' - e.g. '/' = divide by the result from specified other row....")
@@ -14492,7 +14656,7 @@ Visit: %s (Author's site)
                     finalMathsCalculation_pnl.add(operator_lbl, GridC.getc(onFinalMathsCalculationCol, onFinalMathsCalculationRow).leftInset(5))
                     onFinalMathsCalculationCol += 1
 
-                    NAB.finalMathsCalculationOperator_COMBO = MyJComboBox(operatorTypes)                            # operatorTypes defined above
+                    NAB.finalMathsCalculationOperator_COMBO = MyJComboBox(operatorTypes)   # operatorTypes defined above
                     NAB.finalMathsCalculationOperator_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "finalMathsCalculationOperator_COMBO")
                     NAB.finalMathsCalculationOperator_COMBO.setName("finalMathsCalculationOperator_COMBO")
                     NAB.finalMathsCalculationOperator_COMBO.setToolTipText("[OPTIONAL] Select the final maths calculation 'operator' - e.g. '/' = divide by the value entered....")
@@ -16238,9 +16402,45 @@ Visit: %s (Author's site)
 
                 tookTime = System.currentTimeMillis() - thisSectionStartTime
                 if debug or TIMING_DEBUG:
-                    stage = "4"; stageTxt = "::calculateBalances()"
+                    stage = "4a"; stageTxt = "::calculateBalances()"
                     myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
                 thisSectionStartTime = System.currentTimeMillis()
+
+                # Perform (this) row maths calculations (adjustments)...
+                for i in range(0, len(_totalBalanceTable)):
+                    balanceObj = _totalBalanceTable[i]                                                                  # type: CalculatedBalance
+                    if (balanceObj.getBalance() is not None):
+                        rowMathsCalculationOperand = NAB.savedRowMathsCalculationTable[i][NAB.ROW_MATHS_CALC_VALUE_IDX]
+                        lRowMathsCalculation = (rowMathsCalculationOperand != 0.0)
+                        if not lRowMathsCalculation: continue
+
+                        originalBalanceLong = balanceObj.getBalance()
+                        originalBalanceDecimals = balanceObj.getBalanceWithDecimalsPreserved()
+
+                        operator = NAB.savedRowMathsCalculationTable[i][NAB.ROW_MATHS_CALC_OPERATOR_IDX]
+                        if operator == "+":
+                            rowMathsCalcAdjustedBalanceWithDecimals = (originalBalanceDecimals + rowMathsCalculationOperand)
+                        elif operator == "-":
+                            rowMathsCalcAdjustedBalanceWithDecimals = (originalBalanceDecimals - rowMathsCalculationOperand)
+                        elif operator == "*":
+                            rowMathsCalcAdjustedBalanceWithDecimals = (originalBalanceDecimals * rowMathsCalculationOperand)
+                        elif operator == "/":
+                            rowMathsCalcAdjustedBalanceWithDecimals = (originalBalanceDecimals / rowMathsCalculationOperand)
+                        else: raise Exception("LOGIC ERROR - Unknown (this) row maths calculation operator '%s' on RowIdx: %s" %(operator, i))
+                        rowMathsCalcAdjustedBalanceLong = balanceObj.getCurrencyType().getLongValue(rowMathsCalcAdjustedBalanceWithDecimals)
+
+                        balanceObj.setBalance(rowMathsCalcAdjustedBalanceLong)
+                        balanceObj.setBalanceWithDecimalsPreserved(rowMathsCalcAdjustedBalanceWithDecimals)
+                        balanceObj.setRowMathsApplied(True)
+                        if debug: myPrint("DB", ":: Row: %s using (this) row maths calculation adjustment of '%s' adjusted: %s (%s) to %s (%s)"
+                                          %(i+1, NAB.savedRowMathsCalculationTable[i], originalBalanceLong, originalBalanceDecimals, rowMathsCalcAdjustedBalanceLong, rowMathsCalcAdjustedBalanceWithDecimals))
+
+                tookTime = System.currentTimeMillis() - thisSectionStartTime
+                if debug or TIMING_DEBUG:
+                    stage = "4b"; stageTxt = "::calculateBalances()"
+                    myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
+                thisSectionStartTime = System.currentTimeMillis()
+
 
                 # Perform maths using results from other rows (optional)...
                 # First work out the chains...
@@ -16323,19 +16523,6 @@ Visit: %s (Author's site)
                                 if debug: myPrint("B", "@@ rowIdx: %s, otherRowIdx: %s, thisRowBalLong: %s (%s), otherRowBalLong: %s (%s)" %(i, otherRowIdx, thisRowBalLong, thisRowBalWithDecimals, otherRowBalLong, otherRowBalWithDecimals))
                                 operator = NAB.savedOperateOnAnotherRowTable[onChainedUORIdx][NAB.OPERATE_OTHER_ROW_OPERATOR]
 
-                                # if operator == "+":
-                                #     newRowBalLong = balanceObj.getCurrencyType().getLongValue(balanceObj.getCurrencyType().getDoubleValue(thisRowBalLong) + _totalBalanceTable[otherRowIdx].getCurrencyType().getDoubleValue(otherRowBalLong))
-                                # elif operator == "-":
-                                #     newRowBalLong = balanceObj.getCurrencyType().getLongValue(balanceObj.getCurrencyType().getDoubleValue(thisRowBalLong) - _totalBalanceTable[otherRowIdx].getCurrencyType().getDoubleValue(otherRowBalLong))
-                                # elif operator == "*":
-                                #     newRowBalLong = balanceObj.getCurrencyType().getLongValue(balanceObj.getCurrencyType().getDoubleValue(thisRowBalLong) * _totalBalanceTable[otherRowIdx].getCurrencyType().getDoubleValue(otherRowBalLong))
-                                # elif operator == "/":
-                                #     newRowBalLong = balanceObj.getCurrencyType().getDoubleValue(thisRowBalLong) / _totalBalanceTable[otherRowIdx].getCurrencyType().getDoubleValue(otherRowBalLong)
-                                #     if NAB.savedOperateOnAnotherRowTable[onChainedUORIdx][NAB.OPERATE_OTHER_ROW_WANTPERCENT]:
-                                #         newRowBalLong *= 100.0
-                                #     newRowBalLong = balanceObj.getCurrencyType().getLongValue(newRowBalLong)
-                                # else: raise Exception("LOGIC ERROR - Unknown operator '%s' on RowIdx: %s" %(operator, onChainedUORIdx))
-
                                 if operator == "+":
                                     newRowBalWithDecimals = thisRowBalWithDecimals + otherRowBalWithDecimals
                                 elif operator == "-":
@@ -16392,7 +16579,7 @@ Visit: %s (Author's site)
                         balanceObj.setBalance(finalMathsCalcAdjustedBalanceLong)
                         balanceObj.setBalanceWithDecimalsPreserved(finalMathsCalcAdjustedBalanceWithDecimals)
                         balanceObj.setFinalMathsApplied(True)
-                        if debug: myPrint("DB", ":: Row: %s using final calculation adjustment of '%s' adjusted: %s (%s) to %s (%s)"
+                        if debug: myPrint("DB", ":: Row: %s using final maths calculation adjustment of '%s' adjusted: %s (%s) to %s (%s)"
                                           %(i+1, NAB.savedFinalMathsCalculationTable[i], originalBalanceLong, originalBalanceDecimals, finalMathsCalcAdjustedBalanceLong, finalMathsCalcAdjustedBalanceWithDecimals))
 
                 tookTime = System.currentTimeMillis() - thisSectionStartTime
@@ -16639,6 +16826,7 @@ Visit: %s (Author's site)
                                         continue
 
                                     lUseAverage = NAB.doesRowUseAvgBy(i)
+                                    lRowMathsCalculation = (NAB.savedRowMathsCalculationTable[i][NAB.ROW_MATHS_CALC_VALUE_IDX] != 0.0)
                                     lFinalMathsCalculation = (NAB.savedFinalMathsCalculationTable[i][NAB.FINAL_MATHS_CALC_VALUE_IDX] != 0.0)
                                     lUsesOtherRow = (NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_ROW] is not None)
                                     lUseTaxDates = (NAB.savedUseTaxDates and isIncomeExpenseDatesSelected(i))
@@ -16699,6 +16887,14 @@ Visit: %s (Author's site)
                                             showCostBasisText = " (cg-l)" if not debug else " (capital gains - long)"
                                             if debug: myPrint("DB", ":: Row: %s returning capital gains (long) (for security accounts)" %(i+1))
 
+                                    showRowMathsCalcText = ""
+                                    if lRowMathsCalculation:
+                                        if debug:
+                                            showRowMathsCalcText = " (rmc: '%s')" %(NAB.savedRowMathsCalculationTable[i])
+                                        else:
+                                            showRowMathsCalcText = " (rmc)"
+                                        if debug: myPrint("DB", ":: Row: %s using (this) row maths calculation: %s" %(i+1, NAB.savedRowMathsCalculationTable[i]))
+
                                     showFinalMathsCalcText = ""
                                     if lFinalMathsCalculation:
                                         if debug:
@@ -16734,6 +16930,7 @@ Visit: %s (Author's site)
                                                                       balanceObj.getExtraRowTxt()
                                                                       + showCurrText
                                                                       + showAverageText
+                                                                      + showRowMathsCalcText
                                                                       + showFinalMathsCalcText
                                                                       + showUseTaxDatesText
                                                                       + showBalanceAsOfText
@@ -16771,6 +16968,7 @@ Visit: %s (Author's site)
                                             fancy = (not NAB.savedDisableCurrencyFormatting[i])
                                             wantsPercent = ((lUsesOtherRow and NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_WANTPERCENT])
                                                             or (lFinalMathsCalculation and NAB.savedFinalMathsCalculationTable[i][NAB.FINAL_MATHS_CALC_WANTPERCENT_IDX]))
+                                            # or (lRowMathsCalculation and NAB.savedRowMathsCalculationTable[i][NAB.ROW_MATHS_CALC_WANTPERCENT_IDX]))
                                             if wantsPercent: fancy = False
                                             theFormattedValue = formatFancy(balanceObj.getCurrencyType(),
                                                                             balanceOrAverageLong,
