@@ -52,7 +52,7 @@ Save and look.
 
 Now that you have an inkling of the custom balance power potential here, go explore.
 
-
+------------------------------------------------------------------------------------------------------------------------
 CREATING ROWS AND SAVING:
 
 Select Row:     Allows you to pick the row you want to work on. (Details below)
@@ -60,7 +60,7 @@ Search Box:     Allows you to set up what rows you see in the widget via GroupID
 Warnings Box:   Provides warnings based on 'illogical' selections (Details below)
 Insert Row Before/Insert Row After/Delete Row/Move Row/Duplicate Row: Allows you to create rows in any order.
 Reload Settings/Backup Config/Restore Config: Allows you to restore or save your configuration.
-
+------------------------------------------------------------------------------------------------------------------------
 
 CHOICES/CONFIGURATION FOR A ROW:
 
@@ -133,7 +133,7 @@ CHOICES/CONFIGURATION FOR A ROW:
         - WARNING: tax dates on (non-recorded) reminders cannot be calculated. The 'normal' date will be applied.
         - WARNING: REFER 'PARALLEL BALANCES' BELOW CONCERNING CALCULATION SPEED
 
-- Securities: Rtn: Value / Cost Basis / Unrealised Gains / Capital Gains option(s):
+- Securities: Return: Value / Cost Basis / Unrealised Gains / Capital Gains option(s):
     - Rtn Value:             [DEFAULT] Returns the normal balance (i.e. this does not enable cost basis options)
 
     - Rtn Cost Basis:        When selected, the cost basis (**as of the balance / asof date) for selected Security
@@ -171,7 +171,7 @@ CHOICES/CONFIGURATION FOR A ROW:
           ...... (no reminders, no other non-security/investment(cb incl. cash), no income / expense transactions)
         - There can in theory be future-dated cost basis / ur / capital gains. Let me know how this works out for you?!
         - Current Balance will derive the cost basis asof today.
-        - asof-dated Cleared Balance is ILLOGICAL, so uses the calculated asof-dated Balance               ** WARNING **
+        - asof-date Cleared Balance is ILLOGICAL, so uses the calculated asof-date Balance                 ** WARNING **
 
         - WARNING: REFER 'PARALLEL BALANCES' BELOW CONCERNING CALCULATION SPEED
 
@@ -180,20 +180,21 @@ CHOICES/CONFIGURATION FOR A ROW:
 - Securities Capital Gains: This option only appears when return capital gains is selected.
 
 
-
 - INC/EXP Date Range: Income/Expense Categories need a date range to provide a balance.
                       Otherwise they have entries for all dates. (Details below)
 
         - the 'offset' field can be used here to adjust the inc/exp date range date - refer 'Date offset' section.
 
+
 - Display Currency: Allows you to display the balance in a chosen currency, or security value, or other format.
                     Disable Currency Formatting: drops any symbol/prefix/suffix associated with the currency.
 
+------------------------------------------------------------------------------------------------------------------------
 
-CALCULATIONS ON CALCULATED BALANCES:
+MATH ON CALCULATED BALANCES:
 
 - Average by options:
-    - Changes the final calculated balance into an average. Specify the number to divide by (DEFAULT 1.0)
+    - You can change the final calculated balance into an average. Specify the number to divide by (DEFAULT 1.0)
       ...or...
     - Use the predefined: 'Inc/Exp Date Range' - calculate calendar units between XXX option:
       ... Only enabled/allowed when Income/Expense categories are selected AND when NOT using 'All dates'
@@ -207,7 +208,7 @@ CALCULATIONS ON CALCULATED BALANCES:
       *** NOTE: DO NOT select to use a date range if no Inc/Exp categories are selected. It will automatically revert
                 back to All dates at a later point when it validates the settings.
 
-- Row maths calculation:   If set, then you can apply maths to this row's calculation. This will be applied BEFORE
+- Row maths calculation:   You can apply maths to this row's calculation. This will be applied BEFORE
                            it's used elsewhere (i.e. used in other rows). RMC occurs after Average by...
                            - E.g. take this row, divide it by operand(x),  and treat the result as a percentage.
                              For example, calculate the estimated tax payable as a percentage of dividend income YTD..
@@ -215,20 +216,26 @@ CALCULATIONS ON CALCULATED BALANCES:
 
                            WARNING: You can use both average by, and RMC. This could cause strange results!
 
-- Maths using another row: If set, you can retrieve the result from another row(x) and then apply maths
+- Maths using another row: You can retrieve the result from another row(x) and then apply maths
                            to the result of the current row.. E.g. take this row and divide it by the result from row(x)
                            For example, this could calculate the value of investments as a percentage of total networth.
                            UORs can be chained together. E.G. row 3 can use row 2 and row 2 can use row 1
 
                            WARNING: There is no currency conversion between chained UORs
 
-- Final maths calculation: If set, then you can apply maths to the row's final calculation as the very last step
+- Final maths calculation: You can apply maths to the row's final calculation as the very last step
                            ... AFTER all other calculations (including other rows) have been applied.
 
 - Format as %: When ticked then normal currency formatting is disabled and the '%' symbol is appended.
-               When 'Multiply by 100' is also ticked, then the final result is multipled by 100.
+               When 'Multiply by 100' is also ticked, then the final result is multiplied by 100.
+               'Multiply by 100' is important if you haven't already done "math" to make it a true percentage.
 
-- Hide row when options: Never, Always(Disable), balance = X, balance >= X, balance <= X. DEFAULT FOR X is ZERO
+------------------------------------------------------------------------------------------------------------------------
+
+FORMATTING FOR ROW DISPLAY:
+
+- Hide row when options:
+    Never, Always(Disable), balance = X, balance >= X, balance <= X. DEFAULT FOR X is ZERO
     >> 'Always(Disable)' is ignored in use other row calculations that require this row!
     You can set X to any value (positive or negative)
     NOTE: If you select row option 'Hide Decimal Places', AND auto-hide row when balance=X,
@@ -250,6 +257,8 @@ CALCULATIONS ON CALCULATED BALANCES:
 
                  NOTE: For 'Multi-Warnings Detected' review Help>Console Window for details
                        .. The search for warnings stops after the first occurrence of each type of error it finds....
+
+------------------------------------------------------------------------------------------------------------------------
 
 ACCOUNT SELECTION LIST:
 
@@ -291,6 +300,7 @@ FILTERS FOR LIST CHOICES:
 - List Choices - you can filter the pick list by multiple criteria.
 	       - other filters include filtering out zero values, and by what has been selected.
 
+------------------------------------------------------------------------------------------------------------------------
 
 OPTIONS MENU:
 
@@ -326,8 +336,7 @@ BACKUP/RESTORE:
           CMD-SHIFT-G allows you to edit the pre-defined/used GroupID Filter(s)... Click +/- cell (on right) to add/del
 
 
-
->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> DETAILS SECTION <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> DETAILS SECTION <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 SELECT ROW INFORMATION:
 
@@ -341,11 +350,12 @@ SELECT ROW INFORMATION:
                <FILTERED OUT>   This row is currently NOT showing on the Summary Screen widget due to the active filter.
                                 NOTE: Filtered rows (red) are NOT active and hidden.
 
-
+HIDE CONTROLS: If your monitor cannot display all the information, this click box on the top right will provide you
+               With a better view to pick items on the pick list.
 
 SEARCH BOX AND GROUPID:
 
-Once you have a lot of rows, you may only wish to display some of them.
+Once you have a lot of rows, you may only wish to display some of them within the widget.
 GroupID allows you create groups of rows that you can separately display.
 
 - You can enter a 'GroupID' per row. This is free format text (digits 0-9, Aa-Zz, '_', '-', '.', ':', '%')
@@ -465,12 +475,14 @@ USING CATEGORIES (DATE RANGE)
   - NOTE: You can select to use a date range at any time. BUT if you have not selected any Inc/Exp categories, then
           the date range will later revert back automatically to 'All dates'.
 
-  - NOTE: The 'Balance asof Date' has no bearing on this setting which is used exclusively for Income / Expense txns.
+  - NOTE: The 'Balance asof Date' has no bearing on this setting which is used exclusively for Income / Expense txns
+  - NOTE: The 'Include Reminders Date' has no bearing on this setting.
+  - NOTE: The 'Securities Capital Gains' has a similar, but separate date range from the Income / Expense date range
 
   - I/E Date Range options:
     Example: Given a today's date of 4th November 2024 (20241104), the I/E Date Range filters will return the following:
     DR_YEAR_TO_DATE                20240101 - 20241104
-    DR_FISCAL_YEAR_TO_DATE         20240406 - 20241104  (assuming a UK tax year starting 6th April 2023)
+    DR_FISCAL_YEAR_TO_DATE         20240406 - 20241104  (assuming a UK tax year starting 6th April 2024)
     DR_LAST_FISCAL_QUARTER         20240706 - 20241005
     DR_QUARTER_TO_DATE             20241001 - 20241104
     DR_MONTH_TO_DATE               20241101 - 20241104
@@ -488,7 +500,7 @@ USING CATEGORIES (DATE RANGE)
     DR_LAST_365_DAYS               20231105 - 20241104
     DR_LAST_30_DAYS                20241006 - 20241104
     DR_LAST_1_DAY                  20241103 - 20241104  (known as yesterday and today, which is actually 2 days)
-    DR_ALL_DATES                   (returns all dates)  (from 1970 thru 2100)
+    DR_ALL_DATES                   (returns all dates)  (from 1960 thru 2100)
 
     NOTE: The above will interact with your Balance/Current Balance/Cleared setting for that row:
           E.G.  Current Balance will always cutoff to today's date
@@ -503,6 +515,7 @@ USING CATEGORIES (DATE RANGE)
 
 
 KEY TO ROW FORMATTING ON SUMMARY SCREEN:
+
 Against each row you may see (in small grey characters) the following (text) with these meanings (when option enabled):
 (curr)          Will display the selected currency's ID when the base currency is not selected - e.g. 'GBP' or 'USD'
 (avg/by: x)     Average by operand
@@ -582,7 +595,7 @@ NOTES ON COST BASIS / CAPITAL GAINS:
                  capital gains calculations. Do not rely on these calculations for tax returns or other important
                  documents. Please verify and use your own calculations for important documents.
 
-Cost basis can appear in multiple places. They are not all calculated quite the same way. For example:
+Cost basis can appear in multiple places. They are not all calculated quite the same way in Moneydance. For example:
 - Investment account: Portfolio View tab (PVT)              (Avg Cost - new engine)
 - Cost Basis report (CBR)                                   (Avg Cost - old method)
 - Portfolio report (PR)                                     (Avg Cost - new engine)
@@ -635,6 +648,7 @@ in both short-term and long-term pools (however this data is only shown in conso
 >> MD can report this same data in the Capital Gains report when the 'Show double-category average cost data' option is
    enabled. However, this does not affect the cost basis or gains calculation, and is incorrect when the security has
    stock splits....
+
 
 
 TECHNICAL/HISTORICAL NOTES:
