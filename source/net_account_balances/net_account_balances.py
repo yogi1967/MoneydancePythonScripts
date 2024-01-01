@@ -109,9 +109,10 @@
 # build: 1043 - Fixed AsOfDateChooser.getAsOfDateInt() to return Integer.intValue() (instead of Integer)
 # build: 1044 - Added long/short-term capital gains calculations; New/enhanced final calculation adjustment features
 #               Address UOR chaining loss of decimal precision...; added (this) row maths calculation (rmc); switched to single format as % option...
-#               Allow RMC when Balance is None... (i.e. no picklist)....
+#               Allow RMC when Balance is None... (i.e. no picklist)....; show full decimal precision when debug enabled...
 
 # todo - allow <#TAG xxx> in row name, and to call on this from other rows..?
+# todo - option to show different dpc (e.g. full decimal precision)
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -12051,7 +12052,7 @@ Visit: %s (Author's site)
                         lUseTaxDates = (NAB.savedUseTaxDates and isIncomeExpenseDatesSelected(i))
 
                         balanceOrAverageLong = balanceObj.getBalance()
-                        # balanceOrAverageDecimals = balanceObj.getBalanceWithDecimalsPreserved()
+                        balanceOrAverageDecimals = balanceObj.getBalanceWithDecimalsPreserved()
 
                         tdfsc = TextDisplayForSwingConfig(NAB.savedWidgetName[i], "")
                         if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_ALWAYS:
@@ -12138,6 +12139,7 @@ Visit: %s (Author's site)
 
                             if (balanceOrAverageLong == 0 and tdfsc.getBlankZero()):
                                 theFormattedValue = "  "
+                                theDecimalPrecisionFormattedValue = ""
                             else:
                                 fancy = (not NAB.savedDisableCurrencyFormatting[i])
                                 wantsPercent = lFormatAsPercent
@@ -12151,10 +12153,15 @@ Visit: %s (Author's site)
                                                                 roundingTarget=(0.0 if (not NAB.savedHideDecimalsTable[i]) else NAB.savedHideRowXValueTable[i]))
                                 if wantsPercent: theFormattedValue += " %"
 
+                                theDecimalPrecisionFormattedValue = ""
+                                if debug:
+                                    if balanceObj.getCurrencyType().getDoubleValue(balanceOrAverageLong) != balanceOrAverageDecimals:
+                                        theDecimalPrecisionFormattedValue = " (%s)" %(balanceOrAverageDecimals)
+
                             NAB.simulateTotal_label.setFont(tdfsc.getValueFont())
                             NAB.simulateTotal_label.setForeground(tdfsc.getValueColor(balanceOrAverageLong))
 
-                            resultTxt = wrap_HTML_BIG_small(theFormattedValue,
+                            resultTxt = wrap_HTML_BIG_small(theFormattedValue + theDecimalPrecisionFormattedValue,
                                                             showCurrText
                                                             + showAverageText
                                                             + showRowMathsCalcText
@@ -16933,7 +16940,7 @@ Visit: %s (Author's site)
                                     lUseTaxDates = (NAB.savedUseTaxDates and isIncomeExpenseDatesSelected(i))
 
                                     balanceOrAverageLong = balanceObj.getBalance()
-                                    # balanceOrAverageDecimals = balanceObj.getBalanceWithDecimalsPreserved()
+                                    balanceOrAverageDecimals = balanceObj.getBalanceWithDecimalsPreserved()
 
                                     skippingRow = NAB.isThisRowAlwaysHideOrAutoHidden(balanceObj, i, checkAlwaysHide=False, checkAutoHideWhen=True)
                                     if skippingRow:
@@ -17065,6 +17072,7 @@ Visit: %s (Author's site)
                                         # NOTE: Leave "  " (two spaces) to avoid the row height collapsing.....
                                         if (balanceOrAverageLong == 0 and tdfsc.getBlankZero()):
                                             theFormattedValue = "  "
+                                            theDecimalPrecisionFormattedValue = ""
                                         else:
                                             fancy = (not NAB.savedDisableCurrencyFormatting[i])
                                             wantsPercent = lFormatAsPercent
@@ -17078,7 +17086,12 @@ Visit: %s (Author's site)
                                                                             roundingTarget=(0.0 if (not NAB.savedHideDecimalsTable[i]) else NAB.savedHideRowXValueTable[i]))
                                             if wantsPercent: theFormattedValue += " %"
 
-                                        netTotalLbl = SpecialJLinkLabel(theFormattedValue, "showConfig?%s" %(onRow), JLabel.RIGHT, tdfsc=tdfsc)
+                                            theDecimalPrecisionFormattedValue = ""
+                                            if debug:
+                                                if balanceObj.getCurrencyType().getDoubleValue(balanceOrAverageLong) != balanceOrAverageDecimals:
+                                                    theDecimalPrecisionFormattedValue = " (%s)" %(balanceOrAverageDecimals)
+
+                                        netTotalLbl = SpecialJLinkLabel(theFormattedValue + theDecimalPrecisionFormattedValue, "showConfig?%s" %(onRow), JLabel.RIGHT, tdfsc=tdfsc)
                                         netTotalLbl.setFont(tdfsc.getValueFont())
                                         netTotalLbl.setForeground(tdfsc.getValueColor(balanceOrAverageLong))
 
