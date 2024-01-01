@@ -317,8 +317,8 @@ OPTIONS MENU:
   - Reset Defaults: Basically allows an entire reset to initial settings (i.e. gets rid of all your data)
   - Backup Config: Creates a backup of your current config file (then opens a window showing location of backup)
   - Restore Config: Allows you to restore (or import) config file from previous back up
-  - You can disable the Widget's Display Name Title. This prevents the title appearing on the Summary Page widget
   - You can change the default setting AutoSum for new rows that you insert/create. It does not affect existing rows
+  - You can disable the Widget's Display Name Title. This prevents the title appearing on the Summary Page widget
   - Show Dashes instead of Zeros: Changes the display so that you get '-' instead of '£ 0.0'
   - Treat Securities with Zero Balance as Inactive: If a Security holds zero units, it will be treated as Inactive
   - Use Indian numbering format: On numbers greater than 10,000 group in powers of 100 (e.g. 10,00,000 not 1,000,000)
@@ -327,6 +327,7 @@ OPTIONS MENU:
                             - reminders,  cost basis / ur-gains / capital gains, or when using 'balance asof dates'.
                             ... as such, the 'normal' transaction date will be used.
   - Display underline dots: Display 'underline' dots that fill the blank space between row names and values
+  - Disable Warning Icon: Removes Warning Icon from the Widget
 
 
 BACKUP/RESTORE:
