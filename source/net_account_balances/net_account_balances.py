@@ -8786,7 +8786,6 @@ Visit: %s (Author's site)
                     self.nab.storeJTextFieldsForSelectedRow()
 
             tagPickerMenu = JPopupMenu()
-            # for tag, tagName in [["<##test>", "this is a test"],["<##NOTEST>", "this is not a test"]]:
             for tag, tagName in TextDisplayForSwingConfig.ALL_TAGS_NAMES_LIST:
                 tagPickerMenu.add(TagPickerAction(tag, tagName, NAB))
             myPrint("DB", "... about to show the tagPicker popup...")
