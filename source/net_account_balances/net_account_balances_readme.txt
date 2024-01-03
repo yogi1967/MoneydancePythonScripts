@@ -65,6 +65,8 @@ Reload Settings/Backup Config/Restore Config: Allows you to restore or save your
 CHOICES/CONFIGURATION FOR A ROW:
 
 - Row Name: Name for the row. (Details below)
+            NOTE: To the right of the row name field there is a little "<" icon.
+                  .. click this icon to view/insert special tags - refer 'ROW NAME FORMATTING' section
 
 - Balance option: Choose from 'Balance', 'Current Balance', 'Cleared Balance'
     - These are the same definitions used by Moneydance:
@@ -428,6 +430,8 @@ DATE OFFSET:
 
 ROW NAME FORMATTING:
 
+NOTE: Click the little "<" icon to the right of the row name field to view/insert the tags below...
+
 - ROW NAME Configuration Options:
   - You can embed the following text (lowercase) in the Row Name field to configure the row / total (value) as follows:
     <#brn>   = Forces row name to be blank/empty
@@ -437,17 +441,17 @@ ROW NAME FORMATTING:
     <#cbl>   = Row name colour:  blue
     <#cgr>   = Row name colour:  light grey
     <#fbo>   = Row name font:    bold
-    <#fun>   = Row name font:    underline
     <#fit>   = Row name font:    italics
+    <#fun>   = Row name font:    underline
+    <#nud>   = No special underline dots...
+    <#fud>   = Force special underline dots...
     <#bzv>   = Forces any total (value) to appear blank when zero
     <#cvre>  = Value colour:  red
     <#cvbl>  = Value colour:  blue
     <#cvgr>  = Value colour:  light grey
     <#fvbo>  = Value font:    bold
-    <#fvun>  = Value font:    underline
     <#fvit>  = Value font:    italics
-    <#nud>   = No special underline dots...
-    <#fud>   = Force special underline dots...
+    <#fvun>  = Value font:    underline
 
   - You can embed the following to insert variable text into the Row Name field:
     <##rn>    = insert the row number

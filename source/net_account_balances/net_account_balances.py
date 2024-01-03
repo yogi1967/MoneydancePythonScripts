@@ -116,7 +116,7 @@
 #                 ... NOTE: you won't always get what you expect. Refer:
 #                 https://docs.python.org/2.7/library/functions.html#round
 #                 https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/math/RoundingMode.html#HALF_UP
-
+#               Added tag picker to row name field...
 
 # todo - allow <#TAG xxx> in row name, and to call on this from other rows..?
 # todo - option to show different dpc (e.g. full decimal precision)
@@ -514,6 +514,7 @@ else:
     GlobalVars.Strings.MD_GLYPH_REMINDERS = "/com/moneydance/apps/md/view/gui/glyphs/glyph_reminders.png"
     GlobalVars.Strings.MD_ICON_ALERT_16 = "/com/moneydance/apps/md/view/gui/icons/alert16.png"
     GlobalVars.Strings.MD_GLYPH_SELECTOR_7_9 = "/com/moneydance/apps/md/view/gui/glyphs/selector_sm.png"
+    GlobalVars.Strings.MD_GLYPH_TRIANGLE_LEFT_9_9 = "/com/moneydance/apps/md/view/gui/glyphs/glyph_triangle_left.png"
     GlobalVars.Strings.MD_GLYPH_DELETE_32_32 = "/com/moneydance/apps/md/view/gui/glyphs/glyph_delete.png"
     GlobalVars.Strings.MD_GLYPH_ADD_28_28 = "/com/moneydance/apps/md/view/gui/glyphs/glyph_income_icon@2x.png"
     GlobalVars.Strings.MD_ICON_GRAPHS_32_32 = "/com/moneydance/apps/md/view/gui/icons/graphs_32.png"
@@ -4461,11 +4462,12 @@ Visit: %s (Author's site)
 
         # Rounding logic....
         if not includeDecimals and roundOnTruncate:
-            origAmtLong = amt
+            origAmtLong = amt                                                                                           # noqa
             amt = roundDoubleOrLong(ct, amt)
-            if True: myPrint("B", "@@ Special formatting Python 'normal' rounding triggered.... OriginalLong: %s, RoundedLong: %s" %(origAmtLong, amt));
+            # if debug: myPrint("B", "@@ Special formatting Python 'normal' rounding triggered.... OriginalLong: %s, RoundedLong: %s" %(origAmtLong, amt));
         elif not includeDecimals:
-            if True: myPrint("B", "@@ Truncate number (no rounding) triggered.... OriginalLong: %s" %(amt));
+            # if debug: myPrint("B", "@@ Truncate number (no rounding) triggered.... OriginalLong: %s" %(amt));
+            pass
 
         sb = invokeMethodByReflection(ct, "formatBasic", [Long.TYPE, Character.TYPE, Boolean.TYPE], [Long(amt), Character(decimalChar), includeDecimals])
         decPlace = sb.lastIndexOf(decStr)
@@ -5647,39 +5649,70 @@ Visit: %s (Author's site)
             g2d.setStroke(self.underlineStroke)
             g2d.draw(line)
 
+
     class TextDisplayForSwingConfig:
-        WIDGET_ROW_BLANKROWNAME         = "<#brn>"
-        WIDGET_ROW_RIGHTROWNAME         = "<#jr>"
-        WIDGET_ROW_CENTERROWNAME        = "<#jc>"
-        WIDGET_ROW_REDROWNAME           = "<#cre>"
-        WIDGET_ROW_BLUEROWNAME          = "<#cbl>"
-        WIDGET_ROW_LIGHTGREYROWNAME     = "<#cgr>"
-        WIDGET_ROW_BOLDROWNAME          = "<#fbo>"
-        WIDGET_ROW_ITALICSROWNAME       = "<#fit>"
-        WIDGET_ROW_UNDERLINESROWNAME    = "<#fun>"
-        WIDGET_ROW_NO_UNDERLINE_DOTS    = "<#nud>"
-        WIDGET_ROW_FORCE_UNDERLINE_DOTS = "<#fud>"
-        WIDGET_ROW_HTMLROWNAME          = "<#html>"
+        WIDGET_ROW_BLANKROWNAME         = "<#brn>";    WIDGET_ROW_BLANKROWNAME_DISPLAY         = "forces row name to be blank/empty"
+        WIDGET_ROW_RIGHTROWNAME         = "<#jr>";     WIDGET_ROW_RIGHTROWNAME_DISPLAY         = "row name justify: right"
+        WIDGET_ROW_CENTERROWNAME        = "<#jc>";     WIDGET_ROW_CENTERROWNAME_DISPLAY        = "row name justify: center"
+        WIDGET_ROW_REDROWNAME           = "<#cre>";    WIDGET_ROW_REDROWNAME_DISPLAY           = "row name colour: red"
+        WIDGET_ROW_BLUEROWNAME          = "<#cbl>";    WIDGET_ROW_BLUEROWNAME_DISPLAY          = "row name colour: blue"
+        WIDGET_ROW_LIGHTGREYROWNAME     = "<#cgr>";    WIDGET_ROW_LIGHTGREYROWNAME_DISPLAY     = "row name colour: light grey"
+        WIDGET_ROW_BOLDROWNAME          = "<#fbo>";    WIDGET_ROW_BOLDROWNAME_DISPLAY          = "row name font: bold"
+        WIDGET_ROW_ITALICSROWNAME       = "<#fit>";    WIDGET_ROW_ITALICSROWNAME_DISPLAY       = "row name font: italics"
+        WIDGET_ROW_UNDERLINEROWNAME     = "<#fun>";    WIDGET_ROW_UNDERLINEROWNAME_DISPLAY     = "row name font: underline"
+        WIDGET_ROW_NO_UNDERLINE_DOTS    = "<#nud>";    WIDGET_ROW_NO_UNDERLINE_DOTS_DISPLAY    = "no special underline dots..."
+        WIDGET_ROW_FORCE_UNDERLINE_DOTS = "<#fud>";    WIDGET_ROW_FORCE_UNDERLINE_DOTS_DISPLAY = "force special underline dots..."
+        WIDGET_ROW_BLANKZEROVALUE       = "<#bzv>";    WIDGET_ROW_BLANKZEROVALUE_DISPLAY       = "forces any total (value) to appear blank when zero"
+        WIDGET_ROW_VALUE_RED            = "<#cvre>";   WIDGET_ROW_VALUE_RED_DISPLAY            = "value colour: red"
+        WIDGET_ROW_VALUE_BLUE           = "<#cvbl>";   WIDGET_ROW_VALUE_BLUE_DISPLAY           = "value colour: blue"
+        WIDGET_ROW_VALUE_LIGHTGREY      = "<#cvgr>";   WIDGET_ROW_VALUE_LIGHTGREY_DISPLAY      = "value colour: light grey"
+        WIDGET_ROW_VALUE_BOLD           = "<#fvbo>";   WIDGET_ROW_VALUE_BOLD_DISPLAY           = "value font: bold"
+        WIDGET_ROW_VALUE_ITALICS        = "<#fvit>";   WIDGET_ROW_VALUE_ITALICS_DISPLAY        = "value font: italics"
+        WIDGET_ROW_VALUE_UNDERLINE      = "<#fvun>";   WIDGET_ROW_VALUE_UNDERLINE_DISPLAY      = "value font: underline"
+        WIDGET_ROW_HTMLROWNAME          = "<#html>";   WIDGET_ROW_HTMLROWNAME_DISPLAY          = "EXPERIMENTAL. Takes your row name as html encoded text"
 
-        WIDGET_ROW_BLANKZEROVALUE       = "<#bzv>"
+        WIDGET_VAR_ROW_NUMBER           = "<##rn>";    WIDGET_VAR_ROW_NUMBER_DISPLAY           = "insert the row number"
+        WIDGET_VAR_BAL_OPTION           = "<##bopt>";  WIDGET_VAR_BAL_OPTION_DISPLAY           = "insert the balance option selected"
+        WIDGET_VAR_BAL_ASOF_DATE        = "<##bad>";   WIDGET_VAR_BAL_ASOF_DATE_DISPLAY        = "insert the balance asof date"
+        WIDGET_VAR_BAL_ASOF_DATE_NAME   = "<##badn>";  WIDGET_VAR_BAL_ASOF_DATE_NAME_DISPLAY   = "insert the balance asof date name"
+        WIDGET_VAR_REM_ASOF_DATE        = "<##rad>";   WIDGET_VAR_REM_ASOF_DATE_DISPLAY        = "insert the include reminders asof date"
+        WIDGET_VAR_REM_ASOF_DATE_NAME   = "<##radn>";  WIDGET_VAR_REM_ASOF_DATE_NAME_DISPLAY   = "insert the include reminders asof date name"
+        WIDGET_VAR_CG_DATE_RANGE        = "<##cgdr>";  WIDGET_VAR_CG_DATE_RANGE_DISPLAY        = "insert the capital gains date range"
+        WIDGET_VAR_CG_DATE_RANGE_NAME   = "<##cgdrn>"; WIDGET_VAR_CG_DATE_RANGE_NAME_DISPLAY   = "insert the capital gains date range name"
+        WIDGET_VAR_IE_DATE_RANGE        = "<##iedr>";  WIDGET_VAR_IE_DATE_RANGE_DISPLAY        = "insert the income/expense date range"
+        WIDGET_VAR_IE_DATE_RANGE_NAME   = "<##iedrn>"; WIDGET_VAR_IE_DATE_RANGE_NAME_DISPLAY   = "insert the income/expense date range name"
 
-        WIDGET_ROW_VALUE_RED            = "<#cvre>"
-        WIDGET_ROW_VALUE_BLUE           = "<#cvbl>"
-        WIDGET_ROW_VALUE_LIGHTGREY      = "<#cvgr>"
-        WIDGET_ROW_VALUE_BOLD           = "<#fvbo>"
-        WIDGET_ROW_VALUE_ITALICS        = "<#fvit>"
-        WIDGET_ROW_VALUE_UNDERLINE      = "<#fvun>"
-
-        WIDGET_VAR_ROW_NUMBER           = "<##rn>"
-        WIDGET_VAR_BAL_OPTION           = "<##bopt>"
-        WIDGET_VAR_BAL_ASOF_DATE        = "<##bad>"
-        WIDGET_VAR_BAL_ASOF_DATE_NAME   = "<##badn>"
-        WIDGET_VAR_REM_ASOF_DATE        = "<##rad>"
-        WIDGET_VAR_REM_ASOF_DATE_NAME   = "<##radn>"
-        WIDGET_VAR_CG_DATE_RANGE        = "<##cgdr>"
-        WIDGET_VAR_CG_DATE_RANGE_NAME   = "<##cgdrn>"
-        WIDGET_VAR_IE_DATE_RANGE        = "<##iedr>"
-        WIDGET_VAR_IE_DATE_RANGE_NAME   = "<##iedrn>"
+        ALL_TAGS_NAMES_LIST = [
+                                [WIDGET_ROW_BLANKROWNAME,              WIDGET_ROW_BLANKROWNAME_DISPLAY        ],
+                                [WIDGET_ROW_RIGHTROWNAME,              WIDGET_ROW_RIGHTROWNAME_DISPLAY        ],
+                                [WIDGET_ROW_CENTERROWNAME,             WIDGET_ROW_CENTERROWNAME_DISPLAY       ],
+                                [WIDGET_ROW_REDROWNAME,                WIDGET_ROW_REDROWNAME_DISPLAY          ],
+                                [WIDGET_ROW_BLUEROWNAME,               WIDGET_ROW_BLUEROWNAME_DISPLAY         ],
+                                [WIDGET_ROW_LIGHTGREYROWNAME,          WIDGET_ROW_LIGHTGREYROWNAME_DISPLAY    ],
+                                [WIDGET_ROW_BOLDROWNAME,               WIDGET_ROW_BOLDROWNAME_DISPLAY         ],
+                                [WIDGET_ROW_ITALICSROWNAME,            WIDGET_ROW_ITALICSROWNAME_DISPLAY      ],
+                                [WIDGET_ROW_UNDERLINEROWNAME,          WIDGET_ROW_UNDERLINEROWNAME_DISPLAY    ],
+                                [WIDGET_ROW_NO_UNDERLINE_DOTS,         WIDGET_ROW_NO_UNDERLINE_DOTS_DISPLAY   ],
+                                [WIDGET_ROW_FORCE_UNDERLINE_DOTS,      WIDGET_ROW_FORCE_UNDERLINE_DOTS_DISPLAY],
+                                [WIDGET_ROW_BLANKZEROVALUE,            WIDGET_ROW_BLANKZEROVALUE_DISPLAY      ],
+                                [WIDGET_ROW_VALUE_RED,                 WIDGET_ROW_VALUE_RED_DISPLAY           ],
+                                [WIDGET_ROW_VALUE_BLUE,                WIDGET_ROW_VALUE_BLUE_DISPLAY          ],
+                                [WIDGET_ROW_VALUE_LIGHTGREY,           WIDGET_ROW_VALUE_LIGHTGREY_DISPLAY     ],
+                                [WIDGET_ROW_VALUE_BOLD,                WIDGET_ROW_VALUE_BOLD_DISPLAY          ],
+                                [WIDGET_ROW_VALUE_ITALICS,             WIDGET_ROW_VALUE_ITALICS_DISPLAY       ],
+                                [WIDGET_ROW_VALUE_UNDERLINE,           WIDGET_ROW_VALUE_UNDERLINE_DISPLAY     ],
+                                [WIDGET_ROW_HTMLROWNAME,               WIDGET_ROW_HTMLROWNAME_DISPLAY         ],
+                                [WIDGET_VAR_ROW_NUMBER,                WIDGET_VAR_ROW_NUMBER_DISPLAY          ],
+                                [WIDGET_VAR_BAL_OPTION,                WIDGET_VAR_BAL_OPTION_DISPLAY          ],
+                                [WIDGET_VAR_BAL_ASOF_DATE,             WIDGET_VAR_BAL_ASOF_DATE_DISPLAY       ],
+                                [WIDGET_VAR_BAL_ASOF_DATE_NAME,        WIDGET_VAR_BAL_ASOF_DATE_NAME_DISPLAY  ],
+                                [WIDGET_VAR_REM_ASOF_DATE,             WIDGET_VAR_REM_ASOF_DATE_DISPLAY       ],
+                                [WIDGET_VAR_REM_ASOF_DATE_NAME,        WIDGET_VAR_REM_ASOF_DATE_NAME_DISPLAY  ],
+                                [WIDGET_VAR_CG_DATE_RANGE,             WIDGET_VAR_CG_DATE_RANGE_DISPLAY       ],
+                                [WIDGET_VAR_CG_DATE_RANGE_NAME,        WIDGET_VAR_CG_DATE_RANGE_NAME_DISPLAY  ],
+                                [WIDGET_VAR_IE_DATE_RANGE,             WIDGET_VAR_IE_DATE_RANGE_DISPLAY       ],
+                                [WIDGET_VAR_IE_DATE_RANGE_NAME,        WIDGET_VAR_IE_DATE_RANGE_NAME_DISPLAY  ],
+        ]
 
         @staticmethod
         def buildVarsDict(rowNumber, balOption, balAsOfDateSettings, remAsOfDateSettings, cgDateRangeSettings, ieDateRangeSettings):
@@ -5809,8 +5842,8 @@ Visit: %s (Author's site)
                 _rowText = _rowText.replace(self.__class__.WIDGET_ROW_ITALICSROWNAME, "")
                 self.italics = True
 
-            if (self.__class__.WIDGET_ROW_UNDERLINESROWNAME in _rowText):
-                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_UNDERLINESROWNAME, "")
+            if (self.__class__.WIDGET_ROW_UNDERLINEROWNAME in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_UNDERLINEROWNAME, "")
                 self.underline = True
 
             if (self.__class__.WIDGET_ROW_HTMLROWNAME in _rowText):
@@ -8682,7 +8715,7 @@ Visit: %s (Author's site)
     def loadWarningIcon(reloadWarningIcon=False):
         NAB = NetAccountBalancesExtension.getNAB()
         if NAB.SWSS_CC is None:
-            myPrint("B", "@@ SWSS_CC is None, so cannot (re)load warningIcon:", NAB.printIcon)
+            myPrint("B", "@@ SWSS_CC is None, so cannot (re)load warningIcon:", NAB.warningIcon)
         else:
             if NAB.warningIcon is None or reloadWarningIcon:
                 mdImages = NAB.moneydanceContext.getUI().getImages()
@@ -8691,11 +8724,20 @@ Visit: %s (Author's site)
     def loadSelectorIcon(reloadSelectorIcon=False):
         NAB = NetAccountBalancesExtension.getNAB()
         if NAB.SWSS_CC is None:
-            myPrint("B", "@@ SWSS_CC is None, so cannot (re)load selectorIcon:", NAB.printIcon)
+            myPrint("B", "@@ SWSS_CC is None, so cannot (re)load selectorIcon:", NAB.selectorIcon)
         else:
             if NAB.selectorIcon is None or reloadSelectorIcon:
                 mdImages = NAB.moneydanceContext.getUI().getImages()
                 NAB.selectorIcon = mdImages.getIconWithColor(GlobalVars.Strings.MD_GLYPH_SELECTOR_7_9, NAB.moneydanceContext.getUI().getColors().secondaryTextFG)
+
+    def loadTagPickerIcon(reloadTagPickerIcon=False):
+        NAB = NetAccountBalancesExtension.getNAB()
+        if NAB.SWSS_CC is None:
+            myPrint("B", "@@ SWSS_CC is None, so cannot (re)load tagPickerIcon:", NAB.tagPickerIcon)
+        else:
+            if NAB.tagPickerIcon is None or reloadTagPickerIcon:
+                mdImages = NAB.moneydanceContext.getUI().getImages()
+                NAB.tagPickerIcon = mdImages.getIconWithColor(GlobalVars.Strings.MD_GLYPH_TRIANGLE_LEFT_9_9, NAB.moneydanceContext.getUI().getColors().secondaryTextFG)
 
     class ShowWarnings(AbstractAction):
         def actionPerformed(self, event): ShowWarnings.showWarnings()                                                   # noqa
@@ -8716,6 +8758,42 @@ Visit: %s (Author's site)
             theText = "CURRENT WARNINGS:\n" \
                       "-----------------\n\n" + warningText + "\n\n<END>\n"
             QuickJFrame("WARNINGS", theText, lAlertLevel=1, lWrapText=False, lAutoSize=True).show_the_frame()
+
+    class ShowTagPicker(AbstractAction):
+        def actionPerformed(self, event): ShowTagPicker.showTagPicker()                                                 # noqa
+
+        @staticmethod
+        def showTagPicker(comp):
+            myPrint("DB", "In ShowTagPicker.showTagPicker()... EDT: %s" %(SwingUtilities.isEventDispatchThread()))
+            if not SwingUtilities.isEventDispatchThread():
+                genericSwingEDTRunner(False, False, ShowTagPicker.showTagPicker)
+                return
+            NAB = NetAccountBalancesExtension.getNAB()
+            theFrame = NAB.theFrame
+            if theFrame is None: return
+
+            class TagPickerAction(AbstractAction):
+                def __init__(self, _tag, _tagName, _nab):
+                    super(self.__class__, self).__init__("%s: %s" %(_tag, _tagName))
+                    self.tag = _tag
+                    self.tagName = _tagName
+                    self.nab = _nab
+
+                def actionPerformed(self, evt):                                                                         # noqa
+                    myPrint("DB", "In showTagPicker()::TagPickerAction.actionPerformed()")
+                    myPrint("DB", "... about to add tag: '%s' into rowname" %(self.tag))
+                    self.nab.widgetNameField_JTF.setText(self.nab.widgetNameField_JTF.getText().strip() + self.tag)
+                    self.nab.storeJTextFieldsForSelectedRow()
+
+            tagPickerMenu = JPopupMenu()
+            # for tag, tagName in [["<##test>", "this is a test"],["<##NOTEST>", "this is not a test"]]:
+            for tag, tagName in TextDisplayForSwingConfig.ALL_TAGS_NAMES_LIST:
+                tagPickerMenu.add(TagPickerAction(tag, tagName, NAB))
+            myPrint("DB", "... about to show the tagPicker popup...")
+            tagPickerMenu.show(comp, 0, comp.getHeight())
+            myPrint("DB", "... back from .show() the tagPicker popup...")
+
+
 
     class MyJScrollPaneForJOptionPane(JScrollPane, HierarchyListener):   # Allows a scrollable/resizeable menu in JOptionPane
         def __init__(self, _component, _frame, _max_w=800, _max_h=600):
@@ -8989,6 +9067,7 @@ Visit: %s (Author's site)
             self.debugIcon = None
             self.warningIcon = None
             self.selectorIcon = None
+            self.tagPickerIcon = None
 
             myPrint("DB", "Exiting ", inspect.currentframe().f_code.co_name, "()")
             myPrint("DB", "##########################################################################################")
@@ -9209,6 +9288,13 @@ Visit: %s (Author's site)
             def mouseExited(self, evt): pass
             def mouseEntered(self, evt): pass
 
+        class TagPickerMouseListener(MouseListener):
+            def mouseClicked(self, evt): pass
+            def mousePressed(self, evt): ShowTagPicker.showTagPicker(evt.getSource())                                   # noqa
+            def mouseReleased(self, evt): pass
+            def mouseExited(self, evt): pass
+            def mouseEntered(self, evt): pass
+
         def areTaxDatesEnabled(self):
             return self.moneydanceContext.getPreferences().getBoolSetting(UserPreferences.GEN_SEPARATE_TAX_DATE, False)
 
@@ -9233,6 +9319,9 @@ Visit: %s (Author's site)
 
             loadSelectorIcon(reloadSelectorIcon=True)
             myPrint("DB", ".. (Re)loaded Selector icon...")
+
+            loadTagPickerIcon(reloadTagPickerIcon=True)
+            myPrint("DB", ".. (Re)loaded TagPicker icon...")
 
             newThemeID = prefs.getSetting(GlobalVars.MD_PREFERENCE_KEY_CURRENT_THEME, ThemeInfo.DEFAULT_THEME_ID)
             if self.themeID and self.themeID != newThemeID:
@@ -14134,19 +14223,32 @@ Visit: %s (Author's site)
                     controlPnl.add(rowNameLabel, GridC.getc(onCol, onRow).east().leftInset(colLeftInset).topInset(topInset))
                     onCol += 1
 
+                    rowName_pnl = MyJPanel(GridBagLayout())
+                    onRowNameRow = 0
+                    onRowNameCol = 0
+
                     NAB.widgetNameField_JTF = MyJTextField("**not set**")
                     NAB.widgetNameField_JTF.putClientProperty("%s.id" %(NAB.myModuleID), "widgetNameField_JTF")
                     NAB.widgetNameField_JTF.setName("widgetNameField_JTF")
                     NAB.widgetNameField_JTF.setToolTipText("Set the name displayed for this row (See help for <#> & html formatting codes)")
                     NAB.widgetNameField_JTF.addFocusListener(NAB.saveFocusListener)
-                    controlPnl.add(NAB.widgetNameField_JTF, GridC.getc(onCol, onRow).colspan(2).leftInset(colInsetFiller).topInset(topInset).fillboth())
+                    rowName_pnl.add(NAB.widgetNameField_JTF, GridC.getc(onRowNameCol, onRowNameRow).wx(1.0).fillboth())
+                    onRowNameCol += 1
+
+                    tagPicker_LBL = MyJLabel(NAB.tagPickerIcon)
+                    tagPicker_LBL.setFocusable(True)
+                    tagPicker_LBL.putClientProperty("%s.id" %(NAB.myModuleID), "tagPicker_LBL")
+                    tagPicker_LBL.addMouseListener(NAB.TagPickerMouseListener())
+                    rowName_pnl.add(tagPicker_LBL, GridC.getc(onRowNameCol, onRowNameRow).leftInset(2).topInset(5).bottomInset(5).rightInset(2))
+                    onRowNameCol += 1
+
+                    controlPnl.add(rowName_pnl, GridC.getc(onCol, onRow).colspan(2).leftInset(colInsetFiller).topInset(topInset).fillboth())
                     onCol += 2
 
                     NAB.simulateTotal_label = MyJLabel("<html><i>result here</i></html>",JLabel.CENTER)
                     NAB.simulateTotal_label.putClientProperty("%s.id" %(NAB.myModuleID), "simulateTotal_label")
                     NAB.simulateTotal_label.setMDHeaderBorder()
                     controlPnl.add(NAB.simulateTotal_label, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).rightInset(colRightInset).fillx())
-
                     onRow += 1
 
                     # --------------------------------------------------------------------------------------------------
