@@ -10,12 +10,12 @@
 # This file does not get executed at run-time, should never be run, and should not contain actual executable code.
 # You do not need this file to run the code, only for editing in an IDE environment.
 
-# Last updated August 2023
+# Last updated Jan 2024
 
 ###############################################################################
 # MIT License
 #
-# Copyright (c) 2021-2023 Stuart Beesley - StuWareSoftSystems
+# Copyright (c) 2021-2024 Stuart Beesley - StuWareSoftSystems
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal

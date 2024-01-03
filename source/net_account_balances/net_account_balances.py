@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# net_account_balances.py build: 1044 - Dec 2023 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 1045 - Jan 2024 - Stuart Beesley - StuWareSoftSystems
 # Display Name in MD changed to 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
 
 # Thanks and credit to Dan T Davis and Derek Kent(23) for their suggestions and extensive testing...
@@ -20,7 +20,7 @@
 ########################################################################################################################
 # MIT License
 #
-# Copyright (c) 2021-2023 Stuart Beesley - StuWareSoftSystems
+# Copyright (c) 2021-2024 Stuart Beesley - StuWareSoftSystems
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -110,9 +110,18 @@
 # build: 1044 - Added long/short-term capital gains calculations; New/enhanced final calculation adjustment features
 #               Address UOR chaining loss of decimal precision...; added (this) row maths calculation (rmc); switched to single format as % option...
 #               Allow RMC when Balance is None... (i.e. no picklist)....; show full decimal precision when debug enabled...
+# build: 1045 - Changed feature so that Hide Decimal Places ALWAYS rounds the result (display only) using RoundingMode.HALF_UP method. NOTE: funky 'roundTowards()' has been dropped.
+#               - Rounding of Java Double / Python float numbers can be problematic. Custom Balances calls Jython's round() method.
+#                 ... Jython internally uses Java's BigDecimal class with RoundingMode.HALF_UP mode (e.g. 0.5 'should' become 1.0)
+#                 ... NOTE: you won't always get what you expect. Refer:
+#                 https://docs.python.org/2.7/library/functions.html#round
+#                 https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/math/RoundingMode.html#HALF_UP
+
 
 # todo - allow <#TAG xxx> in row name, and to call on this from other rows..?
 # todo - option to show different dpc (e.g. full decimal precision)
+# todo - popup selectors for tags in row name?
+# todo - Token parser for string formula (e.g. '((row1/row2)*row3)=' (drop UOR chains?)
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -120,7 +129,7 @@
 
 # SET THESE LINES
 myModuleID = u"net_account_balances"
-version_build = "1044"
+version_build = "1045"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -2886,7 +2895,7 @@ Visit: %s (Author's site)
             _label1.setForeground(getColorBlue())
             aboutPanel.add(_label1)
 
-            _label2 = JLabel(pad("StuWareSoftSystems (2020-2023)", 800))
+            _label2 = JLabel(pad("StuWareSoftSystems (2020-2024)", 800))
             _label2.setForeground(getColorBlue())
             aboutPanel.add(_label2)
 
@@ -4412,26 +4421,33 @@ Visit: %s (Author's site)
             dump_sys_error_to_md_console_and_errorlog()
             return None
 
+    # def roundTowards(value, target):
+    #     assert (isinstance(value, float)), "ERROR - roundTowards() must be supplied a double/float value! >> received: %s(%s)" %(value, type(value))
+    #     roundedValue = value
+    #     if value < target:
+    #         roundedValue = Math.ceil(value)
+    #     elif value > target:
+    #         roundedValue = Math.floor(value)
+    #     return roundedValue
 
-    def roundTowards(value, target):
-        assert (isinstance(value, float)), "ERROR - roundTowards() must be supplied a double/float value! >> received: %s(%s)" %(value, type(value))
-        roundedValue = value
-        if value < target:
-            roundedValue = Math.ceil(value)
-        elif value > target:
-            roundedValue = Math.floor(value)
-        return roundedValue
+    def roundDoubleOrLong(ct, valueDoubleOrLong):
+        if ct is None: return round(valueDoubleOrLong, 0)       # Assume already a Double (float)
+        # Otherwise assume it's a Long (int)
+        origAmtDbl = ct.getDoubleValue(valueDoubleOrLong)
+        roundedAmtDbl = round(origAmtDbl, 0)  # Jython round() - should use Java's BigDecimal class with RoundingMode.HALF_UP mode (e.g. 0.5 'should' become 1.0)
+        amtLong = ct.getLongValue(roundedAmtDbl)
+        return amtLong
 
     # com.infinitekind.moneydance.model.CurrencyType.formatSemiFancy(long, char) : String
     def formatSemiFancy(ct, amt, decimalChar, indianFormat=False):
         # type: (CurrencyType, long, basestring, bool) -> basestring
         """Replicates MD API .formatSemiFancy(), but can override for Indian Number format"""
-        if not indianFormat: return ct.formatSemiFancy(amt, decimalChar)                # Just call the MD original for efficiency
-        return formatFancy(ct, amt, decimalChar, True, False, indianFormat=indianFormat)
+        if not indianFormat: return ct.formatSemiFancy(amt, decimalChar)      # Just call the MD original for efficiency
+        return formatFancy(ct, amt, decimalChar, includeDecimals=True, fancy=False, indianFormat=indianFormat, roundOnTruncate=False)
 
     # com.infinitekind.moneydance.model.CurrencyType.formatFancy(long, char, boolean) : String
-    def formatFancy(ct, amt, decimalChar, includeDecimals=True, fancy=True, indianFormat=False, roundingTarget=0.0):
-        # type: (CurrencyType, long, basestring, bool, bool, bool, float) -> basestring
+    def formatFancy(ct, amt, decimalChar, includeDecimals=True, fancy=True, indianFormat=False, roundOnTruncate=False):
+        # type: (CurrencyType, long, basestring, bool, bool, bool, bool) -> basestring
         """Replicates MD API .formatFancy() / .formatSemiFancy(), but can override for Indian Number format"""
 
         # Disabled the standard as .formatSemiFancy() has no option to deselect decimal places!! :-(
@@ -4443,12 +4459,13 @@ Visit: %s (Author's site)
         decStr = "." if (decimalChar == ".") else ","
         comma = "," if (decimalChar == ".") else "."
 
-        # Do something special for round towards target (not zero)....
-        if not includeDecimals and roundingTarget != 0.0:
-            origAmt = ct.getDoubleValue(amt)
-            roundedAmt = roundTowards(origAmt, roundingTarget)
-            amt = ct.getLongValue(roundedAmt)
-            # myPrint("B", "@@ Special formatting rounding towards zero triggered.... Original: %s, Target: %s, Rounded: %s" %(origAmt, roundingTarget, roundedAmt));
+        # Rounding logic....
+        if not includeDecimals and roundOnTruncate:
+            origAmtLong = amt
+            amt = roundDoubleOrLong(ct, amt)
+            if True: myPrint("B", "@@ Special formatting Python 'normal' rounding triggered.... OriginalLong: %s, RoundedLong: %s" %(origAmtLong, amt));
+        elif not includeDecimals:
+            if True: myPrint("B", "@@ Truncate number (no rounding) triggered.... OriginalLong: %s" %(amt));
 
         sb = invokeMethodByReflection(ct, "formatBasic", [Long.TYPE, Character.TYPE, Boolean.TYPE], [Long(amt), Character(decimalChar), includeDecimals])
         decPlace = sb.lastIndexOf(decStr)
@@ -12150,7 +12167,7 @@ Visit: %s (Author's site)
                                                                 fancy=fancy,
                                                                 indianFormat=NAB.savedUseIndianNumberFormat,
                                                                 includeDecimals=(not NAB.savedHideDecimalsTable[i]),
-                                                                roundingTarget=(0.0 if (not NAB.savedHideDecimalsTable[i]) else NAB.savedHideRowXValueTable[i]))
+                                                                roundOnTruncate=True)
                                 if wantsPercent: theFormattedValue += " %"
 
                                 theDecimalPrecisionFormattedValue = ""
@@ -15415,21 +15432,20 @@ Visit: %s (Author's site)
 
                         if checkAutoHideWhen:
 
-                            balanceOrAverageLong = balanceObj.getBalance()      # Use .getBalanceWithDecimalsPreserved()?
+                            balanceOrAverageLong = balanceObj.getBalance()     # Use .getBalanceWithDecimalsPreserved()?
                             netAmtDbl_toCompare = balanceObj.getCurrencyType().getDoubleValue(balanceOrAverageLong)
 
                             if NAB.savedHideRowWhenXXXTable[rowIdx] == GlobalVars.HIDE_ROW_WHEN_ZERO_OR_X:
                                 if NAB.savedHideDecimalsTable[rowIdx]:
                                     if float(int(netAmtDbl_toCompare)) == netAmtDbl_toCompare:
-                                        if debug: myPrint("DB", ":: Row: %s Decimals hidden... NOTE: calculated balance (%s) is already a whole number so no rounding... NOTE: XValue (%s)"
+                                        if debug: myPrint("DB", ":: Row: %s Decimals hidden... NOTE: calculated balance (%s) is already a whole number >> NO ROUNDING << NOTE: XValue (%s)"
                                                 %(onRow, netAmtDbl_toCompare, NAB.savedHideRowXValueTable[rowIdx]))
                                     elif float(int(NAB.savedHideRowXValueTable[rowIdx])) != NAB.savedHideRowXValueTable[rowIdx]:
-                                        if debug: myPrint("DB", ":: Row: %s Decimals hidden... BUT will NOT round calculated balance (%s) as XValue (%s) demands decimal precision"
+                                        if debug: myPrint("DB", ":: Row: %s Decimals hidden... BUT will NOT round calculated balance (%s) as XValue (%s) DEMANDS decimal precision"
                                                 %(onRow, netAmtDbl_toCompare, NAB.savedHideRowXValueTable[rowIdx]))
                                     else:
-                                        netAmtDbl_toCompare = roundTowards(netAmtDbl_toCompare, NAB.savedHideRowXValueTable[rowIdx])
-
-                                        if debug: myPrint("DB", ":: Row: %s Decimals hidden... Will compare rounded(towards X) calculated balance (original: %s, rounded: %s) against XValue: %s"
+                                        netAmtDbl_toCompare = roundDoubleOrLong(None, netAmtDbl_toCompare)
+                                        if debug: myPrint("DB", ":: Row: %s Decimals hidden... Will compare rounded(towards X) calculated balance (original: %s, rounded: %s) (XValue: %s)"
                                                 %(onRow, balanceObj.getCurrencyType().getDoubleValue(balanceOrAverageLong), netAmtDbl_toCompare, NAB.savedHideRowXValueTable[rowIdx]))
 
                                 if netAmtDbl_toCompare == NAB.savedHideRowXValueTable[rowIdx]:
@@ -15451,7 +15467,7 @@ Visit: %s (Author's site)
                                     if debug: myPrint("DB", "** Hiding/skipping !=(x)%s balance row %s" %(NAB.savedHideRowXValueTable[rowIdx], onRow))
                                     isHiddenOrAutoHideWhen = True
 
-            if debug: myPrint("DB", "... row %s is NOT auto hidden...." %(onRow))
+            if debug: myPrint("DB", "... row %s returning isHiddenOrAutoHideWhen: %s ...." %(onRow, isHiddenOrAutoHideWhen))
             return isHiddenOrAutoHideWhen
 
 
@@ -17083,7 +17099,7 @@ Visit: %s (Author's site)
                                                                             fancy=fancy,
                                                                             indianFormat=NAB.savedUseIndianNumberFormat,
                                                                             includeDecimals=(not NAB.savedHideDecimalsTable[i]),
-                                                                            roundingTarget=(0.0 if (not NAB.savedHideDecimalsTable[i]) else NAB.savedHideRowXValueTable[i]))
+                                                                            roundOnTruncate=True)
                                             if wantsPercent: theFormattedValue += " %"
 
                                             theDecimalPrecisionFormattedValue = ""

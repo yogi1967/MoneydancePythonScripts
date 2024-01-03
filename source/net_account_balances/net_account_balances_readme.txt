@@ -241,16 +241,19 @@ FORMATTING FOR ROW DISPLAY:
 
 - Hide row when options:
     Never, Always(Disable), balance = X, balance >= X, balance <= X. DEFAULT FOR X is ZERO
-    >> 'Always(Disable)' is ignored in use other row calculations that require this row!
+    >> 'Always(Disable)' normally causes the row NEVER to be calculated, unless its consumed by another row (UOR).
     You can set X to any value (positive or negative)
-    NOTE: If you select row option 'Hide Decimal Places', AND auto-hide row when balance=X,
-          AND set X to a value with no decimals, then the calculated balance will be rounded when comparing to X.
-          Rounding will be towards X... This means that X=0 would include -0.99 to +0.99 (example)
+    NOTE: If you select row option 'Hide Decimal Places', AND 'auto-hide row when balance=X',
+          ... AND set X to a whole number (no decimals), then the calculated balance will be rounded when comparing to X
+          Rounding mode is 'half-up' (e.g. auto-hide when X=0 would include calculated results -0.499 to +0.499)
+          >> If you specify an X with decimals then no rounding will take place (for auto-hide check)
+          >> If the calculated balance is already a whole number, then no rounding will take place (for auto-hide check)
 
-- Hide Decimal places: Will hide decimal places on the selected row's calculated balance (e.g. 1.99 will show as 1)
-                       This option impacts auto-hide logic in some situations - refer: Hide row when options....
-                       NOTE: Rounding towards X will be triggered for display formatting when this option selected:
-                       ... This means if X=1 for example, then 0.1 thru 1.9 would show as 1 (not zero)
+- Hide Decimal places: Will hide decimal places on the selected row's calculated balance. The result will ALWAYS be
+                       rounded for display purposes. Rounding mode 'half-up' will be used:
+                       (e.g. 1.0 to 1.499 would become 1.0, and 1.5 to 1.999 would become 2.0)
+                       (e.g. -1.0 to -1.499 would become -1.0, and -1.5 to -1.999 would become -2.0)
+                       This option impacts auto-hide logic in some situations - refer: 'Hide row when options'....
 
 - Row separator: You can put horizontal lines above / below rows to separate sections
 
@@ -485,39 +488,16 @@ USING CATEGORIES (DATE RANGE)
   - NOTE: The 'Include Reminders Date' has no bearing on this setting.
   - NOTE: The 'Securities Capital Gains' has a similar, but separate date range from the Income / Expense date range
 
-  - I/E Date Range options:
-    Example: Given a today's date of 4th November 2024 (20241104), the I/E Date Range filters will return the following:
-    DR_YEAR_TO_DATE                20240101 - 20241104
-    DR_FISCAL_YEAR_TO_DATE         20240406 - 20241104  (assuming a UK tax year starting 6th April 2024)
-    DR_LAST_FISCAL_QUARTER         20240706 - 20241005
-    DR_QUARTER_TO_DATE             20241001 - 20241104
-    DR_MONTH_TO_DATE               20241101 - 20241104
-    DR_THIS_YEAR                   20240101 - 20241231 **future**
-    DR_THIS_FISCAL_YEAR            20240406 - 20250405 **future**
-    DR_THIS_QUARTER                20241001 - 20241231 **future**
-    DR_THIS_MONTH                  20241101 - 20241130 **future**
-    DR_THIS_WEEK                   20241029 - 20241104
-    DR_LAST_YEAR                   20230101 - 20231231
-    DR_LAST_FISCAL_YEAR            20230406 - 20240405
-    DR_LAST_QUARTER                20240701 - 20240930
-    DR_LAST_MONTH                  20241001 - 20241031
-    DR_LAST_WEEK                   20241022 - 20241028
-    DR_LAST_12_MONTHS              20231101 - 20241031
-    DR_LAST_365_DAYS               20231105 - 20241104
-    DR_LAST_30_DAYS                20241006 - 20241104
-    DR_LAST_1_DAY                  20241103 - 20241104  (known as yesterday and today, which is actually 2 days)
-    DR_ALL_DATES                   (returns all dates)  (from 1960 thru 2100)
-
-    NOTE: The above will interact with your Balance/Current Balance/Cleared setting for that row:
+  - NOTE: The date range will interact with your Balance/Current Balance/Cleared setting for that row:
           E.G.  Current Balance will always cutoff to today's date
                 Balance will just include everything it finds within the above date ranges
                 Cleared Balance will just include all cleared items within the above date ranges
 
-    >> If you choose 'Custom Date' you can manually edit the date range. Once you have selected 'Custom Date',
+  >> If you choose 'Custom Date' you can manually edit the date range. Once you have selected 'Custom Date',
        .. if you then select one of the preconfigured date options, it simply pre-populates the start/end dates for you
        .. this pre-selection name is irrelevant and is not saved. All that is saved is the date range you enter.
 
-    NOTE: All the date options are dynamic and will auto adjust, except 'Custom' dates which remain as you set them
+  - NOTE: All the date options are dynamic and will auto adjust, except 'Custom' dates which remain as you set them
 
 
 KEY TO ROW FORMATTING ON SUMMARY SCREEN:
@@ -556,7 +536,8 @@ DETAILS ON HOW CALCULATIONS OF BALANCES OCCURS:
     - Iterate over each row/calculation, apply any final maths calculation specified
     - Lastly, if 'Format as %' AND *100 are selected, then multiply result by 100.
     NOTE: Format as %, Disable Currency Formatting, Hide Decimal Places only affect the final display, not calculations
-          ... although Hide Decimal Places can cause round-towards-x to be triggered...
+          ... although 'Hide Decimal Places' can cause rounding to be triggered when 'auto-hide row when balance=X'
+          is specified... but this only affects the hide logic and final display. The calculated result is not impacted.
 
     WARNING: Rows that are used within other rows are ALWAYS calculated, irrespective of hide/GroupID filter
              >> be mindful of the CPU / speed impact of non-displayed rows especially when using parallel calculations!
@@ -565,6 +546,17 @@ DETAILS ON HOW CALCULATIONS OF BALANCES OCCURS:
                       decimal precision will be stored internally, and this internal value will be used for maths
                       functions that operate on the row's calculated result (e.g. average by, maths UOR, final maths
                       calculations...
+
+
+>> ROUNDING:
+Rounding is only performed on the final result when 'Hide Decimal Places' is selected. The internal number is never
+rounded, and the full decimal precision is always preserved internally for onward UOR consumption.
+- Rounding of Java Double / Python float numbers can be problematic. Custom Balances calls Jython's round() method. This
+  internally uses Java's BigDecimal class with the RoundingMode.HALF_UP mode (e.g. 0.5 should become 1.0).
+  NOTE: you won't always get what you expect. If you are interested - refer:
+        https://docs.python.org/2.7/library/functions.html#round
+        https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/math/RoundingMode.html#HALF_UP
+
 
 >> PARALLEL BALANCES:
     - Selecting any of the following options will trigger parallel balance operations for that row, for all accounts
