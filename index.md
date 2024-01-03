@@ -175,4 +175,4 @@ _Or perhaps just buy me a "beer" (also via PayPal)_<BR>
 
 _<b>If you would like me to code a Moneydance extension, report, script, or fix for you, (for a fee) then contact me: written_drizzle_0v @ icloud.com (no spaces)</b>_<BR>
 
-_(site last updated 18th November 2023)_
+_(site last updated 1st January 2024)_
