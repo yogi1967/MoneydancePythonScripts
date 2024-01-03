@@ -14717,16 +14717,6 @@ Visit: %s (Author's site)
                     rowMathsCalculation_pnl.add(NAB.rowMathsCalculationOperator_COMBO, GridC.getc(onRowMathsCalculationCol, onRowMathsCalculationRow).leftInset(5))
                     onRowMathsCalculationCol += 1
 
-                    # NAB.rowMathsCalculationIsPercent_CB = MyJCheckBox("Format as %", True)
-                    # NAB.rowMathsCalculationIsPercent_CB.putClientProperty("%s.id" %(NAB.myModuleID), "rowMathsCalculationIsPercent_CB")
-                    # NAB.rowMathsCalculationIsPercent_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
-                    # NAB.rowMathsCalculationIsPercent_CB.setName("rowMathsCalculationIsPercent_CB")
-                    # NAB.rowMathsCalculationIsPercent_CB.setToolTipText("When ticked, then this row's maths calculation result will be deemed a percentage...")
-                    # NAB.rowMathsCalculationIsPercent_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    # NAB.rowMathsCalculationIsPercent_CB.addActionListener(NAB.saveActionListener)
-                    # rowMathsCalculation_pnl.add(NAB.rowMathsCalculationIsPercent_CB, GridC.getc(onRowMathsCalculationCol, onRowMathsCalculationRow).leftInset(8))
-                    # onRowMathsCalculationCol += 1
-
                     controlPnl.add(rowMathsCalculation_pnl, GridC.getc(onCol, onRow).west().leftInset(colInsetFiller).fillx().pady(pady).filly().colspan(3))
                     onRow += 1
 
@@ -15002,7 +14992,7 @@ Visit: %s (Author's site)
                     NAB.hideDecimals_CB.putClientProperty("%s.id" %(NAB.myModuleID), "hideDecimals_CB")
                     NAB.hideDecimals_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     NAB.hideDecimals_CB.setName("hideDecimals_CB")
-                    NAB.hideDecimals_CB.setToolTipText("Enable the hiding of decimal places for this row (i.e. 1.99 will show as 1)")
+                    NAB.hideDecimals_CB.setToolTipText("Hide decimal places for this row. Displayed result will be rounded (e.g. 1.0 to 1.499 will become 1.0, and 1.5 to 1.999 will become 2.0)")
                     NAB.hideDecimals_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.hideDecimals_CB.addActionListener(NAB.saveActionListener)
 
