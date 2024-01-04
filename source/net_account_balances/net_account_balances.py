@@ -8774,7 +8774,7 @@ Visit: %s (Author's site)
 
             class TagPickerAction(AbstractAction):
                 def __init__(self, _tag, _tagName, _nab):
-                    super(self.__class__, self).__init__("%s: %s" %(_tag, _tagName))
+                    super(self.__class__, self).__init__("%s %s" %(pad(_tag, 10), _tagName))
                     self.tag = _tag
                     self.tagName = _tagName
                     self.nab = _nab
@@ -8782,12 +8782,22 @@ Visit: %s (Author's site)
                 def actionPerformed(self, evt):                                                                         # noqa
                     myPrint("DB", "In showTagPicker()::TagPickerAction.actionPerformed()")
                     myPrint("DB", "... about to add tag: '%s' into rowname" %(self.tag))
-                    self.nab.widgetNameField_JTF.setText(self.nab.widgetNameField_JTF.getText().strip() + self.tag)
+                    if self.tag == TextDisplayForSwingConfig.WIDGET_VAR_ROW_NUMBER:
+                        self.nab.widgetNameField_JTF.setText(self.tag + self.nab.widgetNameField_JTF.getText().strip())
+                    else:
+                        self.nab.widgetNameField_JTF.setText(self.nab.widgetNameField_JTF.getText().strip() + self.tag)
                     self.nab.storeJTextFieldsForSelectedRow()
 
+            monoFont = NAB.moneydanceContext.getUI().getFonts().code
             tagPickerMenu = JPopupMenu()
             for tag, tagName in TextDisplayForSwingConfig.ALL_TAGS_NAMES_LIST:
+                if tag == TextDisplayForSwingConfig.WIDGET_ROW_BLANKROWNAME:
+                    tagPickerMenu.add(MyJLabel(wrap_HTML_bold("  FORMATTING CODES:")))
+                elif tag == TextDisplayForSwingConfig.WIDGET_VAR_ROW_NUMBER:
+                    tagPickerMenu.addSeparator()
+                    tagPickerMenu.add(MyJLabel(wrap_HTML_bold("  VARIABLE CODES:")))
                 tagPickerMenu.add(TagPickerAction(tag, tagName, NAB))
+            for menuComp in tagPickerMenu.getSubElements(): menuComp.setFont(monoFont)
             myPrint("DB", "... about to show the tagPicker popup...")
             tagPickerMenu.show(comp, 0, comp.getHeight())
             myPrint("DB", "... back from .show() the tagPicker popup...")
