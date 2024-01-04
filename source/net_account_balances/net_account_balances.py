@@ -116,11 +116,11 @@
 #                 ... NOTE: you won't always get what you expect. Refer:
 #                 https://docs.python.org/2.7/library/functions.html#round
 #                 https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/math/RoundingMode.html#HALF_UP
-#               Added tag picker to row name field...
+#               Added tag picker to row name field...; added row selector popup; added Tag Name field (etc)....
+#               Switched to using MyHomePageView.calculateUsingSymbol() for all "+-*/" operations using symbol as string...
 
 # todo - allow <#TAG xxx> in row name, and to call on this from other rows..?
 # todo - option to show different dpc (e.g. full decimal precision)
-# todo - popup selectors for tags in row name?
 # todo - Token parser for string formula (e.g. '((row1/row2)*row3)=' (drop UOR chains?)
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -576,6 +576,7 @@ else:
     GlobalVars.extn_param_NEW_displayVisualUnderDots_NAB     = None
     GlobalVars.extn_param_NEW_expandedView_NAB               = None
     GlobalVars.extn_param_NEW_groupIDTable_NAB               = None
+    GlobalVars.extn_param_NEW_tagNameTable_NAB               = None
     GlobalVars.extn_param_NEW_filterByGroupID_NAB            = None
     GlobalVars.extn_param_NEW_presavedFilterByGroupIDsTable  = None
 
@@ -5178,7 +5179,7 @@ Visit: %s (Author's site)
 
         def __init__(self):
             # https://docs.python.org/2/howto/regex.html
-            # Only allow a-z, 0-9, '-', '_', '.'
+            # Only allow digits 0-9, Aa-Zz, '_', '-', '.', ':', '%', ';'
             self.FILTER_GROUPID_ALPHA_NUM_REGEX = re.compile('[^a-z0-9;:%._-]', (re.IGNORECASE | re.UNICODE | re.LOCALE))
             self.maxWidth = -1
             super(self.__class__, self).__init__()
@@ -5188,6 +5189,32 @@ Visit: %s (Author's site)
         def insertString(self, theOffset, theStr, theAttr):
             if theStr is not None and self.characterCheck(theStr):
                 super(self.__class__, self).insertString(theOffset, theStr, theAttr)
+
+        # Avoid width resizes changing the GUI back and forth....
+        def getPreferredSize(self):
+            dim = super(self.__class__, self).getPreferredSize()
+            self.maxWidth = Math.max(self.maxWidth, dim.width)
+            dim.width = self.maxWidth
+            return dim
+
+    class JTextFieldTagNameDocument(PlainDocument):
+
+        def __init__(self):
+            # https://docs.python.org/2/howto/regex.html
+            # Only allow digits 0-9, Aa-Zz
+            self.FILTER_TAGNAME_ALPHA_NUM_REGEX = re.compile('[^a-z0-9]', (re.IGNORECASE | re.UNICODE | re.LOCALE))
+            self.maxWidth = -1
+            super(self.__class__, self).__init__()
+
+        def characterCheck(self, checkString):
+            return (self.FILTER_TAGNAME_ALPHA_NUM_REGEX.search(checkString) is None)
+
+        def insertString(self, theOffset, theStr, theAttr):
+            if theOffset == 0 and len(theStr) > 0 and not theStr[:1].isalpha():
+                pass  # First character should only be alpha
+            else:
+                if theStr is not None and self.characterCheck(theStr):
+                    super(self.__class__, self).insertString(theOffset, theStr, theAttr)
 
         # Avoid width resizes changing the GUI back and forth....
         def getPreferredSize(self):
@@ -5672,6 +5699,7 @@ Visit: %s (Author's site)
         WIDGET_ROW_HTMLROWNAME          = "<#html>";   WIDGET_ROW_HTMLROWNAME_DISPLAY          = "EXPERIMENTAL. Takes your row name as html encoded text"
 
         WIDGET_VAR_ROW_NUMBER           = "<##rn>";    WIDGET_VAR_ROW_NUMBER_DISPLAY           = "insert the row number"
+        WIDGET_VAR_ROW_TAG              = "<##rt>";    WIDGET_VAR_ROW_TAG_DISPLAY              = "insert the row tag (variable) name"
         WIDGET_VAR_BAL_OPTION           = "<##bopt>";  WIDGET_VAR_BAL_OPTION_DISPLAY           = "insert the balance option selected"
         WIDGET_VAR_BAL_ASOF_DATE        = "<##bad>";   WIDGET_VAR_BAL_ASOF_DATE_DISPLAY        = "insert the balance asof date"
         WIDGET_VAR_BAL_ASOF_DATE_NAME   = "<##badn>";  WIDGET_VAR_BAL_ASOF_DATE_NAME_DISPLAY   = "insert the balance asof date name"
@@ -5703,6 +5731,7 @@ Visit: %s (Author's site)
                                 [WIDGET_ROW_VALUE_UNDERLINE,           WIDGET_ROW_VALUE_UNDERLINE_DISPLAY     ],
                                 [WIDGET_ROW_HTMLROWNAME,               WIDGET_ROW_HTMLROWNAME_DISPLAY         ],
                                 [WIDGET_VAR_ROW_NUMBER,                WIDGET_VAR_ROW_NUMBER_DISPLAY          ],
+                                [WIDGET_VAR_ROW_TAG,                   WIDGET_VAR_ROW_TAG_DISPLAY             ],
                                 [WIDGET_VAR_BAL_OPTION,                WIDGET_VAR_BAL_OPTION_DISPLAY          ],
                                 [WIDGET_VAR_BAL_ASOF_DATE,             WIDGET_VAR_BAL_ASOF_DATE_DISPLAY       ],
                                 [WIDGET_VAR_BAL_ASOF_DATE_NAME,        WIDGET_VAR_BAL_ASOF_DATE_NAME_DISPLAY  ],
@@ -5715,12 +5744,16 @@ Visit: %s (Author's site)
         ]
 
         @staticmethod
-        def buildVarsDict(rowNumber, balOption, balAsOfDateSettings, remAsOfDateSettings, cgDateRangeSettings, ieDateRangeSettings):
-            # type: (int, int, [bool, str, int, int], [bool, str, int, int], [int, bool, bool, str, int, int, int], [bool, str, int, int, int]) -> {str: str}
+        def buildVarsDict(rowNumber, tagName, balOption, balAsOfDateSettings, remAsOfDateSettings, cgDateRangeSettings, ieDateRangeSettings):
+            # type: (int, str, int, [bool, str, int, int], [bool, str, int, int], [int, bool, bool, str, int, int, int], [bool, str, int, int, int]) -> {str: str}
 
             varDict = {}                                                                                                # noqa
 
             varDict[TextDisplayForSwingConfig.WIDGET_VAR_ROW_NUMBER] = str(rowNumber)
+
+            tagNameTxt = tagName
+            if tagName == "": tagNameTxt = "no tag"
+            varDict[TextDisplayForSwingConfig.WIDGET_VAR_ROW_TAG] = tagNameTxt
 
             if balOption == GlobalVars.BALTYPE_BALANCE:
                 balOptionTxt = "Balance"
@@ -5801,6 +5834,7 @@ Visit: %s (Author's site)
             self.valueUnderline = False
 
             self.var_rowNumber = False
+            self.var_rowTag = False
             self.var_balOption = False
             self.var_balAsOfDate = False
             self.var_balAsOfDateName = False
@@ -5811,7 +5845,8 @@ Visit: %s (Author's site)
             self.var_ieDateRange = False
             self.var_ieDateRangeName = False
 
-            for varKey in [self.__class__.WIDGET_VAR_ROW_NUMBER, self.__class__.WIDGET_VAR_BAL_OPTION,
+            for varKey in [self.__class__.WIDGET_VAR_ROW_NUMBER,    self.__class__.WIDGET_VAR_ROW_TAG,
+                           self.__class__.WIDGET_VAR_BAL_OPTION,
                            self.__class__.WIDGET_VAR_BAL_ASOF_DATE, self.__class__.WIDGET_VAR_BAL_ASOF_DATE_NAME,
                            self.__class__.WIDGET_VAR_REM_ASOF_DATE, self.__class__.WIDGET_VAR_REM_ASOF_DATE_NAME,
                            self.__class__.WIDGET_VAR_CG_DATE_RANGE, self.__class__.WIDGET_VAR_CG_DATE_RANGE_NAME,
@@ -8802,7 +8837,78 @@ Visit: %s (Author's site)
             tagPickerMenu.show(comp, 0, comp.getHeight())
             myPrint("DB", "... back from .show() the tagPicker popup...")
 
+    class RowScroller(AbstractAction):
+        def actionPerformed(self, event): RowScroller.rowScrollerPicker()                                                 # noqa
 
+        @staticmethod
+        def rowScrollerPicker(comp):
+            myPrint("DB", "In RowScroller.rowScrollerPicker()... EDT: %s" %(SwingUtilities.isEventDispatchThread()))
+            if not SwingUtilities.isEventDispatchThread():
+                genericSwingEDTRunner(False, False, RowScroller.rowScrollerPicker)
+                return
+            NAB = NetAccountBalancesExtension.getNAB()
+            theFrame = NAB.theFrame
+            if theFrame is None: return
+
+            class RowScrollerAction(AbstractAction):
+                def __init__(self, _rowIdx, _row, _displayText, _nab):
+                    super(self.__class__, self).__init__(_displayText)
+                    self.rowIdx = _rowIdx
+                    self.row = _row
+                    self.displayText = _displayText
+                    self.nab = _nab
+
+                def actionPerformed(self, evt):                                                                         # noqa
+                    myPrint("DB", "In rowScrollerPicker()::RowScrollerAction.actionPerformed()")
+                    def _switchRows(_nab, _newRowIdx):
+                        myPrint("DB", "... about to switch rows to: %s (idx: %s)" %(self.row, self.rowIdx))
+                        _nab.askStoreJListSelectionChanges()
+                        _nab.rebuildFrameComponents(selectRowIndex=_newRowIdx)
+                    genericSwingEDTRunner(False, False, _switchRows, self.nab, self.rowIdx)
+
+            rowScrollerMenu = JPopupMenu()
+
+            HAS_TAGNAME_TXT = "<tag: {}>"
+            HAS_GROUPID_TXT = "<groupid: {}>"
+
+            altFG = NAB.moneydanceContext.getUI().getColors().defaultTextForeground
+            numRows = NAB.getNumberOfRows()
+            for i in range(0, numRows):
+                onRow = i + 1
+                if numRows <= 9: rjustpad = 1
+                elif numRows <= 99: rjustpad = 2
+                else: rjustpad = 3
+                rowTxt = rpad(str(onRow), rjustpad, "0")
+
+                rowNameTxt = NAB.savedWidgetName[i]
+
+                hasGroupIDTxt = ""
+                if NAB.savedGroupIDTable[i] != "":
+                    groupIDTxt = HAS_GROUPID_TXT.replace("{}", padTruncateWithDots(NAB.savedGroupIDTable[i], 10, padString=False))
+                    hasGroupIDTxt += " " + html_strip_chars(groupIDTxt)
+
+                hasTagNameTxt = ""
+                rowTag = NAB.getTagVariableNameForRowIdx(i, False)
+                if rowTag is not None:
+                    tagNameTxt = HAS_TAGNAME_TXT.replace("{}", padTruncateWithDots(rowTag, 10, padString=False))
+                    hasTagNameTxt += " " + html_strip_chars(tagNameTxt)
+
+                tdfsc = TextDisplayForSwingConfig(rowTxt + " '%s'" %(padTruncateWithDots(rowNameTxt, 75, padString=False)),
+                                                  hasGroupIDTxt + hasTagNameTxt,
+                                                  _smallColor=altFG,
+                                                  stripSmallChars=False)
+
+                # buildRowHTML = rowTxt + " '%s'" %(padTruncateWithDots(rowNameTxt, 75, padString=False))
+                # buildRowHTML += wrap_HTML_small(hasGroupIDTxt, stripChars=False, addHTML=False)
+                # buildRowHTML += wrap_HTML_small(hasTagNameTxt, stripChars=False, addHTML=False)
+                # thisRowItemTxt = wrap_HTML(buildRowHTML, stripChars=False)
+                # rowScrollerMenu.add(RowScrollerAction(i, onRow, thisRowItemTxt, NAB))
+                rowScrollerMenu.add(RowScrollerAction(i, onRow, tdfsc.getSwingComponentText(), NAB))
+
+            # for menuComp in rowScrollerMenu.getSubElements(): menuComp.setFont(monoFont)
+            myPrint("DB", "... about to show the rowSelector popup...")
+            rowScrollerMenu.show(comp, 0, comp.getHeight())
+            myPrint("DB", "... back from .show() the rowSelector popup...")
 
     class MyJScrollPaneForJOptionPane(JScrollPane, HierarchyListener):   # Allows a scrollable/resizeable menu in JOptionPane
         def __init__(self, _component, _frame, _max_w=800, _max_h=600):
@@ -8950,6 +9056,7 @@ Visit: %s (Author's site)
 
             self.savedUUIDTable                     = None
             self.savedGroupIDTable                  = None
+            self.savedTagNameTable                  = None
 
             self.savedShowPrintIcon                 = None
             self.savedAutoSumDefault                = None
@@ -8997,6 +9104,7 @@ Visit: %s (Author's site)
             self.disableCurrencyFormatting_CB         = None
             self.widgetNameField_JTF                  = None
             self.groupIDField_JTF                     = None
+            self.tagName_JTF                          = None
             self.filterByGroupID_JTF                  = None
             self.cancelChanges_button                 = None
             self.securitiesCGains_LBL                 = None
@@ -9304,6 +9412,13 @@ Visit: %s (Author's site)
             def mouseExited(self, evt): pass
             def mouseEntered(self, evt): pass
 
+        class RowScrollerMouseListener(MouseListener):
+            def mouseClicked(self, evt): pass
+            def mousePressed(self, evt): RowScroller.rowScrollerPicker(evt.getSource())                                 # noqa
+            def mouseReleased(self, evt): pass
+            def mouseExited(self, evt): pass
+            def mouseEntered(self, evt): pass
+
         def areTaxDatesEnabled(self):
             return self.moneydanceContext.getPreferences().getBoolSetting(UserPreferences.GEN_SEPARATE_TAX_DATE, False)
 
@@ -9463,6 +9578,7 @@ Visit: %s (Author's site)
             GlobalVars.extn_param_NEW_operateOnAnotherRowTable_NAB   = copy.deepcopy(NAB.savedOperateOnAnotherRowTable)
             GlobalVars.extn_param_NEW_UUIDTable_NAB                  = copy.deepcopy(NAB.savedUUIDTable)
             GlobalVars.extn_param_NEW_groupIDTable_NAB               = copy.deepcopy(NAB.savedGroupIDTable)
+            GlobalVars.extn_param_NEW_tagNameTable_NAB               = copy.deepcopy(NAB.savedTagNameTable)
             GlobalVars.extn_param_NEW_showPrintIcon_NAB              = copy.deepcopy(NAB.savedShowPrintIcon)
             GlobalVars.extn_param_NEW_autoSumDefault_NAB             = copy.deepcopy(NAB.savedAutoSumDefault)
             GlobalVars.extn_param_NEW_disableWidgetTitle_NAB         = copy.deepcopy(NAB.savedDisableWidgetTitle)
@@ -9865,10 +9981,10 @@ Visit: %s (Author's site)
                     output += "\n<END>"
                 else:
 
-                    output = "%s%s %s%s %s%s %s %s %s\n" \
-                             "%s%s %s%s %s%s %s %s %s\n"\
-                             %(pad("", 1), pad("GroupID:", 8), rpad("row:", 4),  " ", rpad("othr:", 5), " ", pad("autohide:", 13), pad("uuid:", 36), "row name:",
-                               pad("", 1), pad("-", 8, "-"),   rpad("", 4, "-"), " ", rpad("", 5, "-"), " ", pad("", 13, "-"),     pad("", 36, "-"),  pad("", 20, "-"))
+                    output = "%s%s %s %s%s %s%s %s %s %s\n" \
+                             "%s%s %s %s%s %s%s %s %s %s\n"\
+                             %(pad("", 1), pad("GroupID:", 8), pad("TagName:", 8), rpad("row:", 4),  " ", rpad("othr:", 5), " ", pad("autohide:", 13), pad("uuid:", 36), "row name:",
+                               pad("", 1), pad("-", 8, "-"),   pad("-", 8, "-"),   rpad("", 4, "-"), " ", rpad("", 5, "-"), " ", pad("", 13, "-"),     pad("", 36, "-"),  pad("", 20, "-"))
 
                     for i in range(0, NAB.getNumberOfRows()):
                         currentRowMarker = "*" if i == NAB.getSelectedRowIndex() else " "
@@ -9885,9 +10001,13 @@ Visit: %s (Author's site)
                         elif NAB.savedHideRowWhenXXXTable[i] >= GlobalVars.HIDE_ROW_WHEN_ZERO_OR_X:
                             autohideTxt = "<auto hide>"
 
-                        output += "%s%s %s %s %s %s '%s'\n"\
+                        rowTag = NAB.getTagVariableNameForRowIdx(i, False)
+                        if rowTag is None: rowTag = ""
+
+                        output += "%s%s %s %s %s %s %s '%s'\n"\
                                   %(pad(filteredOutTxt, 1),
                                     pad(NAB.savedGroupIDTable[i], 8),
+                                    pad(rowTag, 8),
                                     rpad(str(i+1), 4) + currentRowMarker, rpad(str(otherRow), 5) + otherRowInvalidTxt,
                                     pad(autohideTxt, 13),
                                     pad(NAB.savedUUIDTable[i], 36),
@@ -10011,6 +10131,10 @@ Visit: %s (Author's site)
                 quickList = []
                 for groupFilter, filterName in NAB.savedPresavedFilterByGroupIDsTable:
                     quickList.append([filterName, groupFilter, addIcon, deleteIcon])
+
+                if len(quickList) < 1:
+                    myPrint("DB", "EditRememberedGroupIDFilters::actionPerformed()... There are no presavedFilters=ByGroupIDs to view - no action....")
+                    return
 
                 dtm = DefaultTableModel(quickList, ["Name", "GroupIDFilter", "", ""])
                 jtable = MyJTable(dtm, addIcon, deleteIcon)
@@ -10139,6 +10263,7 @@ Visit: %s (Author's site)
         def expandedViewDefault(self):                  return True
         def UUIDDefault(self, newUUID=True):            return UUID.randomUUID().toString() if newUUID else None
         def groupIDDefault(self):                       return ""
+        def tagNameDefault(self):                       return ""
         def filterByGroupIDDefault(self):               return ""
         def presavedFilterByGroupIDsDefault(self):      return []
 
@@ -10189,6 +10314,10 @@ Visit: %s (Author's site)
             if self.savedGroupIDTable == [self.groupIDDefault()] and len(self.savedGroupIDTable) != self.getNumberOfRows():
                 self.savedGroupIDTable = [self.groupIDDefault() for i in range(0, self.getNumberOfRows())]
                 myPrint("B", "New parameter savedGroupIDTable detected, pre-populating with %s (= <no groupid>)" %(self.savedGroupIDTable))
+
+            if self.savedTagNameTable == [self.tagNameDefault()] and len(self.savedTagNameTable) != self.getNumberOfRows():
+                self.savedTagNameTable = [self.tagNameDefault() for i in range(0, self.getNumberOfRows())]
+                myPrint("B", "New parameter savedTagNameTable detected, pre-populating with %s (= <no tag name>)" %(self.savedTagNameTable))
 
             if self.savedShowWarningsTable == [self.showWarningsDefault()] and len(self.savedShowWarningsTable) != self.getNumberOfRows():
                 self.savedShowWarningsTable = [self.showWarningsDefault() for i in range(0, self.getNumberOfRows())]
@@ -10274,8 +10403,10 @@ Visit: %s (Author's site)
                 self.resetParameters(27)
             elif self.savedGroupIDTable is None or not isinstance(self.savedGroupIDTable, list) or len(self.savedGroupIDTable) < 1:
                 self.resetParameters(28)
-            elif self.savedHideRowWhenXXXTable is None or not isinstance(self.savedHideRowWhenXXXTable, list) or len(self.savedHideRowWhenXXXTable) < 1:
+            elif self.savedTagNameTable is None or not isinstance(self.savedTagNameTable, list) or len(self.savedTagNameTable) < 1:
                 self.resetParameters(29)
+            elif self.savedHideRowWhenXXXTable is None or not isinstance(self.savedHideRowWhenXXXTable, list) or len(self.savedHideRowWhenXXXTable) < 1:
+                self.resetParameters(30)
             elif self.savedHideRowXValueTable is None or not isinstance(self.savedHideRowXValueTable, list) or len(self.savedHideRowXValueTable) < 1:
                 self.resetParameters(31)
             elif self.savedDisplayAverageTable is None or not isinstance(self.savedDisplayAverageTable, list) or len(self.savedDisplayAverageTable) < 1:
@@ -10338,6 +10469,8 @@ Visit: %s (Author's site)
                 self.resetParameters(79)
             elif len(self.savedGroupIDTable) != self.getNumberOfRows():
                 self.resetParameters(81)
+            elif len(self.savedTagNameTable) != self.getNumberOfRows():
+                self.resetParameters(82)
             elif len(self.savedRowSeparatorTable) != self.getNumberOfRows():
                 self.resetParameters(83)
             elif len(self.savedBlinkTable) != self.getNumberOfRows():
@@ -10481,6 +10614,9 @@ Visit: %s (Author's site)
                     if self.savedGroupIDTable[i] is None or not isinstance(self.savedGroupIDTable[i], basestring):
                         printResetMessage("savedGroupIDTable", self.savedGroupIDTable[i], self.groupIDDefault(), i)
                         self.savedGroupIDTable[i] = self.groupIDDefault()
+                    if self.savedTagNameTable[i] is None or not isinstance(self.savedTagNameTable[i], basestring):
+                        printResetMessage("savedTagNameTable", self.savedTagNameTable[i], self.tagNameDefault(), i)
+                        self.savedTagNameTable[i] = self.tagNameDefault()
                     if self.savedHideRowWhenXXXTable[i] is None or not isinstance(self.savedHideRowWhenXXXTable[i], int) or self.savedHideRowWhenXXXTable[i] < GlobalVars.HIDE_ROW_WHEN_NEVER or self.savedHideRowWhenXXXTable[i] > GlobalVars.HIDE_ROW_WHEN_NOT_ZERO_OR_X:
                         printResetMessage("savedHideRowWhenXXXTable", self.savedHideRowWhenXXXTable[i], self.hideRowWhenXXXDefault(), i)
                         self.savedHideRowWhenXXXTable[i] = self.hideRowWhenXXXDefault()
@@ -10592,6 +10728,36 @@ Visit: %s (Author's site)
                     if (finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_OPERATOR_IDX] not in "+-/*"):              return False
                     # if not isinstance(finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_UNUSED_IDX], bool):     return False
             return True
+
+        def isValidTagNameForRowIdx(self, rowIdx):
+            # type: (int) -> bool
+            """Checks all other rows for a tag name. If one found matches this row's tag, then it's a duplicate and invalid!"""
+            NAB = self
+            thisTagName = NAB.getTagVariableNameForRowIdx(rowIdx, True)
+            if thisTagName is None: return True
+            for i in range(0, NAB.getNumberOfRows()):
+                if i == rowIdx: continue
+                otherTagName = NAB.getTagVariableNameForRowIdx(i, True)
+                if otherTagName is None: continue
+                if otherTagName == thisTagName:
+                    # myPrint("B", "@@ FAILED: row: %s '%s' on OtherIDx: %s, '%s'" %(rowIdx+1, thisTagName, i+1, otherTagName));
+                    return False
+                # myPrint("B", "@@ PASSED - row: %s '%s' on OtherIDx: %s, '%s'" %(rowIdx+1, thisTagName, i+1, otherTagName));
+                continue
+            # myPrint("B", "@@ OK - row: %s '%s'" %(rowIdx+1, thisTagName));
+            return True
+
+        def getTagVariableNameForRowIdx(self, rowIdx, returnDefault):
+            # type: (int, bool) -> basestring
+            """Retrieves the tag name for the specified row(idx) (stripped of leading/trailing whitespace, and lowercase)
+            if no tag name is set, then depending on 'returnDefault', will return None or a default internal tag - e.g. 'row1'"""
+            NAB = self
+            tagName = NAB.savedTagNameTable[rowIdx].strip()
+            if len(tagName) > 0:
+                return tagName.lower()
+            elif returnDefault:
+                return "row" + str(rowIdx + 1)
+            return None
 
         def isRowFilteredOutByGroupID(self, thisRowIdx):
             FILTER_SPLIT_TOKEN = ";"
@@ -10787,6 +10953,7 @@ Visit: %s (Author's site)
             self.savedFormatAsPercentTable          = [self.formatAsPercentDefault()]
             self.savedUUIDTable                     = [self.UUIDDefault(newUUID=True)]
             self.savedGroupIDTable                  = [self.groupIDDefault()]
+            self.savedTagNameTable                  = [self.tagNameDefault()]
 
             if not lJustRowSettings:
                 self.savedFilterByGroupID               = self.filterByGroupIDDefault()
@@ -11033,6 +11200,7 @@ Visit: %s (Author's site)
                 AUTO_HIDE_LOOKUP_ERROR = "<!LOOKUP ERROR!>"
                 FILTERED_TXT = "<FILTERED OUT>"
                 HAS_GROUPID_TXT = "<groupid: {}>"
+                HAS_TAGNAME_TXT = "<tag: {}>"
                 # DEFAULT_START_SMALL_LEN = 56
                 # DEFAULT_START_BIG_LEN = 3
 
@@ -11096,10 +11264,16 @@ Visit: %s (Author's site)
                             groupIDTxt = HAS_GROUPID_TXT.replace("{}", padTruncateWithDots(NAB.savedGroupIDTable[i], 10, padString=False))
                             hasGroupIDTxt += " " + html_strip_chars(groupIDTxt) if (not isFiltered) else wrap_HTML_fontColor(red, groupIDTxt, addHTML=False)
 
+                        hasTagNameTxt = ""
+                        rowTag = NAB.getTagVariableNameForRowIdx(i, False)
+                        if rowTag is not None:
+                            tagNameTxt = HAS_TAGNAME_TXT.replace("{}", padTruncateWithDots(rowTag, 10, padString=False))
+                            hasTagNameTxt += " " + html_strip_chars(tagNameTxt) if (not isFiltered) else wrap_HTML_fontColor(red, tagNameTxt, addHTML=False)
+
                         buildRowHTML = rowTxt
                         if (isFiltered or isAutoHidden): buildRowHTML = wrap_HTML_fontColor(red, buildRowHTML, stripChars=False, addHTML=False)
 
-                        buildRowHTML += wrap_HTML_small(thisRowAlwaysOrAutoHideTxt + hasGroupIDTxt + isFilteredTxt, stripChars=False, addHTML=False)
+                        buildRowHTML += wrap_HTML_small(thisRowAlwaysOrAutoHideTxt + hasGroupIDTxt + hasTagNameTxt + isFilteredTxt, stripChars=False, addHTML=False)
                         thisRowItemTxt = wrap_HTML(buildRowHTML, stripChars=False)
 
                     else:
@@ -11144,6 +11318,7 @@ Visit: %s (Author's site)
                                       NAB.filterOnlyAccountType_COMBO,
                                       NAB.showWarnings_CB,
                                       NAB.widgetNameField_JTF,
+                                      NAB.tagName_JTF,
                                       NAB.groupIDField_JTF,
                                       NAB.filterByGroupID_JTF,
                                       NAB.hideRowXValue_JRF,
@@ -11310,6 +11485,9 @@ Visit: %s (Author's site)
             myPrint("DB", "about to set group id..")
             NAB.groupIDField_JTF.setText(NAB.savedGroupIDTable[selectRowIndex])
 
+            myPrint("DB", "about to set tag name ..")
+            NAB.tagName_JTF.setText(NAB.savedTagNameTable[selectRowIndex])
+
             myPrint("DB", "about to set filter by group id..")
             NAB.filterByGroupID_JTF.setText(NAB.savedFilterByGroupID)
 
@@ -11355,6 +11533,8 @@ Visit: %s (Author's site)
                 myPrint("B", ".....widgetNameField_JTF: %s"                     %(NAB.widgetNameField_JTF.getText()))
                 myPrint("B", ".....savedGroupIDTable: %s"                       %(NAB.savedGroupIDTable[selectRowIndex]))
                 myPrint("B", ".....groupIDField_JTF: %s"                        %(NAB.groupIDField_JTF.getText()))
+                myPrint("B", ".....savedTagNameTable: %s"                       %(NAB.savedTagNameTable[selectRowIndex]))
+                myPrint("B", ".....tagName_JTF: %s"                             %(NAB.tagName_JTF.getText()))
                 myPrint("B", ".....savedUUIDTable: %s"                          %(NAB.savedUUIDTable[selectRowIndex]))
                 myPrint("B", ".....%s accountsToShow stored in JList"           %(NAB.jlst.getModel().getSize()))
                 myPrint("B", ".....savedAccountListUUIDs: %s"                   %(NAB.savedAccountListUUIDs[selectRowIndex]))
@@ -11542,6 +11722,14 @@ Visit: %s (Author's site)
                             %(self.getSelectedRowIndex(), self.savedGroupIDTable[self.getSelectedRowIndex()], txtFieldValue))
                     myPrint("DB", "..... saving savedGroupIDTable....")
                     self.savedGroupIDTable[self.getSelectedRowIndex()] = txtFieldValue
+                    self.configSaved = False
+
+                txtFieldValue = self.tagName_JTF.getText()
+                if self.savedTagNameTable[self.getSelectedRowIndex()] != txtFieldValue:
+                    myPrint("DB", ".. selectedRowIndex(): %s savedTagNameTable was: '%s', will set to: '%s'"
+                            %(self.getSelectedRowIndex(), self.savedTagNameTable[self.getSelectedRowIndex()], txtFieldValue))
+                    myPrint("DB", "..... saving savedTagNameTable....")
+                    self.savedTagNameTable[self.getSelectedRowIndex()] = txtFieldValue
                     self.configSaved = False
 
                 txtFieldValue = self.hideRowXValue_JRF.getValue()
@@ -11803,6 +11991,7 @@ Visit: %s (Author's site)
                 myPrint("B", "  Row: %s" %(onRow))
                 myPrint("B", "  %s" %(pad("savedWidgetName",60)),                 NAB.savedWidgetName[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedGroupIDTable",60)),               NAB.savedGroupIDTable[iRowIdx])
+                myPrint("B", "  %s" %(pad("savedTagNameTable",60)),               NAB.savedTagNameTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedUUIDTable",60)),                  NAB.savedUUIDTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedAccountListUUIDs",60)),           NAB.savedAccountListUUIDs[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedCurrencyTable",60)),              NAB.savedCurrencyTable[iRowIdx])
@@ -12086,6 +12275,8 @@ Visit: %s (Author's site)
                 return("CAPITAL GAINS DATE RANGE EXCEEDS ASOF DATE WARNING")
             elif _type == 16:
                 return("UOR CHAIN USING MIXED CURRENCIES WARNING")
+            elif _type == 17:
+                return("TAG (VARIABLE) NAME IS NOT UNIQUE WARNING")
             return("WARNING <<UNKNOWN>> DETECTED")
 
         class SimulateTotalForRowSwingWorker(SwingWorker):
@@ -12513,6 +12704,7 @@ Visit: %s (Author's site)
                                    NAB.savedWidgetName,
                                    NAB.savedUUIDTable,
                                    NAB.savedGroupIDTable,
+                                   NAB.savedTagNameTable,
                                    NAB.savedDisableCurrencyFormatting,
                                    NAB.savedCurrencyTable
                                    ]
@@ -12787,6 +12979,7 @@ Visit: %s (Author's site)
                         NAB.savedIncludeInactive.insert(NAB.getSelectedRowIndex(),            NAB.includeInactiveDefault())
                         NAB.savedUUIDTable.insert(NAB.getSelectedRowIndex(),                  NAB.UUIDDefault(newUUID=True))
                         NAB.savedGroupIDTable.insert(NAB.getSelectedRowIndex(),               NAB.groupIDDefault())
+                        NAB.savedTagNameTable.insert(NAB.getSelectedRowIndex(),               NAB.tagNameDefault())
                         NAB.savedShowWarningsTable.insert(NAB.getSelectedRowIndex(),          NAB.showWarningsDefault())
                         NAB.savedHideRowWhenXXXTable.insert(NAB.getSelectedRowIndex(),        NAB.hideRowWhenXXXDefault())
                         NAB.savedHideRowXValueTable.insert(NAB.getSelectedRowIndex(),         NAB.hideRowXValueDefault())
@@ -12827,6 +13020,7 @@ Visit: %s (Author's site)
                         NAB.savedIncludeInactive.insert(NAB.getSelectedRowIndex()+1,            NAB.includeInactiveDefault())
                         NAB.savedUUIDTable.insert(NAB.getSelectedRowIndex()+1,                  NAB.UUIDDefault(newUUID=True))
                         NAB.savedGroupIDTable.insert(NAB.getSelectedRowIndex()+1,               NAB.groupIDDefault())
+                        NAB.savedTagNameTable.insert(NAB.getSelectedRowIndex()+1,               NAB.tagNameDefault())
                         NAB.savedShowWarningsTable.insert(NAB.getSelectedRowIndex()+1,          NAB.showWarningsDefault())
                         NAB.savedHideRowWhenXXXTable.insert(NAB.getSelectedRowIndex()+1,        NAB.hideRowWhenXXXDefault())
                         NAB.savedHideRowXValueTable.insert(NAB.getSelectedRowIndex()+1,         NAB.hideRowXValueDefault())
@@ -13445,6 +13639,7 @@ Visit: %s (Author's site)
                 GlobalVars.extn_param_NEW_operateOnAnotherRowTable_NAB      = [NAB.operateOnAnotherRowDefault()]
                 GlobalVars.extn_param_NEW_UUIDTable_NAB                     = [NAB.UUIDDefault(newUUID=False)]
                 GlobalVars.extn_param_NEW_groupIDTable_NAB                  = [NAB.groupIDDefault()]
+                GlobalVars.extn_param_NEW_tagNameTable_NAB                  = [NAB.tagNameDefault()]
                 GlobalVars.extn_param_NEW_filterByGroupID_NAB               = NAB.filterByGroupIDDefault()
                 GlobalVars.extn_param_NEW_showPrintIcon_NAB                 = NAB.showPrintIconDefault()
                 GlobalVars.extn_param_NEW_autoSumDefault_NAB                = NAB.autoSumDefault()
@@ -13509,6 +13704,7 @@ Visit: %s (Author's site)
                         self.savedOperateOnAnotherRowTable      = copy.deepcopy(GlobalVars.extn_param_NEW_operateOnAnotherRowTable_NAB)
                         self.savedUUIDTable                     = copy.deepcopy(GlobalVars.extn_param_NEW_UUIDTable_NAB)
                         self.savedGroupIDTable                  = copy.deepcopy(GlobalVars.extn_param_NEW_groupIDTable_NAB)
+                        self.savedTagNameTable                  = copy.deepcopy(GlobalVars.extn_param_NEW_tagNameTable_NAB)
                         self.savedShowWarningsTable             = copy.deepcopy(GlobalVars.extn_param_NEW_showWarningsTable_NAB)
                         self.savedShowPrintIcon                 = copy.deepcopy(GlobalVars.extn_param_NEW_showPrintIcon_NAB)
                         self.savedAutoSumDefault                = copy.deepcopy(GlobalVars.extn_param_NEW_autoSumDefault_NAB)
@@ -14027,12 +14223,18 @@ Visit: %s (Author's site)
                     selectRow_pnl.add(rowSelected_COMBOLabel, GridC.getc(onSelectCol, onSelectRow).wx(0.1).east())
                     onSelectCol += 1
 
+                    rowScroller_LBL = MyJLabel(NAB.selectorIcon)
+                    rowScroller_LBL.setFocusable(True)
+                    rowScroller_LBL.putClientProperty("%s.id" %(NAB.myModuleID), "rowScroller_LBL")
+                    rowScroller_LBL.addMouseListener(NAB.RowScrollerMouseListener())
+                    selectRow_pnl.add(rowScroller_LBL, GridC.getc(onSelectCol, onSelectRow).leftInset(4).topInset(5).bottomInset(5).rightInset(2).west())
+                    onSelectCol += 1
+
                     NAB.rowSelected_COMBO = MyJComboBox([None])
                     NAB.rowSelected_COMBO.setName("rowSelected_COMBO")
                     NAB.rowSelected_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "rowSelected_COMBO")
                     NAB.rowSelected_COMBO.setToolTipText("Select the row you would like to configure")
                     NAB.rowSelected_COMBO.addActionListener(NAB.saveActionListener)
-
                     selectRow_pnl.add(NAB.rowSelected_COMBO, GridC.getc(onSelectCol, onSelectRow).leftInset(colLeftInset).wx(0.1).west())
                     onSelectCol += 1
 
@@ -14291,27 +14493,43 @@ Visit: %s (Author's site)
                     controlPnl.add(NAB.autoSumAccounts_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).colspan(1).fillx().padx(padx))
                     onCol += 1
 
-                    groupID_pnl = MyJPanel(GridBagLayout())
-                    groupID_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    tagAndGroupID_pnl = MyJPanel(GridBagLayout())
+                    tagAndGroupID_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     onGroupIDRow = 0
                     onGroupIDCol = 0
+
+                    tagNameLabel = MyJLabel("Tag:")
+                    tagNameLabel.putClientProperty("%s.id" %(NAB.myModuleID), "tagNameLabel")
+                    tagNameLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    tagAndGroupID_pnl.add(tagNameLabel, GridC.getc(onGroupIDCol, onGroupIDRow).wx(0.1).east())
+                    onGroupIDCol += 1
+
+                    NAB.tagName_JTF = MyJTextField("not set", 8, minColWidth=10)
+                    NAB.tagName_JTF.setDocument(JTextFieldTagNameDocument());
+                    NAB.tagName_JTF.putClientProperty("%s.id" %(NAB.myModuleID), "tagName_JTF")
+                    NAB.tagName_JTF.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.tagName_JTF.setName("tagName_JTF")
+                    NAB.tagName_JTF.setToolTipText("Enter a 'tag' (variable) name (text >> digits Aa-Zz, 0-9) that can be referred to in UOR / formula expressions (refer CMD-I help)")
+                    NAB.tagName_JTF.addFocusListener(NAB.saveFocusListener)
+                    tagAndGroupID_pnl.add(NAB.tagName_JTF, GridC.getc(onGroupIDCol, onGroupIDRow).leftInset(5).wx(0.5).fillboth().west())
+                    onGroupIDCol += 1
 
                     groupIDLabel = MyJLabel("GroupID:")
                     groupIDLabel.putClientProperty("%s.id" %(NAB.myModuleID), "groupIDLabel")
                     groupIDLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    groupID_pnl.add(groupIDLabel, GridC.getc(onGroupIDCol, onGroupIDRow).wx(0.1).east())
+                    tagAndGroupID_pnl.add(groupIDLabel, GridC.getc(onGroupIDCol, onGroupIDRow).wx(0.1).east().leftInset(5))
                     onGroupIDCol += 1
 
-                    NAB.groupIDField_JTF = MyJTextField("not set", 12, minColWidth=20)
+                    NAB.groupIDField_JTF = MyJTextField("not set", 12, minColWidth=18)
                     NAB.groupIDField_JTF.setDocument(JTextFieldGroupIDDocument())
                     NAB.groupIDField_JTF.putClientProperty("%s.id" %(NAB.myModuleID), "groupIDField_JTF")
                     NAB.groupIDField_JTF.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.groupIDField_JTF.setName("groupIDField_JTF")
-                    NAB.groupIDField_JTF.setToolTipText("[OPTIONAL] Enter 'Group ID' (text >> digits 0-9, Aa-Zz, '_', '-', '.', ':', '%')) that can be used to filter out rows (refer CMD-I help)")
+                    NAB.groupIDField_JTF.setToolTipText("Enter 'Group ID' (text >> digits 0-9, Aa-Zz, '_', '-', '.', ':', '%', ';') that can be used to filter out rows (refer CMD-I help)")
                     NAB.groupIDField_JTF.addFocusListener(NAB.saveFocusListener)
-                    groupID_pnl.add(NAB.groupIDField_JTF, GridC.getc(onGroupIDCol, onGroupIDRow).leftInset(5).wx(1.0).fillboth().west())
+                    tagAndGroupID_pnl.add(NAB.groupIDField_JTF, GridC.getc(onGroupIDCol, onGroupIDRow).leftInset(5).wx(0.5).fillboth().west())
 
-                    controlPnl.add(groupID_pnl, GridC.getc(onCol, onRow).west().leftInset(colInsetFiller).rightInset(colRightInset))
+                    controlPnl.add(tagAndGroupID_pnl, GridC.getc(onCol, onRow).west().leftInset(colInsetFiller).rightInset(colRightInset))
                     onCol += 1
 
                     onRow += 1
@@ -14348,7 +14566,7 @@ Visit: %s (Author's site)
                     NAB.asOfDateChooser_AODC.setName("asOfDateChooser_AODC")
                     NAB.asOfDateChooser_AODC.getChoiceCombo().setToolTipText("Select the balance asof date option")
                     NAB.asOfDateChooser_AODC.getAsOfDateField().setToolTipText("Select the balance asof custom date")
-                    NAB.asOfDateChooser_AODC.getSkipBackPeriodsField().setToolTipText("[OPTIONAL] Enter the number of period offsets to manipulate the asof date (-past, +future)")
+                    NAB.asOfDateChooser_AODC.getSkipBackPeriodsField().setToolTipText("Enter the number of period offsets to manipulate the asof date (-past, +future)")
                     NAB.asOfDateChooser_AODC.addPropertyChangeListener(NAB.savePropertyChangeListener)
                     balanceAsOfSelection_pnl.add(NAB.asOfDateChooser_AODC.getPanel(includeChoiceLabel=False), GridC.getc(onBalanceAsOfCol, onBalanceAsOfRow).leftInset(5).west())
 
@@ -14402,7 +14620,7 @@ Visit: %s (Author's site)
                     NAB.includeRemindersChooser_AODC.setName("includeRemindersChooser_AODC")
                     NAB.includeRemindersChooser_AODC.getChoiceCombo().setToolTipText("Select the include reminders asof date option (when include reminders has been selected)")
                     NAB.includeRemindersChooser_AODC.getAsOfDateField().setToolTipText("Select the include reminders asof custom date (when include reminders has been selected)")
-                    NAB.includeRemindersChooser_AODC.getSkipBackPeriodsField().setToolTipText("[OPTIONAL] Enter the number of period offsets to manipulate the asof date (-past, +future)")
+                    NAB.includeRemindersChooser_AODC.getSkipBackPeriodsField().setToolTipText("Enter the number of period offsets to manipulate the asof date (-past, +future)")
                     NAB.includeRemindersChooser_AODC.addPropertyChangeListener(NAB.savePropertyChangeListener)
                     includeRemindersSelection_pnl.add(NAB.includeRemindersChooser_AODC.getPanel(includeChoiceLabel=False), GridC.getc(onIncludeRemindersCol, onIncludeRemindersRow).leftInset(5).west())
 
@@ -14496,7 +14714,7 @@ Visit: %s (Author's site)
                     NAB.securitiesCapitalGains_DRC.getChoiceCombo().setToolTipText("Specify a dynamic date range for Securities Capital Gains calculations ('Custom' always fixed) - does not affect other accounts/securities")
                     NAB.securitiesCapitalGains_DRC.getStartIntField().setToolTipText("Select the start date for the Securities Capital Gains custom date range")
                     NAB.securitiesCapitalGains_DRC.getEndIntField().setToolTipText("Select the end date for the Securities Capital Gains custom date range")
-                    NAB.securitiesCapitalGains_DRC.getSkipBackPeriodsField().setToolTipText("[OPTIONAL] Enter the number of period offsets to manipulate the Securities Capital Gains date range (-past, +future)")
+                    NAB.securitiesCapitalGains_DRC.getSkipBackPeriodsField().setToolTipText("Enter the number of period offsets to manipulate the Securities Capital Gains date range (-past, +future)")
                     NAB.securitiesCapitalGains_DRC.addPropertyChangeListener(NAB.savePropertyChangeListener)
                     controlPnl.add(NAB.securitiesCapitalGains_DRC.getPanel(includeChoiceLabel=False), GridC.getc(onCol, onRow).colspan(3).leftInset(colInsetFiller).topInset(topInset).fillx())
 
@@ -14545,7 +14763,7 @@ Visit: %s (Author's site)
                     NAB.incomeExpenseDateRange_DRC.getChoiceCombo().setToolTipText("Specify a dynamic date range for Income / Expense Category calculations ('Custom' is always fixed) - does not affect other accounts/securities")
                     NAB.incomeExpenseDateRange_DRC.getStartIntField().setToolTipText("Select the start date for the I/E custom date range")
                     NAB.incomeExpenseDateRange_DRC.getEndIntField().setToolTipText("Select the end date for the I/E custom date range")
-                    NAB.incomeExpenseDateRange_DRC.getSkipBackPeriodsField().setToolTipText("[OPTIONAL] Enter the number of period offsets to manipulate the I/E date range (-past, +future)")
+                    NAB.incomeExpenseDateRange_DRC.getSkipBackPeriodsField().setToolTipText("Enter the number of period offsets to manipulate the I/E date range (-past, +future)")
                     NAB.incomeExpenseDateRange_DRC.addPropertyChangeListener(NAB.savePropertyChangeListener)
                     controlPnl.add(NAB.incomeExpenseDateRange_DRC.getPanel(includeChoiceLabel=False), GridC.getc(onCol, onRow).colspan(3).leftInset(colInsetFiller).topInset(topInset).fillx())
 
@@ -14650,7 +14868,7 @@ Visit: %s (Author's site)
                     NAB.averageByCalUnit_COMBO = MyJComboBox(calObjects)
                     NAB.averageByCalUnit_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "averageByCalUnit_COMBO")
                     NAB.averageByCalUnit_COMBO.setName("averageByCalUnit_COMBO")
-                    NAB.averageByCalUnit_COMBO.setToolTipText("[OPTIONAL] With Inc/Exp categories & date range, you can average by number of WHOLE Days, Weeks, Months, Years in the range (overrides avg/by field)")
+                    NAB.averageByCalUnit_COMBO.setToolTipText("With Inc/Exp categories & date range, you can average by number of WHOLE Days, Weeks, Months, Years in the range (overrides avg/by field)")
                     NAB.averageByCalUnit_COMBO.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.averageByCalUnit_COMBO.addActionListener(NAB.saveActionListener)
 
@@ -14721,7 +14939,7 @@ Visit: %s (Author's site)
                     NAB.rowMathsCalculationOperator_COMBO = MyJComboBox(operatorTypes)
                     NAB.rowMathsCalculationOperator_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "rowMathsCalculationOperator_COMBO")
                     NAB.rowMathsCalculationOperator_COMBO.setName("rowMathsCalculationOperator_COMBO")
-                    NAB.rowMathsCalculationOperator_COMBO.setToolTipText("[OPTIONAL] Select this row's maths calculation 'operator' - e.g. '/' = divide by the value entered....")
+                    NAB.rowMathsCalculationOperator_COMBO.setToolTipText("Select this row's maths calculation 'operator' - e.g. '/' = divide by the value entered....")
                     NAB.rowMathsCalculationOperator_COMBO.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.rowMathsCalculationOperator_COMBO.addActionListener(NAB.saveActionListener)
                     rowMathsCalculation_pnl.add(NAB.rowMathsCalculationOperator_COMBO, GridC.getc(onRowMathsCalculationCol, onRowMathsCalculationRow).leftInset(5))
@@ -14757,7 +14975,7 @@ Visit: %s (Author's site)
                     NAB.utiliseOtherRow_JTFAI.putClientProperty("%s.id" %(NAB.myModuleID), "utiliseOtherRow_JTFAI")
                     NAB.utiliseOtherRow_JTFAI.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.utiliseOtherRow_JTFAI.setName("utiliseOtherRow_JTFAI")
-                    NAB.utiliseOtherRow_JTFAI.setToolTipText("[Optional] Enter another row number to perform maths on this row's result using other row's result")
+                    NAB.utiliseOtherRow_JTFAI.setToolTipText("Enter another row number to perform maths on this row's result using other row's result")
                     NAB.utiliseOtherRow_JTFAI.addFocusListener(NAB.saveFocusListener)
                     operateOnAnotherRow_pnl.add(NAB.utiliseOtherRow_JTFAI, GridC.getc(onUtiliseOtherRowCol, onUtiliseOtherRowRow).leftInset(5).wx(1.0).fillboth().padx(18).west())
                     onUtiliseOtherRowCol += 1
@@ -14821,7 +15039,7 @@ Visit: %s (Author's site)
                     NAB.finalMathsCalculationOperator_COMBO = MyJComboBox(operatorTypes)   # operatorTypes defined above
                     NAB.finalMathsCalculationOperator_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "finalMathsCalculationOperator_COMBO")
                     NAB.finalMathsCalculationOperator_COMBO.setName("finalMathsCalculationOperator_COMBO")
-                    NAB.finalMathsCalculationOperator_COMBO.setToolTipText("[OPTIONAL] Select the final maths calculation 'operator' - e.g. '/' = divide by the value entered....")
+                    NAB.finalMathsCalculationOperator_COMBO.setToolTipText("Select the final maths calculation 'operator' - e.g. '/' = divide by the value entered....")
                     NAB.finalMathsCalculationOperator_COMBO.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.finalMathsCalculationOperator_COMBO.addActionListener(NAB.saveActionListener)
                     finalMathsCalculation_pnl.add(NAB.finalMathsCalculationOperator_COMBO, GridC.getc(onFinalMathsCalculationCol, onFinalMathsCalculationRow).leftInset(5))
@@ -16125,6 +16343,19 @@ Visit: %s (Author's site)
             return UORRowIdxs, UORRowUUIDs
 
         @staticmethod
+        def calculateUsingSymbol(originalNumber, operatorStr, operand):
+            if operatorStr == "+":
+                result = (originalNumber + operand)
+            elif operatorStr == "-":
+                result = (originalNumber - operand)
+            elif operatorStr == "*":
+                result = (originalNumber * operand)
+            elif operatorStr == "/":
+                result = (originalNumber / operand)
+            else: raise Exception("LOGIC ERROR - Unknown calculation operator '%s' (original: %s '%s' operand: %s)" %(operatorStr, originalNumber, operatorStr, operand))
+            return result
+
+        @staticmethod
         def calculateBalances(_book, justIndex=None, lFromSimulate=False, swClass=None):
             # type: (AccountBook, bool, bool, SwingWorker) -> [CalculatedBalance]
 
@@ -16326,6 +16557,7 @@ Visit: %s (Author's site)
 
                             realAutoSum = NAB.savedAutoSumAccounts[iAccountLoop]
 
+                            ### START WARNING CHECKS ####
                             if debug or (NAB.savedShowWarningsTable[iAccountLoop]):
 
                                 # Validate selections.... Look for AutoSum'd accounts where a parent has been selected..
@@ -16370,6 +16602,7 @@ Visit: %s (Author's site)
                                             myPrint("B", warnTxt)
                                             NAB.warningMessagesTable.append(warnTxt)
                                             lFoundAutoSumInActiveParentInThisThisRowWarning = True
+                            ### END WARNING CHECKS
 
                             if not isSecurityAcct(acct):
                                 lFoundNonSecurity = True
@@ -16398,17 +16631,20 @@ Visit: %s (Author's site)
                                     sudoAcctRef = parallelBalanceTable[iAccountLoop][acct]                              # type: HoldBalance
                                     effectiveDateInt = sudoAcctRef.getEffectiveDateInt()
 
-                                    ########################################
-                                    # Check for invalid cost basis issues...
-                                    if sudoAcctRef.isCostBasisInvalid():
-                                        lWarningDetected = True
-                                        iWarningType = (14 if (iWarningType is None or iWarningType == 14) else 0)
-                                        iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                                        warnTxt = ("WARNING: Row: %s >> Returning Cost Basis / ur-gains / capital gains but at least one account (e.g. '%s') is reporting 'INVALID' Cost Basis"
-                                                   %(onRow, sudoAcctRef.getFullAccountName()))
-                                        myPrint("B", warnTxt)
-                                        NAB.warningMessagesTable.append(warnTxt)
-                                    ########################################
+                                    ### START WARNING CHECKS ####
+                                    if debug or (NAB.savedShowWarningsTable[iAccountLoop]):
+
+                                        # Check for invalid cost basis issues...
+                                        if sudoAcctRef.isCostBasisInvalid():
+                                            lWarningDetected = True
+                                            iWarningType = (14 if (iWarningType is None or iWarningType == 14) else 0)
+                                            iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                                            warnTxt = ("WARNING: Row: %s >> Returning Cost Basis / ur-gains / capital gains but at least one account (e.g. '%s') is reporting 'INVALID' Cost Basis"
+                                                       %(onRow, sudoAcctRef.getFullAccountName()))
+                                            myPrint("B", warnTxt)
+                                            NAB.warningMessagesTable.append(warnTxt)
+
+                                    ### END WARNING CHECKS
 
                                 except KeyError:
                                     myPrint("B", "@@ KeyError - Row: %s - Trying to access 'parallelBalanceTable[%s]' with Account: '%s'" %(onRow, iAccountLoop,acct))
@@ -16448,14 +16684,24 @@ Visit: %s (Author's site)
                             else:
                                 totalBalance += (bal * mult)
 
-                        # DETECT ILLOGICAL CALCULATIONS
+                        ### START WARNING CHECKS ####
                         if debug or NAB.savedShowWarningsTable[iAccountLoop]:
+
+                            # DETECT ILLOGICAL CALCULATIONS
+                            if not NAB.isValidTagNameForRowIdx(iAccountLoop):
+                                lWarningDetected = True
+                                iWarningType = (17 if (iWarningType is None or iWarningType == 17) else 0)
+                                iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                                warnTxt = ("WARNING: Row: %s >> tag name '%s' specified, but is invalid, or it / the default ('%s') used elsewhere!"
+                                           %(onRow, NAB.savedTagNameTable[iAccountLoop], NAB.getTagVariableNameForRowIdx(iAccountLoop, True)))
+                                myPrint("B", warnTxt)
+                                NAB.warningMessagesTable.append(warnTxt)
+
                             asOfBalDateInt = getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[iAccountLoop], NAB.savedBalanceType[iAccountLoop])
                             if ((iCountIncomeExpense and (iCountAccounts)) or (iCountSecurities and (iCountIncomeExpense))):
                                 lWarningDetected = True
                                 iWarningType = (4 if (iWarningType is None or iWarningType == 4) else 0)
                                 iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-
                                 warnTxt = ("WARNING: Row: %s >> Mix and match of different accounts/categories/securities detected. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
                                            %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
                                 myPrint("B", warnTxt)
@@ -16466,7 +16712,6 @@ Visit: %s (Author's site)
                                     lWarningDetected = True
                                     iWarningType = (6 if (iWarningType is None or iWarningType == 6) else 0)
                                     iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-
                                     warnTxt = ("WARNING: Row: %s >> Mix and match when returning Security's cost basis / ur-gains / capital gains with other non-security / invest(with cash) accounts detected. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
                                                %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
                                     myPrint("B", warnTxt)
@@ -16476,7 +16721,6 @@ Visit: %s (Author's site)
                                     lWarningDetected = True
                                     iWarningType = (7 if (iWarningType is None or iWarningType == 7) else 0)
                                     iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-
                                     warnTxt = ("WARNING: Row: %s >> Mix and match when returning Security's cost basis / ur-gains / capital gains, and including reminders. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
                                                %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
                                     myPrint("B", warnTxt)
@@ -16486,7 +16730,6 @@ Visit: %s (Author's site)
                                     lWarningDetected = True
                                     iWarningType = (13 if (iWarningType is None or iWarningType == 13) else 0)
                                     iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-
                                     warnTxt = ("WARNING: Row: %s >> Security's cost basis / ur-gains / capital gains selected with Cleared Balance ILLOGICAL. Calculated 'Balance' cost basis / ur-gains / capital gains will be returned. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
                                                %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
                                     myPrint("B", warnTxt)
@@ -16500,7 +16743,6 @@ Visit: %s (Author's site)
                                             lWarningDetected = True
                                             iWarningType = (15 if (iWarningType is None or iWarningType == 15) else 0)
                                             iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-
                                             warnTxt = ("WARNING: Row: %s >> Security's capital gains date range (%s - %s) exceeds asof balance date (%s). Txns/Gains after asof date will be excluded! Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
                                                        %(onRow, convertStrippedIntDateFormattedText(dateRange.getStartDateInt()), convertStrippedIntDateFormattedText(dateRange.getEndDateInt()), convertStrippedIntDateFormattedText(_asof),
                                                          iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
@@ -16513,7 +16755,6 @@ Visit: %s (Author's site)
                                 lWarningDetected = True
                                 iWarningType = (11 if (iWarningType is None or iWarningType == 11) else 0)
                                 iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-
                                 warnTxt = ("WARNING: Row: %s >> Past asof date in conjunction with Cleared Balance ILLOGICAL (will use calculated asof balance). Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
                                            %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
                                 myPrint("B", warnTxt)
@@ -16524,7 +16765,6 @@ Visit: %s (Author's site)
                                     lWarningDetected = True
                                     iWarningType = (8 if (iWarningType is None or iWarningType == 8) else 0)
                                     iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-
                                     warnTxt = ("WARNING: Row: %s >> Tax date cannot be derived on included reminders. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
                                                %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
                                     myPrint("B", warnTxt)
@@ -16534,7 +16774,6 @@ Visit: %s (Author's site)
                                     lWarningDetected = True
                                     iWarningType = (9 if (iWarningType is None or iWarningType == 9) else 0)
                                     iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-
                                     warnTxt = ("WARNING: Row: %s >> Tax date cannot be derived on calculated costbasis / ur-gains / capital gains. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
                                                %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
                                     myPrint("B", warnTxt)
@@ -16544,12 +16783,12 @@ Visit: %s (Author's site)
                                     lWarningDetected = True
                                     iWarningType = (10 if (iWarningType is None or iWarningType == 10) else 0)
                                     iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-
                                     warnTxt = ("WARNING: Row: %s >> Tax date cannot be derived on as-of calculated balances. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
                                                %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
                                     myPrint("B", warnTxt)
                                     NAB.warningMessagesTable.append(warnTxt)
 
+                        ### END WARNING CHECKS ###
 
                     # This is it, store the calculated balance!
                     calculatedBalanceObj = CalculatedBalance(rowName=NAB.savedWidgetName[iAccountLoop],
@@ -16616,15 +16855,7 @@ Visit: %s (Author's site)
                         originalBalanceDecimals = balanceObj.getBalanceWithDecimalsPreserved()
 
                     operator = NAB.savedRowMathsCalculationTable[i][NAB.ROW_MATHS_CALC_OPERATOR_IDX]
-                    if operator == "+":
-                        rowMathsCalcAdjustedBalanceWithDecimals = (originalBalanceDecimals + rowMathsCalculationOperand)
-                    elif operator == "-":
-                        rowMathsCalcAdjustedBalanceWithDecimals = (originalBalanceDecimals - rowMathsCalculationOperand)
-                    elif operator == "*":
-                        rowMathsCalcAdjustedBalanceWithDecimals = (originalBalanceDecimals * rowMathsCalculationOperand)
-                    elif operator == "/":
-                        rowMathsCalcAdjustedBalanceWithDecimals = (originalBalanceDecimals / rowMathsCalculationOperand)
-                    else: raise Exception("LOGIC ERROR - Unknown (this) row maths calculation operator '%s' on RowIdx: %s" %(operator, i))
+                    rowMathsCalcAdjustedBalanceWithDecimals = MyHomePageView.calculateUsingSymbol(originalBalanceDecimals, operator, rowMathsCalculationOperand)
                     rowMathsCalcAdjustedBalanceLong = balanceObj.getCurrencyType().getLongValue(rowMathsCalcAdjustedBalanceWithDecimals)
 
                     balanceObj.setBalance(rowMathsCalcAdjustedBalanceLong)
@@ -16720,18 +16951,11 @@ Visit: %s (Author's site)
                                     continue
 
                                 if debug: myPrint("B", "@@ rowIdx: %s, otherRowIdx: %s, thisRowBalLong: %s (%s), otherRowBalLong: %s (%s)" %(i, otherRowIdx, thisRowBalLong, thisRowBalWithDecimals, otherRowBalLong, otherRowBalWithDecimals))
-                                operator = NAB.savedOperateOnAnotherRowTable[onChainedUORIdx][NAB.OPERATE_OTHER_ROW_OPERATOR]
 
-                                if operator == "+":
-                                    newRowBalWithDecimals = thisRowBalWithDecimals + otherRowBalWithDecimals
-                                elif operator == "-":
-                                    newRowBalWithDecimals = thisRowBalWithDecimals - otherRowBalWithDecimals
-                                elif operator == "*":
-                                    newRowBalWithDecimals = thisRowBalWithDecimals * otherRowBalWithDecimals
-                                elif operator == "/":
-                                    newRowBalWithDecimals = thisRowBalWithDecimals / otherRowBalWithDecimals
-                                else: raise Exception("LOGIC ERROR - Unknown operator '%s' on RowIdx: %s" %(operator, onChainedUORIdx))
+                                operator = NAB.savedOperateOnAnotherRowTable[onChainedUORIdx][NAB.OPERATE_OTHER_ROW_OPERATOR]
+                                newRowBalWithDecimals = MyHomePageView.calculateUsingSymbol(thisRowBalWithDecimals, operator, otherRowBalWithDecimals)
                                 newRowBalLong = balanceObj.getCurrencyType().getLongValue(newRowBalWithDecimals)
+
                                 balanceObj.setBalance(newRowBalLong)
                                 balanceObj.setBalanceWithDecimalsPreserved(newRowBalWithDecimals)
                                 balanceObj.setMathsUORApplied(True)
@@ -16761,15 +16985,7 @@ Visit: %s (Author's site)
                         originalBalanceDecimals = balanceObj.getBalanceWithDecimalsPreserved()
 
                         operator = NAB.savedFinalMathsCalculationTable[i][NAB.FINAL_MATHS_CALC_OPERATOR_IDX]
-                        if operator == "+":
-                            finalMathsCalcAdjustedBalanceWithDecimals = (originalBalanceDecimals + finalMathsCalculationOperand)
-                        elif operator == "-":
-                            finalMathsCalcAdjustedBalanceWithDecimals = (originalBalanceDecimals - finalMathsCalculationOperand)
-                        elif operator == "*":
-                            finalMathsCalcAdjustedBalanceWithDecimals = (originalBalanceDecimals * finalMathsCalculationOperand)
-                        elif operator == "/":
-                            finalMathsCalcAdjustedBalanceWithDecimals = (originalBalanceDecimals / finalMathsCalculationOperand)
-                        else: raise Exception("LOGIC ERROR - Unknown final maths calculation operator '%s' on RowIdx: %s" %(operator, i))
+                        finalMathsCalcAdjustedBalanceWithDecimals = MyHomePageView.calculateUsingSymbol(originalBalanceDecimals, operator, finalMathsCalculationOperand)
                         finalMathsCalcAdjustedBalanceLong = balanceObj.getCurrencyType().getLongValue(finalMathsCalcAdjustedBalanceWithDecimals)
 
                         balanceObj.setBalance(finalMathsCalcAdjustedBalanceLong)
@@ -17145,6 +17361,7 @@ Visit: %s (Author's site)
 
 
                                     insertVars = TextDisplayForSwingConfig.buildVarsDict(i+1,
+                                                                                         NAB.savedTagNameTable[i],
                                                                                          NAB.savedBalanceType[i],
                                                                                          NAB.savedBalanceAsOfDateTable[i],
                                                                                          NAB.savedIncludeRemindersTable[i],
@@ -17397,19 +17614,19 @@ Visit: %s (Author's site)
                 if isinstance(link, basestring):
                     if (link.lower().startswith("showConfig".lower())):
                         myPrint("DB", ".. calling .showURL() to call up %s panel" %(link))
-                        NAB.moneydanceContext.showURL("moneydance:fmodule:%s:%s:customevent:%s" %(HPV.myModuleID,HPV.myModuleID,link))
+                        NAB.moneydanceContext.showURL("moneydance:fmodule:%s:%s:customevent:%s" %(HPV.myModuleID,HPV.myModuleID, link))
 
                     if (link.lower().startswith("saveSettings".lower())):
                         myPrint("DB", ".. calling .showURL() to trigger a save of settings ('%s')..." %(link))
-                        NAB.moneydanceContext.showURL("moneydance:fmodule:%s:%s:customevent:%s" %(HPV.myModuleID,HPV.myModuleID,link))
+                        NAB.moneydanceContext.showURL("moneydance:fmodule:%s:%s:customevent:%s" %(HPV.myModuleID,HPV.myModuleID, link))
 
                     if (link.lower().startswith("undoSettings".lower())):
                         myPrint("DB", ".. calling .showURL() to trigger an undo/reload of settings ('%s')..." %(link))
-                        NAB.moneydanceContext.showURL("moneydance:fmodule:%s:%s:customevent:%s" %(HPV.myModuleID,HPV.myModuleID,link))
+                        NAB.moneydanceContext.showURL("moneydance:fmodule:%s:%s:customevent:%s" %(HPV.myModuleID,HPV.myModuleID, link))
 
                     if (link.lower().startswith("showConsole".lower())):
                         myPrint("DB", ".. calling .showURL() to trigger Help>Console Window ('%s')..." %(link))
-                        NAB.moneydanceContext.showURL("moneydance:fmodule:%s:%s:customevent:%s" %(HPV.myModuleID,HPV.myModuleID,link))
+                        NAB.moneydanceContext.showURL("moneydance:fmodule:%s:%s:customevent:%s" %(HPV.myModuleID,HPV.myModuleID, link))
 
             def mousePressed(self, evt):
                 myPrint("DB", "In mousePressed. Event:", evt, evt.getSource())

@@ -196,7 +196,7 @@ CHOICES/CONFIGURATION FOR A ROW:
 MATH ON CALCULATED BALANCES:
 
 - Average by options:
-    - You can change the final calculated balance into an average. Specify the number to divide by (DEFAULT 1.0)
+    - You can change the calculated balance into an average. Specify the number to divide by (DEFAULT 1.0)
       ...or...
     - Use the predefined: 'Inc/Exp Date Range' - calculate calendar units between XXX option:
       ... Only enabled/allowed when Income/Expense categories are selected AND when NOT using 'All dates'
@@ -270,7 +270,7 @@ FORMATTING FOR ROW DISPLAY:
 
 ------------------------------------------------------------------------------------------------------------------------
 
-ACCOUNT SELECTION LIST:
+ACCOUNT SELECTION LIST (PICKLIST)':
 
     - You select accounts one-by-one to include in the row calculation.
     - You can use the dropdown select box to quickly view certain accounts - e.g. "All Investment AND Security accts"
@@ -290,10 +290,11 @@ ACCOUNT SELECTION LIST:
     >> You must click 'STORE LIST CHANGES' before you click simulate or exit the config screen. If you do not do this
        then your selection changes could be lost! However, you will be asked if you want to store the changes first.
 
->> DON'T FORGET TO SAVE ALL SETTINGS! (for convenience, this also stores your current account selection list too) <<
+>> DON'T FORGET TO 'SAVE ALL SETTINGS'! (for convenience, this also stores your current account selection list too) <<
 
 <<Simulate Row>> - As you make changes, the value calculation is not recalculated. Once you have your list created,
-you can click Simulate Row to provide the value you will see.
+you can click Simulate Row to provide the value you will see. Anytime you change a setting and want to see the simulated
+result, then click the simulate button.
 
 
 FILTERS FOR LIST CHOICES:
@@ -328,7 +329,7 @@ OPTIONS MENU:
   - Treat Securities with Zero Balance as Inactive: If a Security holds zero units, it will be treated as Inactive
   - Use Indian numbering format: On numbers greater than 10,000 group in powers of 100 (e.g. 10,00,000 not 1,000,000)
   - Use Tax Dates: When selected then all calculations based on Income/Expense categories will use the Tax Date.
-                   WARNING: tax dates cannot be derived when including:
+                   WARNING: tax dates are not considered when including:
                             - reminders,  cost basis / ur-gains / capital gains, or when using 'balance asof dates'.
                             ... as such, the 'normal' transaction date will be used.
   - Display underline dots: Display 'underline' dots that fill the blank space between row names and values
@@ -338,9 +339,9 @@ OPTIONS MENU:
 BACKUP/RESTORE:
 
 - When in the config GUI, the keystroke combination:
+          CMD-I       will display this readme/help guide...
           CMD-SHIFT-B will create a backup of your config...
           CMD-SHIFT-R will restore the last backup of your config...
-          CMD-I       will display this readme/help guide...
           CMD-SHIFT-I will display some debugging information about the rows...
           CMD-SHIFT-L will display debugging information about the internal lastResultsTable (not for 'normal' users)...
           CMD-SHIFT-W will display current warnings (same as clicking the warnings icon)...
@@ -352,24 +353,29 @@ BACKUP/RESTORE:
 SELECT ROW INFORMATION:
 
 ** NOTE: When rows can be hidden, they may not display on the Summary screen widget. Click on the widget to config:
-         - In the row selector:
-           ... rows coloured red are currently filtered out / hidden by a groupid filter or AutoHide option
-           ... row numbers are suffixed with codes:
-               <always hide>    Always hide row option is set (red = NOT active and hidden)
-               <auto hide>      An auto hide row rule is active (red = ACTIVE, but hidden)
-               <groupid: xxx>   A groupid value has been set on this row
-               <FILTERED OUT>   This row is currently NOT showing on the Summary Screen widget due to the active filter.
-                                NOTE: Filtered rows (red) are NOT active and hidden.
+
+- Click the little up/down arrow icon to the right of 'Select Row' for a popup display / row selector that shows:
+  row number, name, groupid, tag name..
+
+- The main selector box, shows the row number, groupid, tag name and filtering information - see below:
+       ... rows coloured red are currently filtered out / hidden by a groupid filter or an auto-hide option
+       ... row numbers are suffixed with codes:
+           <always hide>    Always hide row option is set (red = NOT active and hidden)
+           <auto hide>      An auto hide row rule is active (red = ACTIVE, but hidden)
+           <groupid: xxx>   A groupid value has been set on this row
+           <tag: xxx>       A tag name (variable name) has been set on this row (for use in UOR / formula)
+           <FILTERED OUT>   This row is currently NOT showing on the Summary Screen widget due to the active filter.
+                            NOTE: Filtered rows (red) are NOT active and hidden.
 
 HIDE CONTROLS: If your monitor cannot display all the information, this click box on the top right will provide you
-               With a better view to pick items on the pick list.
+               with a better view to pick items on the pick list.
 
 SEARCH BOX AND GROUPID:
 
 Once you have a lot of rows, you may only wish to display some of them within the widget.
 GroupID allows you create groups of rows that you can separately display.
 
-- You can enter a 'GroupID' per row. This is free format text (digits 0-9, Aa-Zz, '_', '-', '.', ':', '%')
+- You can enter a 'GroupID' per row. This is free format text (digits 0-9, Aa-Zz, '_', '-', '.', ':', '%', ';')
    NOTE: You can also enter the ';' character to separate groups. But you cannot filter for ';' as
          this is the separator between filter search elements...
 
@@ -396,6 +402,12 @@ GroupID allows you create groups of rows that you can separately display.
           - Filter: '&1;2;3' - only include rows where the groupid includes one '1' and '2' and '3'
 
 NOTE: This is free text, so the numbers are examples. A groupid of "Debt;CCList;Whatever" totally works.
+
+
+TAG FIELD (FUTURE USE - NOT YET ENABLED):
+The tag field allows you to assign a tag/variable name to the selected row. This can be used in UOR and formula
+expressions. This can be blank (i.e. no tag / variable name has been set). Only the digits Aa-Zz, 0-9 are allowed.
+NOTE: If no tag is set then internally a tag with the format 'row' + row number will be assigned (e.g. 'row1').
 
 
 WARNINGS BOX:
@@ -455,6 +467,7 @@ NOTE: Click the little "<" icon to the right of the row name field to view/inser
 
   - You can embed the following to insert variable text into the Row Name field:
     <##rn>    = insert the row number
+    <##rt>    = insert the row tag
     <##bopt>  = insert the balance option selected
     <##bad>   = insert the balance asof date
     <##badn>  = insert the balance asof date name
@@ -547,14 +560,14 @@ DETAILS ON HOW CALCULATIONS OF BALANCES OCCURS:
              >> be mindful of the CPU / speed impact of non-displayed rows especially when using parallel calculations!
 
 >> DECIMAL PRECISION: Whilst only 2 decimal places will/can be displayed (according to your currency's decimal setting),
-                      decimal precision will be stored internally, and this internal value will be used for maths
+                      full decimal precision will be stored internally, and this internal value will be used for maths
                       functions that operate on the row's calculated result (e.g. average by, maths UOR, final maths
                       calculations...
 
 
 >> ROUNDING:
-Rounding is only performed on the final result when 'Hide Decimal Places' is selected. The internal number is never
-rounded, and the full decimal precision is always preserved internally for onward UOR consumption.
+Rounding is only performed on the final / displayed result when 'Hide Decimal Places' is selected. The internal number
+is never rounded, and full decimal precision is always preserved internally for onward UOR consumption.
 - Rounding of Java Double / Python float numbers can be problematic. Custom Balances calls Jython's round() method. This
   internally uses Java's BigDecimal class with the RoundingMode.HALF_UP mode (e.g. 0.5 should become 1.0).
   NOTE: you won't always get what you expect. If you are interested - refer:
@@ -563,7 +576,7 @@ rounded, and the full decimal precision is always preserved internally for onwar
 
 
 >> PARALLEL BALANCES:
-    - Selecting any of the following options will trigger parallel balance operations for that row, for all accounts
+    - Selecting any of the following options will trigger 'parallel balance operations' for that row, for all accounts
       ... used by that row: Balance asof date; Income/Expense date range; Cost Basis / Unrealised Gains / Capital Gains;
       ...  including Reminders...
 
@@ -572,7 +585,7 @@ rounded, and the full decimal precision is always preserved internally for onwar
         # 2. if Income/Expense dates requested, then harvest related I/E txns...
         # 3. convert the harvested I/E txn table into account balances...
         # 4. for all accounts / balances not derived by steps 2 & 3, calculate balance asof dates (where requested)...
-        # 5. for all accounts / balances not derived by steps 2, 3 & 4, harvest remaining Account's real balance(s)...
+        # 5. for all accounts / balances not derived by steps 2, 3 & 4, harvest remaining accounts' real balance(s)...
         # 6. replace balance(s) with cost basis / unrealised / capital gains on security accounts (where requested)...
         # 7. for all accounts selected, add reminder txn/balances up to the reminder's asof date (where requested).
 
@@ -595,9 +608,9 @@ NOTES ON COST BASIS / CAPITAL GAINS:
 
 ** DISCLAIMER ** The author of Custom Balances accepts no responsibility for the accuracy of the cost basis or
                  capital gains calculations. Do not rely on these calculations for tax returns or other important
-                 documents. Please verify and use your own calculations for important documents.
+                 documents. Please verify and use your own calculations for important / official government reporting.
 
-Cost basis can appear in multiple places. They are not all calculated quite the same way in Moneydance. For example:
+Cost basis can appear in Moneydance in multiple places. It is not calculated consistantly everywhere... For example:
 - Investment account: Portfolio View tab (PVT)              (Avg Cost - new engine)
 - Cost Basis report (CBR)                                   (Avg Cost - old method)
 - Portfolio report (PR)                                     (Avg Cost - new engine)
@@ -663,7 +676,7 @@ Extension format only >> Minimum Moneydance version 2021.1 (build: 3056, ideally
 (If you have installed the extension, but nothing happens, then check your Moneydance version)
 
 This is a Python(Jython 2.7) Extension that runs inside of Moneydance via the Python Interpreter
-It's a prototype to demonstrate the capabilities of Python. Yes - if you can do it in Java, you can do it in Python too!
+It demonstrates the capabilities of Python(Jython). Yes - if you can do it in Java, you can do it in Jython too!
 
 DEVELOPERS: >> You can actually grab the results of the calculations from other extensions.. Contact me for details...
 
