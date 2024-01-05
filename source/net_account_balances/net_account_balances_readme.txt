@@ -233,6 +233,18 @@ MATH ON CALCULATED BALANCES:
 - Final maths calculation (FMC): You can apply maths to the row's final calculation as the very last step
                                  ... AFTER all other calculations (including other rows) have been applied.
 
+                                 >> OR <<
+
+                                 If you select 'Absorb UORs', then the FMC will be calculated and provided 'upwards'
+                                 into any other UORs consuming this row (directly or indirectly).. Hence, per row,
+                                 you can 'roll' FMCs upwards.. This setting is per row.
+
+                    FMC EXAMPLE:                                             RESULT(default)      RESULT(absorb upwards)
+                    - Row1: UOR: 2   accounts: 1.0   FMC +2.0       absorb:    NO      14.0        absorb: YES   11,003
+                    - Row2: UOR: 3   accounts: 1.0   FMC *1000.0    absorb:    NO    11,000        absorb: YES   11,000
+                    - Row3: UOR: -   accounts: 10.0  no FMC         absorb:    NO      10.0        absorb: NO      10.0
+
+
 - Format as %: When ticked then normal currency formatting is disabled and the '%' symbol is appended.
                When 'Multiply by 100' is also ticked, then the final result is multiplied by 100.
                'Multiply by 100' is important if you haven't already done "math" to make it a true percentage.

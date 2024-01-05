@@ -118,6 +118,7 @@
 #                 https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/math/RoundingMode.html#HALF_UP
 #               Added tag picker to row name field...; added row selector popup; added Tag Name field (etc)....
 #               Switched to using MyHomePageView.calculateUsingSymbol() for all "+-*/" operations using symbol as string...
+#               FMC - absorb into other UORs enabled
 
 # todo - allow <#TAG xxx> in row name, and to call on this from other rows..?
 # todo - option to show different dpc (e.g. full decimal precision)
@@ -3313,6 +3314,7 @@ Visit: %s (Author's site)
                     GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB[i][NAB.FINAL_MATHS_CALC_VALUE_IDX] = old_extn_param_NEW_adjustCalcByTable_NAB[i]
                     GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB[i][NAB.FINAL_MATHS_CALC_OPERATOR_IDX] = "+"
                     GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB[i][NAB.FINAL_MATHS_CALC_UNUSED_IDX] = None
+                    GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB[i][NAB.FINAL_MATHS_CALC_ABSORB_INTO_UORS] = False
                     myPrint("B", "... Converted row: %s '%s' into '%s'" %(i+1, old_extn_param_NEW_adjustCalcByTable_NAB[i], GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB[i]))
             else:
                 myPrint("B", "... NO - 'extn_param_NEW_finalMathsCalculationTable_NAB' already set, so leaving new param alone: '%s'" %(GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB))
@@ -8623,23 +8625,24 @@ Visit: %s (Author's site)
             return None
 
         def __init__(self, rowName=None, currencyType=None, balance=None, extraRowTxt=None, UORError=False, uuid=None, rowNumber=-1):
-            self.lastUpdated = -1L                          # type: long
-            self.uuid = uuid                                # type: unicode
-            self.rowName = rowName                          # type: unicode
-            self.currencyType = currencyType                # type: CurrencyType
-            self.balance = balance                          # type: long
-            self.extraRowTxt = extraRowTxt                  # type: unicode
-            self.UORError = UORError                        # type: bool
-            self.rowNumber = rowNumber                      # type: int            # Only set when needed - otherwise -1
-            self.balanceWithDecimalsPreserved = None        # type: float
-            self.averageByApplied = False                   # type: bool
-            self.rowMathsApplied = False                    # type: bool
-            self.mathsUORApplied = False                    # type: bool
-            self.finalMathsApplied = False                  # type: bool
-            self.formatAsPercent100Applied = False          # type: bool
-            self.countSelectedAccounts = 0                  # type: int
-            self.autoSum = False                            # type: bool
-            self.UORChain = []                              # type: [int]
+            self.lastUpdated = -1L                              # type: long
+            self.uuid = uuid                                    # type: unicode
+            self.rowName = rowName                              # type: unicode
+            self.currencyType = currencyType                    # type: CurrencyType
+            self.balance = balance                              # type: long
+            self.extraRowTxt = extraRowTxt                      # type: unicode
+            self.UORError = UORError                            # type: bool
+            self.rowNumber = rowNumber                          # type: int        # Only set when needed - otherwise -1
+            self.balanceWithDecimalsPreserved = None            # type: float
+            self.averageByApplied = False                       # type: bool
+            self.rowMathsApplied = False                        # type: bool
+            self.mathsUORApplied = False                        # type: bool
+            self.finalMathsApplied = False                      # type: bool
+            self.finalMathsAppliedIsAbsorbedIntoUORs = False    # type: bool
+            self.formatAsPercent100Applied = False              # type: bool
+            self.countSelectedAccounts = 0                      # type: int
+            self.autoSum = False                                # type: bool
+            self.UORChain = []                                  # type: [int]
             if self.UORError: self.setUORError(UORError)
             self.updateLastUpdated()
 
@@ -8655,12 +8658,14 @@ Visit: %s (Author's site)
         def setRowMathsApplied(self, rowMathsApplied): self.rowMathsApplied = rowMathsApplied
         def getFinalMathsApplied(self): return self.finalMathsApplied
         def setFinalMathsApplied(self, finalMathsApplied): self.finalMathsApplied = finalMathsApplied
+        def getFinalMathsAppliedIsAbsorbedIntoUORs(self): return self.finalMathsAppliedIsAbsorbedIntoUORs
+        def setFinalMathsAppliedIsAbsorbedIntoUORs(self, finalMathsAppliedIsAbsorbedIntoUORs): self.finalMathsAppliedIsAbsorbedIntoUORs = finalMathsAppliedIsAbsorbedIntoUORs
         def getFormatAsPercent100Applied(self): return self.formatAsPercent100Applied
         def setFormatAsPercent100Applied(self, formatAsPercent100Applied): self.formatAsPercent100Applied = formatAsPercent100Applied
         def getUORChain(self): return self.UORChain
         def setUORChain(self, newChain): self.UORChain = newChain
-        def setRowNumber(self, rowNumber): self.rowNumber = rowNumber
         def getRowNumber(self): return self.rowNumber
+        def setRowNumber(self, rowNumber): self.rowNumber = rowNumber
         def updateLastUpdated(self): self.lastUpdated = System.currentTimeMillis()
         def getLastUpdated(self): return self.lastUpdated
         def getUUID(self): return self.uuid
@@ -8685,6 +8690,7 @@ Visit: %s (Author's site)
             clonedBalObj.setRowMathsApplied(self.getRowMathsApplied())
             clonedBalObj.setMathsUORApplied(self.getMathsUORApplied())
             clonedBalObj.setFinalMathsApplied(self.getFinalMathsApplied())
+            clonedBalObj.setFinalMathsAppliedIsAbsorbedIntoUORs(self.getFinalMathsAppliedIsAbsorbedIntoUORs())
             clonedBalObj.setFormatAsPercent100Applied(self.getFormatAsPercent100Applied())
             clonedBalObj.setUORChain(self.getUORChain())
             clonedBalObj.setAutoSum(self.getAutoSum())
@@ -8693,8 +8699,23 @@ Visit: %s (Author's site)
 
         def toString(self):     return self.__str__()
         def __repr__(self):     return self.__str__()
-        def __str__(self):      return  "[uuid: '%s', row name: '%s', curr: '%s', balance: %s, balanceWithDecimals: %s, extra row txt: '%s', isUORError: %s, rowNumber: %s, avgByApplied: %s, rowMathsApplied: %s, MUORApplied: %s, finalMathsApplied: %s, formatAsPercent100Applied: %s, countSelectedAccounts: %s, autoSum: %s, UORChain: %s]"\
-                                        %(self.getUUID(), self.getRowName(), self.getCurrencyType(), self.getBalance(), self.getBalanceWithDecimalsPreserved(), self.getExtraRowTxt(), self.isUORError(), self.getRowNumber(), self.getAverageByApplied(), self.getRowMathsApplied(), self.getMathsUORApplied(), self.getFinalMathsApplied(), self.getFormatAsPercent100Applied(), self.getCountSelectedAccounts(), self.getAutoSum(), self.getUORChain())
+        def __str__(self):      return  "[uuid: '%s', row name: '%s', curr: '%s', balance: %s, balanceWithDecimals: %s, extra row txt: '%s', isUORError: %s, rowNumber: %s, avgByApplied: %s, rowMathsApplied: %s, MUORApplied: %s, finalMathsApplied: %s (isAbsorbed: %s), formatAsPercent100Applied: %s, countSelectedAccounts: %s, autoSum: %s, UORChain: %s]"\
+                                        %(self.getUUID(),
+                                          self.getRowName(),
+                                          self.getCurrencyType(),
+                                          self.getBalance(),
+                                          self.getBalanceWithDecimalsPreserved(),
+                                          self.getExtraRowTxt(),
+                                          self.isUORError(),
+                                          self.getRowNumber(),
+                                          self.getAverageByApplied(),
+                                          self.getRowMathsApplied(),
+                                          self.getMathsUORApplied(),
+                                          self.getFinalMathsApplied(), self.getFinalMathsAppliedIsAbsorbedIntoUORs(),
+                                          self.getFormatAsPercent100Applied(),
+                                          self.getCountSelectedAccounts(),
+                                          self.getAutoSum(),
+                                          self.getUORChain())
 
     def scaleIcon(_icon, scaleFactor):
         bufferedImage = BufferedImage(_icon.getIconWidth(), _icon.getIconHeight(), BufferedImage.TYPE_INT_ARGB)
@@ -9046,9 +9067,10 @@ Visit: %s (Author's site)
             self.ROW_MATHS_CALC_UNUSED_IDX   = 2
 
             self.savedFinalMathsCalculationTable = None
-            self.FINAL_MATHS_CALC_VALUE_IDX       = 0
-            self.FINAL_MATHS_CALC_OPERATOR_IDX    = 1
-            self.FINAL_MATHS_CALC_UNUSED_IDX      = 2
+            self.FINAL_MATHS_CALC_VALUE_IDX        = 0
+            self.FINAL_MATHS_CALC_OPERATOR_IDX     = 1
+            self.FINAL_MATHS_CALC_UNUSED_IDX       = 2
+            self.FINAL_MATHS_CALC_ABSORB_INTO_UORS = 3
 
             self.savedFormatAsPercentTable = None
             self.FORMAT_AS_PERCENT_IDX            = 0
@@ -9139,8 +9161,9 @@ Visit: %s (Author's site)
             self.rowMathsCalculationAdjustValue_JRF   = None
             self.rowMathsCalculationOperator_COMBO    = None
 
-            self.finalMathsCalculationAdjustValue_JRF = None
-            self.finalMathsCalculationOperator_COMBO  = None
+            self.finalMathsCalculationAdjustValue_JRF   = None
+            self.finalMathsCalculationOperator_COMBO    = None
+            self.finalMathsCalculationAbsorbIntoUORs_CB = None
 
             self.formatAsPercent_CB                   = None
             self.formatAsPercentMult100_CB            = None
@@ -10248,9 +10271,9 @@ Visit: %s (Author's site)
         def displayAverageDefault(self):                return 1.0
         def averageByCalUnitDefault(self):              return 0
         def averageByFractionalsDefault(self):          return True
-        def operateOnAnotherRowDefault(self):           return [None, None, None]   # int(row), str(operator), None(unused)
-        def rowMathsCalculationDefault(self):           return [0.0, None, None]    # float(adjustValue), str(operator), None(unused)
-        def finalMathsCalculationDefault(self):         return [0.0, None, None]    # float(adjustValue), str(operator), None(unused)
+        def operateOnAnotherRowDefault(self):           return [None, None, None]        # int(row), str(operator), None(unused)
+        def rowMathsCalculationDefault(self):           return [0.0, None, None]         # float(adjustValue), str(operator), None(unused)
+        def finalMathsCalculationDefault(self):         return [0.0, None, None, None]   # float(adjustValue), str(operator), None(unused), None(bool)
         def formatAsPercentDefault(self):               return [False, False]
         def disableWidgetTitleDefault(self):            return False
         def showDashesInsteadOfZerosDefault(self):      return False
@@ -10637,6 +10660,12 @@ Visit: %s (Author's site)
                         printResetMessage("savedRowMathsCalculationTable", self.savedRowMathsCalculationTable[i], self.rowMathsCalculationDefault(), i)
                         self.savedRowMathsCalculationTable[i] = self.rowMathsCalculationDefault()
 
+                    # Upgrade this parameter with new upwards absorb into UORs (False=default / no upwards UOR absorbsion)....
+                    if isinstance(self.savedFinalMathsCalculationTable[i], list) and len(self.savedFinalMathsCalculationTable[i]) == self.FINAL_MATHS_CALC_ABSORB_INTO_UORS:
+                        oldValue = copy.deepcopy(self.savedFinalMathsCalculationTable[i])
+                        self.savedFinalMathsCalculationTable[i].append(None)
+                        myPrint("B", "... Upgrading row: %s saved parameter 'savedFinalMathsCalculationTable' - adding False = no upwards UOR absorbsion - now '%s'" %(i+1, self.savedFinalMathsCalculationTable[i]))
+
                     if not self.isValidAndFixFinalMathsCalculationParams(self.savedFinalMathsCalculationTable[i]):
                         printResetMessage("savedFinalMathsCalculationTable", self.savedFinalMathsCalculationTable[i], self.finalMathsCalculationDefault(), i)
                         self.savedFinalMathsCalculationTable[i] = self.finalMathsCalculationDefault()
@@ -10689,6 +10718,10 @@ Visit: %s (Author's site)
                     # if not isinstance(operateOnAnotherRowParams[NAB.OPERATE_OTHER_ROW_UNUSED], bool):           return False
             return True
 
+        def isRowMathsCalculationForRowIdx(self, rowIdx):
+            NAB = self
+            return (NAB.savedRowMathsCalculationTable[rowIdx][NAB.ROW_MATHS_CALC_VALUE_IDX] != 0.0)
+
         def isValidAndFixRowMathsCalculationParams(self, rowMathsCalculationParams):
             NAB = self
             if not isinstance(rowMathsCalculationParams, list): return False
@@ -10709,23 +10742,34 @@ Visit: %s (Author's site)
                     # if not isinstance(rowMathsCalculationParams[NAB.ROW_MATHS_CALC_UNUSED_IDX], bool):          return False
             return True
 
+        def isFinalMathsCalculationForRowIdx(self, rowIdx):
+            NAB = self
+            return (NAB.savedFinalMathsCalculationTable[rowIdx][NAB.FINAL_MATHS_CALC_VALUE_IDX] != 0.0)
+
+        def isFinalMathsCalculationAbsorbedIntoUORsForRowIdx(self, rowIdx):
+            NAB = self
+            return (NAB.isFinalMathsCalculationForRowIdx(rowIdx) and NAB.savedFinalMathsCalculationTable[rowIdx][NAB.FINAL_MATHS_CALC_ABSORB_INTO_UORS])
+
         def isValidAndFixFinalMathsCalculationParams(self, finalMathsCalculationParams):
             NAB = self
             if not isinstance(finalMathsCalculationParams, list): return False
-            if len(finalMathsCalculationParams) != (NAB.FINAL_MATHS_CALC_UNUSED_IDX + 1): return False
-            # [0.0, None, None] is OK
+            if len(finalMathsCalculationParams) != (NAB.FINAL_MATHS_CALC_ABSORB_INTO_UORS + 1): return False
+            # [0.0, None, None, None] is OK
             if not (finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_VALUE_IDX] == 0.0
                     and finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_OPERATOR_IDX] is None
-                    and finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_UNUSED_IDX] is None):
+                    and finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_UNUSED_IDX] is None
+                    and finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_ABSORB_INTO_UORS] is None):
                 if isinstance(finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_VALUE_IDX], (int, long)):
                     myPrint("B", "WARNING: isValidAndFixFinalMathsCalculationParams(%s) converting operand to float...." %(finalMathsCalculationParams))
                     finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_VALUE_IDX] = float(finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_VALUE_IDX])
                 if finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_VALUE_IDX] == 0.0:
                     pass
                 else:
-                    if not isinstance(finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_VALUE_IDX], float):          return False
-                    if not isinstance(finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_OPERATOR_IDX], basestring):  return False
-                    if (finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_OPERATOR_IDX] not in "+-/*"):              return False
+                    NoneType = type(None)
+                    if not isinstance(finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_VALUE_IDX], float):                    return False
+                    if not isinstance(finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_OPERATOR_IDX], basestring):            return False
+                    if (finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_OPERATOR_IDX] not in "+-/*"):                        return False
+                    if not isinstance(finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_ABSORB_INTO_UORS], (bool, NoneType)):  return False
                     # if not isinstance(finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_UNUSED_IDX], bool):     return False
             return True
 
@@ -11329,6 +11373,7 @@ Visit: %s (Author's site)
                                       NAB.rowMathsCalculationOperator_COMBO,
                                       NAB.finalMathsCalculationAdjustValue_JRF,
                                       NAB.finalMathsCalculationOperator_COMBO,
+                                      NAB.finalMathsCalculationAbsorbIntoUORs_CB,
                                       NAB.formatAsPercent_CB,
                                       NAB.formatAsPercentMult100_CB,
                                       NAB.utiliseOtherRow_JTFAI,
@@ -11474,6 +11519,9 @@ Visit: %s (Author's site)
             finalMathsCalculationOperator = NAB.savedFinalMathsCalculationTable[selectRowIndex][NAB.FINAL_MATHS_CALC_OPERATOR_IDX]
             if finalMathsCalculationOperator is None: finalMathsCalculationOperator = "+"
             NAB.finalMathsCalculationOperator_COMBO.setSelectedItem(finalMathsCalculationOperator)
+            absorb = NAB.savedFinalMathsCalculationTable[selectRowIndex][NAB.FINAL_MATHS_CALC_ABSORB_INTO_UORS]
+            if absorb is None: absorb = False
+            NAB.finalMathsCalculationAbsorbIntoUORs_CB.setSelected(absorb)
 
             myPrint("DB", "..about to set savedFormatAsPercentTable...")
             NAB.formatAsPercent_CB.setSelected(NAB.savedFormatAsPercentTable[selectRowIndex][NAB.FORMAT_AS_PERCENT_IDX])
@@ -11593,6 +11641,7 @@ Visit: %s (Author's site)
                 myPrint("B", ".....savedFinalMathsCalculationTable: %s"         %(NAB.savedFinalMathsCalculationTable[selectRowIndex]))
                 myPrint("B", ".....finalMathsCalculationAdjustValue_JRF: %s"    %(NAB.finalMathsCalculationAdjustValue_JRF.getValue()))
                 myPrint("B", ".....finalMathsCalculationOperator_COMBO: %s"     %(NAB.finalMathsCalculationOperator_COMBO.getSelectedItem()))
+                myPrint("B", ".....finalMathsCalculationAbsorbIntoUORs_CB: %s"  %(NAB.finalMathsCalculationAbsorbIntoUORs_CB.isSelected()))
                 myPrint("B", ".....savedFormatAsPercentTable: %s"               %(NAB.savedFormatAsPercentTable[selectRowIndex]))
                 myPrint("B", ".....formatAsPercent_CB: %s"                      %(NAB.formatAsPercent_CB.isSelected()))
                 myPrint("B", ".....formatAsPercentMult100_CB: %s"               %(NAB.formatAsPercentMult100_CB.isSelected()))
@@ -11768,6 +11817,7 @@ Visit: %s (Author's site)
                     myPrint("DB", "..... saving savedFinalMathsCalculationTable[elements].... was: %s" %(self.savedFinalMathsCalculationTable[self.getSelectedRowIndex()]))
                     self.savedFinalMathsCalculationTable[self.getSelectedRowIndex()][self.FINAL_MATHS_CALC_VALUE_IDX] = txtFieldValue
                     self.savedFinalMathsCalculationTable[self.getSelectedRowIndex()][self.FINAL_MATHS_CALC_OPERATOR_IDX] = self.finalMathsCalculationOperator_COMBO.getSelectedItem()
+                    self.savedFinalMathsCalculationTable[self.getSelectedRowIndex()][self.FINAL_MATHS_CALC_ABSORB_INTO_UORS] = self.finalMathsCalculationAbsorbIntoUORs_CB.isSelected()
                     myPrint("DB", "........ now : %s" %(self.savedFinalMathsCalculationTable[self.getSelectedRowIndex()]))
                     self.configSaved = False
 
@@ -12277,6 +12327,8 @@ Visit: %s (Author's site)
                 return("UOR CHAIN USING MIXED CURRENCIES WARNING")
             elif _type == 17:
                 return("TAG (VARIABLE) NAME IS NOT UNIQUE WARNING")
+            elif _type == 18:
+                return("FMC ABSORBED INTO OTHER UOR BUT UOR IN ERROR")
             return("WARNING <<UNKNOWN>> DETECTED")
 
         class SimulateTotalForRowSwingWorker(SwingWorker):
@@ -12351,8 +12403,8 @@ Visit: %s (Author's site)
                         balanceObj = totalBalanceTable[i]                                                               # type: CalculatedBalance
 
                         lUseAverage = NAB.doesRowUseAvgBy(i)
-                        lRowMathsCalculation = (NAB.savedRowMathsCalculationTable[i][NAB.ROW_MATHS_CALC_VALUE_IDX] != 0.0)
-                        lFinalMathsCalculation = (NAB.savedFinalMathsCalculationTable[i][NAB.FINAL_MATHS_CALC_VALUE_IDX] != 0.0)
+                        lRowMathsCalculation = (NAB.isRowMathsCalculationForRowIdx(i))
+                        lFinalMathsCalculation = (NAB.isFinalMathsCalculationForRowIdx(i))
                         lFormatAsPercent = (NAB.savedFormatAsPercentTable[i][NAB.FORMAT_AS_PERCENT_IDX])
                         lUsesOtherRow = (NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_ROW] is not None)
                         lUseTaxDates = (NAB.savedUseTaxDates and isIncomeExpenseDatesSelected(i))
@@ -12880,6 +12932,12 @@ Visit: %s (Author's site)
                     if NAB.savedFinalMathsCalculationTable[NAB.getSelectedRowIndex()][NAB.FINAL_MATHS_CALC_OPERATOR_IDX] != event.getSource().getSelectedItem():
                         myPrint("DB", ".. setting savedFinalMathsCalculationTable[operator] to: %s for row: %s" %(event.getSource().getSelectedItem(), NAB.getSelectedRow()))
                         NAB.savedFinalMathsCalculationTable[NAB.getSelectedRowIndex()][NAB.FINAL_MATHS_CALC_OPERATOR_IDX] = event.getSource().getSelectedItem()
+                        NAB.configSaved = False
+
+                if event.getSource() is NAB.finalMathsCalculationAbsorbIntoUORs_CB:
+                    if NAB.savedFinalMathsCalculationTable[NAB.getSelectedRowIndex()][NAB.FINAL_MATHS_CALC_ABSORB_INTO_UORS] != event.getSource().isSelected():
+                        myPrint("DB", ".. setting savedFinalMathsCalculationTable[absorb into UORs] to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
+                        NAB.savedFinalMathsCalculationTable[NAB.getSelectedRowIndex()][NAB.FINAL_MATHS_CALC_ABSORB_INTO_UORS] = event.getSource().isSelected()
                         NAB.configSaved = False
 
                 if event.getSource() is NAB.includeInactive_COMBO:
@@ -14505,7 +14563,7 @@ Visit: %s (Author's site)
                     onGroupIDCol += 1
 
                     NAB.tagName_JTF = MyJTextField("not set", 8, minColWidth=10)
-                    NAB.tagName_JTF.setDocument(JTextFieldTagNameDocument());
+                    NAB.tagName_JTF.setDocument(JTextFieldTagNameDocument())
                     NAB.tagName_JTF.putClientProperty("%s.id" %(NAB.myModuleID), "tagName_JTF")
                     NAB.tagName_JTF.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.tagName_JTF.setName("tagName_JTF")
@@ -15043,6 +15101,16 @@ Visit: %s (Author's site)
                     NAB.finalMathsCalculationOperator_COMBO.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.finalMathsCalculationOperator_COMBO.addActionListener(NAB.saveActionListener)
                     finalMathsCalculation_pnl.add(NAB.finalMathsCalculationOperator_COMBO, GridC.getc(onFinalMathsCalculationCol, onFinalMathsCalculationRow).leftInset(5))
+                    onFinalMathsCalculationCol += 1
+
+                    NAB.finalMathsCalculationAbsorbIntoUORs_CB = MyJCheckBox("Absorb UORs", False)
+                    NAB.finalMathsCalculationAbsorbIntoUORs_CB.putClientProperty("%s.id" %(NAB.myModuleID), "finalMathsCalculationAbsorbIntoUORs_CB")
+                    NAB.finalMathsCalculationAbsorbIntoUORs_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    NAB.finalMathsCalculationAbsorbIntoUORs_CB.setName("finalMathsCalculationAbsorbIntoUORs_CB")
+                    NAB.finalMathsCalculationAbsorbIntoUORs_CB.setToolTipText("When enabled, FMC calculation will be absorbed upwards into UORs")
+                    NAB.finalMathsCalculationAbsorbIntoUORs_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.finalMathsCalculationAbsorbIntoUORs_CB.addActionListener(NAB.saveActionListener)
+                    finalMathsCalculation_pnl.add(NAB.finalMathsCalculationAbsorbIntoUORs_CB, GridC.getc(onFinalMathsCalculationCol, onFinalMathsCalculationRow).leftInset(5))
                     onFinalMathsCalculationCol += 1
 
                     controlPnl.add(finalMathsCalculation_pnl, GridC.getc(onCol, onRow).west().leftInset(colInsetFiller).fillx().pady(pady).filly().colspan(2))
@@ -16356,6 +16424,35 @@ Visit: %s (Author's site)
             return result
 
         @staticmethod
+        def updateBalanceUsingFinalMathsCalculationForRowIdx(rowIdx, _balanceObj):
+            # type: (int, CalculatedBalance) -> None
+
+            NAB = NetAccountBalancesExtension.getNAB()
+
+            assert NAB.isFinalMathsCalculationForRowIdx(rowIdx),             "LOGIC ERROR: .updateBalanceUsingFinalMathsCalculationForRowIdx() called on rowIdx: %s. Row does NOT use FMC?! >> balanceObj: %s" %(rowIdx, _balanceObj)
+            assert not _balanceObj.getFinalMathsApplied(),                   "LOGIC ERROR: .updateBalanceUsingFinalMathsCalculationForRowIdx() called on rowIdx: %s. balanceObj has already been applied FMC?! >> balanceObj: %s" %(rowIdx, _balanceObj)
+            assert not _balanceObj.getFinalMathsAppliedIsAbsorbedIntoUORs(), "LOGIC ERROR: .updateBalanceUsingFinalMathsCalculationForRowIdx() called on rowIdx: %s. balanceObj has already been applied FMC and absorbed into UORs?! >> balanceObj: %s" %(rowIdx, _balanceObj)
+
+            if _balanceObj.getBalance() is None: return
+
+            originalBalanceLong = _balanceObj.getBalance()
+            originalBalanceDecimals = _balanceObj.getBalanceWithDecimalsPreserved()
+
+            operator = NAB.savedFinalMathsCalculationTable[rowIdx][NAB.FINAL_MATHS_CALC_OPERATOR_IDX]
+            finalMathsCalculationOperand = NAB.savedFinalMathsCalculationTable[rowIdx][NAB.FINAL_MATHS_CALC_VALUE_IDX]
+            finalMathsCalcAdjustedBalanceWithDecimals = MyHomePageView.calculateUsingSymbol(originalBalanceDecimals, operator, finalMathsCalculationOperand)
+            finalMathsCalcAdjustedBalanceLong = _balanceObj.getCurrencyType().getLongValue(finalMathsCalcAdjustedBalanceWithDecimals)
+
+            _balanceObj.setBalance(finalMathsCalcAdjustedBalanceLong)
+            _balanceObj.setBalanceWithDecimalsPreserved(finalMathsCalcAdjustedBalanceWithDecimals)
+            _balanceObj.setFinalMathsApplied(True)
+            _balanceObj.setFinalMathsAppliedIsAbsorbedIntoUORs(NAB.isFinalMathsCalculationAbsorbedIntoUORsForRowIdx(rowIdx))
+
+            if debug:myPrint("DB", ":: Row: %s using final maths calculation (FMC) adjustment of '%s' adjusted: %s (%s) to %s (%s) >> Absorbed into other UORs: %s"
+                              %(rowIdx+1, NAB.savedFinalMathsCalculationTable[rowIdx], originalBalanceLong, originalBalanceDecimals, finalMathsCalcAdjustedBalanceLong, finalMathsCalcAdjustedBalanceWithDecimals, NAB.isFinalMathsCalculationAbsorbedIntoUORsForRowIdx(rowIdx)))
+
+
+        @staticmethod
         def calculateBalances(_book, justIndex=None, lFromSimulate=False, swClass=None):
             # type: (AccountBook, bool, bool, SwingWorker) -> [CalculatedBalance]
 
@@ -16919,6 +17016,15 @@ Visit: %s (Author's site)
                                        %(onRow, NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_ROW]))
                             myPrint("B", warnTxt)
                             NAB.warningMessagesTable.append(warnTxt)
+
+                            if NAB.isFinalMathsCalculationAbsorbedIntoUORsForRowIdx(i):
+                                lWarningDetected = True
+                                iWarningType = (18 if (iWarningType is None or iWarningType == 18) else 0)
+                                iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                                warnTxt = ("WARNING: Row: %s >> Specified FMC (%s) being absorbed into other UOR, but invalid UOR: %s...."
+                                           %(onRow, NAB.savedFinalMathsCalculationTable[i], NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_ROW]))
+                                myPrint("B", warnTxt)
+                                NAB.warningMessagesTable.append(warnTxt)
                         else:
                             for iChainIdx in reversed(range(0, len(UORChains[primaryRowUUID]) -1)):
                                 onChainedUORIdx = UORChains[primaryRowUUID][iChainIdx]
@@ -16932,25 +17038,33 @@ Visit: %s (Author's site)
                                 thisRowBalLong = balanceObj.getBalance()
                                 thisRowBalWithDecimals = balanceObj.getBalanceWithDecimalsPreserved()
 
-                                otherRowBalLong = _totalBalanceTable[otherRowIdx].getBalance()
-                                otherRowBalWithDecimals = _totalBalanceTable[otherRowIdx].getBalanceWithDecimalsPreserved()
+                                otherRowBalanceObj = _totalBalanceTable[otherRowIdx]                                    # type: CalculatedBalance
+                                otherRowBalLong = otherRowBalanceObj.getBalance()
+                                otherRowBalWithDecimals = otherRowBalanceObj.getBalanceWithDecimalsPreserved()
 
                                 # Warning about mixed currencies...
-                                if debug: myPrint("B", "@@ row: %s chain: %s primary: '%s', other: '%s'" %(onRow, UORChains[primaryRowUUID], _totalBalanceTable[otherRowIdx].getCurrencyType(), balanceObj.getCurrencyType()))
-                                if balanceObj.getCurrencyType() != _totalBalanceTable[otherRowIdx].getCurrencyType():
+                                if debug: myPrint("B", "@@ row: %s chain: %s primary: '%s', other: '%s'" %(onRow, UORChains[primaryRowUUID], balanceObj.getCurrencyType(), otherRowBalanceObj.getCurrencyType()))
+                                if balanceObj.getCurrencyType() != otherRowBalanceObj.getCurrencyType():
                                     lWarningDetected = True
                                     iWarningType = (16 if (iWarningType is None or iWarningType == 16) else 0)
                                     iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
                                     warnTxt = ("WARNING: Row: %s >> Mixing different currencies within a single UOR chain - e.g. '%s' with '%s' (skipping further checks)"
-                                               %(onRow, _totalBalanceTable[otherRowIdx].getCurrencyType(), balanceObj.getCurrencyType()))
+                                               %(onRow, balanceObj.getCurrencyType(), otherRowBalanceObj.getCurrencyType()))
                                     myPrint("B", warnTxt)
                                     NAB.warningMessagesTable.append(warnTxt)
 
                                 if (otherRowBalLong is None or otherRowBalWithDecimals == 0.0):
-                                    if debug: myPrint("B", "...... RowIdx: %s (calc: %s - %s) otherRowIdx: %s balance (calc: %s - %s) is NOT valid (or is zero), so skipping this step - sorry!" %(i, thisRowBalLong, thisRowBalWithDecimals, otherRowIdx, otherRowBalLong, otherRowBalWithDecimals))
+                                    if debug: myPrint("B", "...... RowIdx: %s (calc: %s - %s) otherRowIdx: %s balance (calc: %s - %s) is NOT valid (or is zero), so skipping this step!" %(i, thisRowBalLong, thisRowBalWithDecimals, otherRowIdx, otherRowBalLong, otherRowBalWithDecimals))
                                     continue
 
                                 if debug: myPrint("B", "@@ rowIdx: %s, otherRowIdx: %s, thisRowBalLong: %s (%s), otherRowBalLong: %s (%s)" %(i, otherRowIdx, thisRowBalLong, thisRowBalWithDecimals, otherRowBalLong, otherRowBalWithDecimals))
+
+                                # FMC: Perform final maths calculations (stage 1) >> absorbed into other UORs - within a UOR chain....
+                                if NAB.isFinalMathsCalculationAbsorbedIntoUORsForRowIdx(otherRowIdx):
+                                    if not otherRowBalanceObj.getFinalMathsAppliedIsAbsorbedIntoUORs():  # Check not already been calculated elsewhere
+                                        MyHomePageView.updateBalanceUsingFinalMathsCalculationForRowIdx(otherRowIdx, otherRowBalanceObj)
+                                        otherRowBalLong = otherRowBalanceObj.getBalance()
+                                        otherRowBalWithDecimals = otherRowBalanceObj.getBalanceWithDecimalsPreserved()
 
                                 operator = NAB.savedOperateOnAnotherRowTable[onChainedUORIdx][NAB.OPERATE_OTHER_ROW_OPERATOR]
                                 newRowBalWithDecimals = MyHomePageView.calculateUsingSymbol(thisRowBalWithDecimals, operator, otherRowBalWithDecimals)
@@ -16972,27 +17086,27 @@ Visit: %s (Author's site)
                     myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
                 thisSectionStartTime = System.currentTimeMillis()
 
-                ###################################################
-                # FMC: Perform final maths calculations (adjustments)...
+                ############################################################################################
+                # FMC: Perform final maths calculations (stage 2) for any remaining FMCs not already calculated (including absorbed FMCs not consumed)...
                 for i in range(0, len(_totalBalanceTable)):
                     balanceObj = _totalBalanceTable[i]                                                                  # type: CalculatedBalance
-                    if (balanceObj.getBalance() is not None):
-                        finalMathsCalculationOperand = NAB.savedFinalMathsCalculationTable[i][NAB.FINAL_MATHS_CALC_VALUE_IDX]
-                        lFinalMathsCalculation = (finalMathsCalculationOperand != 0.0)
-                        if not lFinalMathsCalculation: continue
+                    if NAB.isFinalMathsCalculationForRowIdx(i) and not balanceObj.getFinalMathsApplied():
+                        balanceObj = _totalBalanceTable[i]                                                              # type: CalculatedBalance
+                        MyHomePageView.updateBalanceUsingFinalMathsCalculationForRowIdx(i, balanceObj)
 
-                        originalBalanceLong = balanceObj.getBalance()
-                        originalBalanceDecimals = balanceObj.getBalanceWithDecimalsPreserved()
 
-                        operator = NAB.savedFinalMathsCalculationTable[i][NAB.FINAL_MATHS_CALC_OPERATOR_IDX]
-                        finalMathsCalcAdjustedBalanceWithDecimals = MyHomePageView.calculateUsingSymbol(originalBalanceDecimals, operator, finalMathsCalculationOperand)
-                        finalMathsCalcAdjustedBalanceLong = balanceObj.getCurrencyType().getLongValue(finalMathsCalcAdjustedBalanceWithDecimals)
+                ### DEBUG FMC SECTION
+                if True or debug:
+                    for i in range(0, len(_totalBalanceTable)):
+                        balanceObj = _totalBalanceTable[i]                                                              # type: CalculatedBalance
+                        if balanceObj.getBalance() is None or not NAB.isFinalMathsCalculationForRowIdx(i):
+                            assert not balanceObj.getFinalMathsApplied() and not balanceObj.getFinalMathsAppliedIsAbsorbedIntoUORs()
+                            continue
+                        assert balanceObj.getFinalMathsApplied()
+                        if NAB.isFinalMathsCalculationAbsorbedIntoUORsForRowIdx(i):
+                            assert balanceObj.getFinalMathsAppliedIsAbsorbedIntoUORs();
+                ### END DEBUG FMC
 
-                        balanceObj.setBalance(finalMathsCalcAdjustedBalanceLong)
-                        balanceObj.setBalanceWithDecimalsPreserved(finalMathsCalcAdjustedBalanceWithDecimals)
-                        balanceObj.setFinalMathsApplied(True)
-                        if debug: myPrint("DB", ":: Row: %s using final maths calculation adjustment of '%s' adjusted: %s (%s) to %s (%s)"
-                                          %(i+1, NAB.savedFinalMathsCalculationTable[i], originalBalanceLong, originalBalanceDecimals, finalMathsCalcAdjustedBalanceLong, finalMathsCalcAdjustedBalanceWithDecimals))
 
                 tookTime = System.currentTimeMillis() - thisSectionStartTime
                 if debug or TIMING_DEBUG:
@@ -17002,7 +17116,7 @@ Visit: %s (Author's site)
 
 
                 ##########################################
-                # Perform very final display as percent...
+                # Perform very final 'display as percent'...
                 for i in range(0, len(_totalBalanceTable)):
                     balanceObj = _totalBalanceTable[i]                                                                  # type: CalculatedBalance
                     if (balanceObj.getBalance() is not None):
@@ -17266,8 +17380,8 @@ Visit: %s (Author's site)
                                         continue
 
                                     lUseAverage = NAB.doesRowUseAvgBy(i)
-                                    lRowMathsCalculation = (NAB.savedRowMathsCalculationTable[i][NAB.ROW_MATHS_CALC_VALUE_IDX] != 0.0)
-                                    lFinalMathsCalculation = (NAB.savedFinalMathsCalculationTable[i][NAB.FINAL_MATHS_CALC_VALUE_IDX] != 0.0)
+                                    lRowMathsCalculation = (NAB.isRowMathsCalculationForRowIdx(i))
+                                    lFinalMathsCalculation = (NAB.isFinalMathsCalculationForRowIdx(i))
                                     lFormatAsPercent = (NAB.savedFormatAsPercentTable[i][NAB.FORMAT_AS_PERCENT_IDX])
                                     lUsesOtherRow = (NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_ROW] is not None)
                                     lUseTaxDates = (NAB.savedUseTaxDates and isIncomeExpenseDatesSelected(i))
