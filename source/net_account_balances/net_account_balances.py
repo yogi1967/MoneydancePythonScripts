@@ -17096,7 +17096,7 @@ Visit: %s (Author's site)
 
 
                 ### DEBUG FMC SECTION
-                if True or debug:
+                if debug:
                     for i in range(0, len(_totalBalanceTable)):
                         balanceObj = _totalBalanceTable[i]                                                              # type: CalculatedBalance
                         if balanceObj.getBalance() is None or not NAB.isFinalMathsCalculationForRowIdx(i):
@@ -17104,7 +17104,7 @@ Visit: %s (Author's site)
                             continue
                         assert balanceObj.getFinalMathsApplied()
                         if NAB.isFinalMathsCalculationAbsorbedIntoUORsForRowIdx(i):
-                            assert balanceObj.getFinalMathsAppliedIsAbsorbedIntoUORs();
+                            assert balanceObj.getFinalMathsAppliedIsAbsorbedIntoUORs()
                 ### END DEBUG FMC
 
 
