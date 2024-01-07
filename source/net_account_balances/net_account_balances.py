@@ -15103,11 +15103,11 @@ Visit: %s (Author's site)
                     finalMathsCalculation_pnl.add(NAB.finalMathsCalculationOperator_COMBO, GridC.getc(onFinalMathsCalculationCol, onFinalMathsCalculationRow).leftInset(5))
                     onFinalMathsCalculationCol += 1
 
-                    NAB.finalMathsCalculationAbsorbIntoUORs_CB = MyJCheckBox("Absorb UORs", False)
+                    NAB.finalMathsCalculationAbsorbIntoUORs_CB = MyJCheckBox("Absorb into other UORs", False)
                     NAB.finalMathsCalculationAbsorbIntoUORs_CB.putClientProperty("%s.id" %(NAB.myModuleID), "finalMathsCalculationAbsorbIntoUORs_CB")
                     NAB.finalMathsCalculationAbsorbIntoUORs_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     NAB.finalMathsCalculationAbsorbIntoUORs_CB.setName("finalMathsCalculationAbsorbIntoUORs_CB")
-                    NAB.finalMathsCalculationAbsorbIntoUORs_CB.setToolTipText("When enabled, FMC calculation will be absorbed upwards into UORs")
+                    NAB.finalMathsCalculationAbsorbIntoUORs_CB.setToolTipText("When enabled, FMC calculation will be absorbed upwards into other UORs")
                     NAB.finalMathsCalculationAbsorbIntoUORs_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.finalMathsCalculationAbsorbIntoUORs_CB.addActionListener(NAB.saveActionListener)
                     finalMathsCalculation_pnl.add(NAB.finalMathsCalculationAbsorbIntoUORs_CB, GridC.getc(onFinalMathsCalculationCol, onFinalMathsCalculationRow).leftInset(5))

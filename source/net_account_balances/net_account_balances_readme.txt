@@ -219,7 +219,7 @@ MATH ON CALCULATED BALANCES:
                            NOTE: You can enter an RMC with no accounts selected in the picklist. The calculation will
                                  start from 0.0. This is a way to create a reusable row constant for use in other
                                  rows - e.g. RMC: + 0.22 for a 22% tax rate. NOTE: As soon as you enable this, then the
-                                 following UOR, FMC, Format as %, Multiply by 100 would also trigger for the row...
+                                 following UOR, FMC, Format as %, Multiply by 100 options will trigger for this row...
 
                            WARNING: You can use both average by, and RMC. This could cause strange results!
 
@@ -235,14 +235,14 @@ MATH ON CALCULATED BALANCES:
 
                                  >> OR <<
 
-                                 If you select 'Absorb UORs', then the FMC will be calculated and provided 'upwards'
-                                 into any other UORs consuming this row (directly or indirectly).. Hence, per row,
-                                 you can 'roll' FMCs upwards.. This setting is per row.
+                                 If you select 'Absorb into other UORs', then the FMC will be calculated and provided
+                                 'upwards' into any other UORs consuming this row (directly or indirectly)..
+                                 Hence, per row, you can 'roll' FMCs upwards.. This setting is per row.
 
-                    FMC EXAMPLE:                                             RESULT(default)      RESULT(absorb upwards)
-                    - Row1: UOR: 2   accounts: 1.0   FMC +2.0       absorb:    NO      14.0        absorb: YES   11,003
-                    - Row2: UOR: 3   accounts: 1.0   FMC *1000.0    absorb:    NO    11,000        absorb: YES   11,000
-                    - Row3: UOR: -   accounts: 10.0  no FMC         absorb:    NO      10.0        absorb: NO      10.0
+                   FMC EXAMPLE:                                           DISPLAYED(default)   DISPLAYED(absorb upwards)
+                   - Row1: UOR: 2+   accounts: 1.0   FMC +2.0       absorb:    NO      14.0        absorb: YES   11,003
+                   - Row2: UOR: 3+   accounts: 1.0   FMC *1000.0    absorb:    NO    11,000        absorb: YES   11,000
+                   - Row3: UOR: -    accounts: 10.0  no FMC         absorb:    NO      10.0        absorb: NO      10.0
 
 
 - Format as %: When ticked then normal currency formatting is disabled and the '%' symbol is appended.
