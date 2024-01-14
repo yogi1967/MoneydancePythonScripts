@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# net_account_balances.py build: 1045 - Jan 2024 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 1047 - Jan 2024 - Stuart Beesley - StuWareSoftSystems
 # Display Name in MD changed to 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
 
 # Thanks and credit to Dan T Davis and Derek Kent(23) for their suggestions and extensive testing...
@@ -116,13 +116,19 @@
 #                 ... NOTE: you won't always get what you expect. Refer:
 #                 https://docs.python.org/2.7/library/functions.html#round
 #                 https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/math/RoundingMode.html#HALF_UP
-#               Added tag picker to row name field...; added row selector popup; added Tag Name field (etc)....
+#               Added format code tag picker to row name field...; added row selector popup; added Tag Name field (etc)....
 #               Switched to using MyHomePageView.calculateUsingSymbol() for all "+-*/" operations using symbol as string...
-#               FMC - absorb into other UORs enabled
+#               FMC - absorb into other UORs enabled....
+# build: 1046 - NEW: row formulas... (changed FMC to PFM / then PUM - post-uor maths). NOTE: variable 'finalMathsCalculationTable' NOT renamed to maintain backwards settings.....
+#               Split old FMC (now PUM) for Dan's Final Display Adjust (FDA)... Thus PUM is always absorbed, FDA is last and never absorbed...
+#               FDA renamed display name to Format Display Adjustment; PFM renamed now to PUM (post-uor maths)
+#               Fixed: now always reset GlobalVars.parametersLoadedFromFile to avoid possibility of old/newer settings if retro-loading old version of extension...
+#               Enhanced/new row selector(s)...;
+# build: 1047 - Basically 1046 with formula... Just bumping the build number....
+#               Fixed PUM(Absorb) auto-upgrade; fixed(re-added) 'mop up' PUM code in calculateBalances...
 
-# todo - allow <#TAG xxx> in row name, and to call on this from other rows..?
+# todo - formula: find way to regex find / replace integers with integer.0 or float(integer)? Perhaps enhance std fucntions to float all parameters?
 # todo - option to show different dpc (e.g. full decimal precision)
-# todo - Token parser for string formula (e.g. '((row1/row2)*row3)=' (drop UOR chains?)
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -130,7 +136,7 @@
 
 # SET THESE LINES
 myModuleID = u"net_account_balances"
-version_build = "1045"
+version_build = "1047"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -563,6 +569,8 @@ else:
     GlobalVars.extn_param_NEW_averageByFractionalsTable_NAB  = None
     GlobalVars.extn_param_NEW_rowMathsCalculationTable_NAB   = None
     GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB = None
+    GlobalVars.extn_param_NEW_formulaTable_NAB               = None
+    GlobalVars.extn_param_NEW_finalDisplayAdjustTable_NAB    = None
     GlobalVars.extn_param_NEW_formatAsPercentTable_NAB       = None
     GlobalVars.extn_param_NEW_operateOnAnotherRowTable_NAB   = None
     GlobalVars.extn_param_NEW_UUIDTable_NAB                  = None
@@ -3314,7 +3322,7 @@ Visit: %s (Author's site)
                     GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB[i][NAB.FINAL_MATHS_CALC_VALUE_IDX] = old_extn_param_NEW_adjustCalcByTable_NAB[i]
                     GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB[i][NAB.FINAL_MATHS_CALC_OPERATOR_IDX] = "+"
                     GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB[i][NAB.FINAL_MATHS_CALC_UNUSED_IDX] = None
-                    GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB[i][NAB.FINAL_MATHS_CALC_ABSORB_INTO_UORS] = False
+                    GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB[i][NAB.FINAL_MATHS_CALC_ABSORB_IDX] = False
                     myPrint("B", "... Converted row: %s '%s' into '%s'" %(i+1, old_extn_param_NEW_adjustCalcByTable_NAB[i], GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB[i]))
             else:
                 myPrint("B", "... NO - 'extn_param_NEW_finalMathsCalculationTable_NAB' already set, so leaving new param alone: '%s'" %(GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB))
@@ -5180,9 +5188,9 @@ Visit: %s (Author's site)
     class JTextFieldGroupIDDocument(PlainDocument):
 
         def __init__(self):
-            # https://docs.python.org/2/howto/regex.html
-            # Only allow digits 0-9, Aa-Zz, '_', '-', '.', ':', '%', ';'
-            self.FILTER_GROUPID_ALPHA_NUM_REGEX = re.compile('[^a-z0-9;:%._-]', (re.IGNORECASE | re.UNICODE | re.LOCALE))
+            # https://docs.python.org/2/howto/regex.html; https://realpython.com/regex-python/
+            # Search for and then REJECT when NOT digits a-z 0-9 ; : % . _ - (no spaces allowed, ignore case)
+            self.FILTER_GROUPID_ALPHA_NUM_REGEX = re.compile(r"[^a-z0-9;:%._-]", (re.IGNORECASE | re.UNICODE | re.LOCALE))
             self.maxWidth = -1
             super(self.__class__, self).__init__()
 
@@ -5199,12 +5207,32 @@ Visit: %s (Author's site)
             dim.width = self.maxWidth
             return dim
 
+    class JTextFieldFormulaDocument(PlainDocument):
+
+        def __init__(self, regex):
+            self.FILTER_FORMULA_REGEX = regex
+            self.maxWidth = -1
+            super(self.__class__, self).__init__()
+
+        def characterCheck(self, checkString): return (self.FILTER_FORMULA_REGEX.search(checkString) is None)
+
+        def insertString(self, theOffset, theStr, theAttr):
+            if theStr is not None and self.characterCheck(theStr):
+                super(self.__class__, self).insertString(theOffset, theStr, theAttr)
+
+        # Avoid width resizes changing the GUI back and forth....
+        def getPreferredSize(self):
+            dim = super(self.__class__, self).getPreferredSize()
+            self.maxWidth = Math.max(self.maxWidth, dim.width)
+            dim.width = self.maxWidth
+            return dim
+
     class JTextFieldTagNameDocument(PlainDocument):
 
         def __init__(self):
-            # https://docs.python.org/2/howto/regex.html
-            # Only allow digits 0-9, Aa-Zz
-            self.FILTER_TAGNAME_ALPHA_NUM_REGEX = re.compile('[^a-z0-9]', (re.IGNORECASE | re.UNICODE | re.LOCALE))
+            # https://docs.python.org/2/howto/regex.html; https://realpython.com/regex-python/
+            # Search for and then REJECT when NOT digits a-z 0-9 (no spaces allowed, ignore case)
+            self.FILTER_TAGNAME_ALPHA_NUM_REGEX = re.compile(r"[^a-z0-9]", (re.IGNORECASE | re.UNICODE | re.LOCALE))
             self.maxWidth = -1
             super(self.__class__, self).__init__()
 
@@ -5370,7 +5398,7 @@ Visit: %s (Author's site)
                 myPrint("DB", "... disabled is set, skipping this.....")
             else:
                 obj = evt.getSource()
-                if (not obj.allowBlank or obj.getText() != ""):
+                if (not obj.allowBlank or obj.getText()):
                     obj.setValueIntOrNone(obj.getValueIntOrNone())
 
         def setColors(self):
@@ -5712,7 +5740,7 @@ Visit: %s (Author's site)
         WIDGET_VAR_IE_DATE_RANGE        = "<##iedr>";  WIDGET_VAR_IE_DATE_RANGE_DISPLAY        = "insert the income/expense date range"
         WIDGET_VAR_IE_DATE_RANGE_NAME   = "<##iedrn>"; WIDGET_VAR_IE_DATE_RANGE_NAME_DISPLAY   = "insert the income/expense date range name"
 
-        ALL_TAGS_NAMES_LIST = [
+        ALL_FORMAT_CODE_NAMES_LIST = [
                                 [WIDGET_ROW_BLANKROWNAME,              WIDGET_ROW_BLANKROWNAME_DISPLAY        ],
                                 [WIDGET_ROW_RIGHTROWNAME,              WIDGET_ROW_RIGHTROWNAME_DISPLAY        ],
                                 [WIDGET_ROW_CENTERROWNAME,             WIDGET_ROW_CENTERROWNAME_DISPLAY       ],
@@ -6054,8 +6082,6 @@ Visit: %s (Author's site)
                 myPrint("DB", "... disabled is set, skipping this.....")
             else:
                 obj = evt.getSource()
-                # if (not obj.allowBlank or obj.getText() != ""):
-                #     obj.setValueInt(obj.getValueInt())
                 obj.setValueInt(obj.getValueInt())
 
         def setAllowBlank(self, allowBlankField): self.allowBlank = allowBlankField
@@ -8609,6 +8635,7 @@ Visit: %s (Author's site)
 
     class CalculatedBalance:
         DEFAULT_WIDGET_ROW_UOR_ERROR = "<UOR ERROR>"
+        DEFAULT_WIDGET_ROW_FORMULA_ERROR = "<FORMULA ERROR>"
 
         @staticmethod
         def getBalanceObjectForUUID(rowDict, uuid):
@@ -8632,14 +8659,16 @@ Visit: %s (Author's site)
             self.balance = balance                              # type: long
             self.extraRowTxt = extraRowTxt                      # type: unicode
             self.UORError = UORError                            # type: bool
+            self.formulaError = False                           # type: bool
             self.rowNumber = rowNumber                          # type: int        # Only set when needed - otherwise -1
             self.balanceWithDecimalsPreserved = None            # type: float
             self.averageByApplied = False                       # type: bool
             self.rowMathsApplied = False                        # type: bool
             self.mathsUORApplied = False                        # type: bool
             self.finalMathsApplied = False                      # type: bool
-            self.finalMathsAppliedIsAbsorbedIntoUORs = False    # type: bool
             self.formatAsPercent100Applied = False              # type: bool
+            self.formulaApplied = False                         # type: bool
+            self.finalDisplayAdjustApplied = False              # type: bool
             self.countSelectedAccounts = 0                      # type: int
             self.autoSum = False                                # type: bool
             self.UORChain = []                                  # type: [int]
@@ -8658,8 +8687,10 @@ Visit: %s (Author's site)
         def setRowMathsApplied(self, rowMathsApplied): self.rowMathsApplied = rowMathsApplied
         def getFinalMathsApplied(self): return self.finalMathsApplied
         def setFinalMathsApplied(self, finalMathsApplied): self.finalMathsApplied = finalMathsApplied
-        def getFinalMathsAppliedIsAbsorbedIntoUORs(self): return self.finalMathsAppliedIsAbsorbedIntoUORs
-        def setFinalMathsAppliedIsAbsorbedIntoUORs(self, finalMathsAppliedIsAbsorbedIntoUORs): self.finalMathsAppliedIsAbsorbedIntoUORs = finalMathsAppliedIsAbsorbedIntoUORs
+        def getFormulaApplied(self): return self.formulaApplied
+        def setFormulaApplied(self, formulaApplied): self.formulaApplied = formulaApplied
+        def getFinalDisplayAdjustApplied(self): return self.finalDisplayAdjustApplied
+        def setFinalDisplayAdjustApplied(self, finalDisplayAdjustApplied): self.finalDisplayAdjustApplied = finalDisplayAdjustApplied
         def getFormatAsPercent100Applied(self): return self.formatAsPercent100Applied
         def setFormatAsPercent100Applied(self, formatAsPercent100Applied): self.formatAsPercent100Applied = formatAsPercent100Applied
         def getUORChain(self): return self.UORChain
@@ -8683,6 +8714,14 @@ Visit: %s (Author's site)
                 self.setBalance(0)
                 self.setBalanceWithDecimalsPreserved(0.0)
 
+        def isFormulaError(self): return self.formulaError
+        def setFormulaError(self, lError):
+            self.formulaError = lError
+            if self.isFormulaError():
+                self.setBalance(0)
+                self.setBalanceWithDecimalsPreserved(0.0)
+        def isAnyError(self): return self.isUORError() or self.isFormulaError()
+
         def cloneBalanceObject(self):
             clonedBalObj = CalculatedBalance(self.getRowName(), self.getCurrencyType(), self.getBalance(), self.getExtraRowTxt(), self.isUORError(), self.getUUID(), self.getRowNumber())
             clonedBalObj.setBalanceWithDecimalsPreserved(self.getBalanceWithDecimalsPreserved())
@@ -8690,16 +8729,18 @@ Visit: %s (Author's site)
             clonedBalObj.setRowMathsApplied(self.getRowMathsApplied())
             clonedBalObj.setMathsUORApplied(self.getMathsUORApplied())
             clonedBalObj.setFinalMathsApplied(self.getFinalMathsApplied())
-            clonedBalObj.setFinalMathsAppliedIsAbsorbedIntoUORs(self.getFinalMathsAppliedIsAbsorbedIntoUORs())
+            clonedBalObj.setFormulaApplied(self.getFormulaApplied())
+            clonedBalObj.setFinalDisplayAdjustApplied(self.getFinalDisplayAdjustApplied())
             clonedBalObj.setFormatAsPercent100Applied(self.getFormatAsPercent100Applied())
             clonedBalObj.setUORChain(self.getUORChain())
             clonedBalObj.setAutoSum(self.getAutoSum())
             clonedBalObj.setCountSelectedAccounts(self.getCountSelectedAccounts())
+            clonedBalObj.setFormulaError(self.isFormulaError())
             return clonedBalObj
 
         def toString(self):     return self.__str__()
         def __repr__(self):     return self.__str__()
-        def __str__(self):      return  "[uuid: '%s', row name: '%s', curr: '%s', balance: %s, balanceWithDecimals: %s, extra row txt: '%s', isUORError: %s, rowNumber: %s, avgByApplied: %s, rowMathsApplied: %s, MUORApplied: %s, finalMathsApplied: %s (isAbsorbed: %s), formatAsPercent100Applied: %s, countSelectedAccounts: %s, autoSum: %s, UORChain: %s]"\
+        def __str__(self):      return  "[uuid: '%s', row name: '%s', curr: '%s', balance: %s, balanceWithDecimals: %s, extra row txt: '%s', isUORError: %s, isFormulaError: %s, rowNumber: %s, avgByApplied: %s, rowMathsApplied: %s, MUORApplied: %s, finalMathsApplied: %s, formulaApplied: %s, finalDisplayAdjustApplied: %s, formatAsPercent100Applied: %s, countSelectedAccounts: %s, autoSum: %s, UORChain: %s]"\
                                         %(self.getUUID(),
                                           self.getRowName(),
                                           self.getCurrencyType(),
@@ -8707,11 +8748,14 @@ Visit: %s (Author's site)
                                           self.getBalanceWithDecimalsPreserved(),
                                           self.getExtraRowTxt(),
                                           self.isUORError(),
+                                          self.isFormulaError(),
                                           self.getRowNumber(),
                                           self.getAverageByApplied(),
                                           self.getRowMathsApplied(),
                                           self.getMathsUORApplied(),
-                                          self.getFinalMathsApplied(), self.getFinalMathsAppliedIsAbsorbedIntoUORs(),
+                                          self.getFinalMathsApplied(),
+                                          self.getFormulaApplied(),
+                                          self.getFinalDisplayAdjustApplied(),
                                           self.getFormatAsPercent100Applied(),
                                           self.getCountSelectedAccounts(),
                                           self.getAutoSum(),
@@ -8784,7 +8828,17 @@ Visit: %s (Author's site)
         else:
             if NAB.selectorIcon is None or reloadSelectorIcon:
                 mdImages = NAB.moneydanceContext.getUI().getImages()
-                NAB.selectorIcon = mdImages.getIconWithColor(GlobalVars.Strings.MD_GLYPH_SELECTOR_7_9, NAB.moneydanceContext.getUI().getColors().secondaryTextFG)
+                # NAB.selectorIcon = mdImages.getIconWithColor(GlobalVars.Strings.MD_GLYPH_SELECTOR_7_9, NAB.moneydanceContext.getUI().getColors().secondaryTextFG)
+                NAB.selectorIcon = mdImages.getIconWithColor(GlobalVars.Strings.MD_GLYPH_SELECTOR_7_9, NAB.moneydanceContext.getUI().getColors().defaultTextForeground)
+
+    def loadFormatCodePickerIcon(reloadFormatCodePickerIcon=False):
+        NAB = NetAccountBalancesExtension.getNAB()
+        if NAB.SWSS_CC is None:
+            myPrint("B", "@@ SWSS_CC is None, so cannot (re)load formatCodePickerIcon:", NAB.formatCodePickerIcon)
+        else:
+            if NAB.formatCodePickerIcon is None or reloadFormatCodePickerIcon:
+                mdImages = NAB.moneydanceContext.getUI().getImages()
+                NAB.formatCodePickerIcon = mdImages.getIconWithColor(GlobalVars.Strings.MD_GLYPH_TRIANGLE_LEFT_9_9, NAB.moneydanceContext.getUI().getColors().defaultTextForeground)
 
     def loadTagPickerIcon(reloadTagPickerIcon=False):
         NAB = NetAccountBalancesExtension.getNAB()
@@ -8793,7 +8847,7 @@ Visit: %s (Author's site)
         else:
             if NAB.tagPickerIcon is None or reloadTagPickerIcon:
                 mdImages = NAB.moneydanceContext.getUI().getImages()
-                NAB.tagPickerIcon = mdImages.getIconWithColor(GlobalVars.Strings.MD_GLYPH_TRIANGLE_LEFT_9_9, NAB.moneydanceContext.getUI().getColors().secondaryTextFG)
+                NAB.tagPickerIcon = mdImages.getIconWithColor(GlobalVars.Strings.MD_GLYPH_TRIANGLE_LEFT_9_9, NAB.moneydanceContext.getUI().getColors().defaultTextForeground)
 
     class ShowWarnings(AbstractAction):
         def actionPerformed(self, event): ShowWarnings.showWarnings()                                                   # noqa
@@ -8815,6 +8869,54 @@ Visit: %s (Author's site)
                       "-----------------\n\n" + warningText + "\n\n<END>\n"
             QuickJFrame("WARNINGS", theText, lAlertLevel=1, lWrapText=False, lAutoSize=True).show_the_frame()
 
+    def setFontAllElements(_comp, _font):
+        for _menuComp in _comp.getSubElements():
+            _menuComp.setFont(_font)
+            setFontAllElements(_menuComp, _font)
+
+    class ShowFormatCodePicker(AbstractAction):
+        def actionPerformed(self, event): ShowFormatCodePicker.showFormatCodePicker()                                   # noqa
+
+        @staticmethod
+        def showFormatCodePicker(comp):
+            myPrint("DB", "In ShowFormatCodePicker.showFormatCodePicker()... EDT: %s" %(SwingUtilities.isEventDispatchThread()))
+            if not SwingUtilities.isEventDispatchThread():
+                genericSwingEDTRunner(False, False, ShowFormatCodePicker.showFormatCodePicker)
+                return
+            NAB = NetAccountBalancesExtension.getNAB()
+            theFrame = NAB.theFrame
+            if theFrame is None: return
+
+            class FormatCodePickerAction(AbstractAction):
+                def __init__(self, _formatCode, _formatCodeName, _nab):
+                    super(self.__class__, self).__init__("%s %s" %(pad(_formatCode, 10), _formatCodeName))
+                    self.formatCode = _formatCode
+                    self.formatCodeName = _formatCodeName
+                    self.nab = _nab
+
+                def actionPerformed(self, evt):                                                                         # noqa
+                    myPrint("DB", "In showFormatCodePicker()::FormatCodePickerAction.actionPerformed()")
+                    myPrint("DB", "... about to add formatCode: '%s' into rowname" %(self.formatCode))
+                    if self.formatCode == TextDisplayForSwingConfig.WIDGET_VAR_ROW_NUMBER:
+                        self.nab.widgetNameField_JTF.setText(self.formatCode + self.nab.widgetNameField_JTF.getText().strip())
+                    else:
+                        self.nab.widgetNameField_JTF.setText(self.nab.widgetNameField_JTF.getText().strip() + self.formatCode)
+                    self.nab.storeJTextFieldsForSelectedRow()
+
+            monoFont = NAB.moneydanceContext.getUI().getFonts().code
+            formatCodePickerMenu = JPopupMenu()
+            for formatCode, formatCodeName in TextDisplayForSwingConfig.ALL_FORMAT_CODE_NAMES_LIST:
+                if formatCode == TextDisplayForSwingConfig.WIDGET_ROW_BLANKROWNAME:
+                    formatCodePickerMenu.add(MyJLabel(wrap_HTML_bold("  FORMATTING CODES:")))
+                elif formatCode == TextDisplayForSwingConfig.WIDGET_VAR_ROW_NUMBER:
+                    formatCodePickerMenu.addSeparator()
+                    formatCodePickerMenu.add(MyJLabel(wrap_HTML_bold("  VARIABLE CODES:")))
+                formatCodePickerMenu.add(FormatCodePickerAction(formatCode, formatCodeName, NAB))
+            for menuComp in formatCodePickerMenu.getSubElements(): menuComp.setFont(monoFont)
+            myPrint("DB", "... about to show the formatCodePicker popup...")
+            formatCodePickerMenu.show(comp, 0, comp.getHeight())
+            myPrint("DB", "... back from .show() the formatCodePicker popup...")
+
     class ShowTagPicker(AbstractAction):
         def actionPerformed(self, event): ShowTagPicker.showTagPicker()                                                 # noqa
 
@@ -8830,36 +8932,81 @@ Visit: %s (Author's site)
 
             class TagPickerAction(AbstractAction):
                 def __init__(self, _tag, _tagName, _nab):
-                    super(self.__class__, self).__init__("%s %s" %(pad(_tag, 10), _tagName))
+                    super(self.__class__, self).__init__("%s %s" %(padTruncateWithDots(_tag, 20, padString=True), _tagName))
                     self.tag = _tag
                     self.tagName = _tagName
                     self.nab = _nab
 
                 def actionPerformed(self, evt):                                                                         # noqa
                     myPrint("DB", "In showTagPicker()::TagPickerAction.actionPerformed()")
-                    myPrint("DB", "... about to add tag: '%s' into rowname" %(self.tag))
-                    if self.tag == TextDisplayForSwingConfig.WIDGET_VAR_ROW_NUMBER:
-                        self.nab.widgetNameField_JTF.setText(self.tag + self.nab.widgetNameField_JTF.getText().strip())
+                    myPrint("DB", "... about to add tag: '%s' into formula" %(self.tag))
+                    if self.tag == self.nab.FILTER_FORMULA_EXPR_DEFAULT_TAGS[0]:
+                        self.nab.formula_JTF.setText((self.tag + " " + self.nab.formula_JTF.getText().strip()).strip())
                     else:
-                        self.nab.widgetNameField_JTF.setText(self.nab.widgetNameField_JTF.getText().strip() + self.tag)
+                        self.nab.formula_JTF.setText((self.nab.formula_JTF.getText().strip() + " " + self.tag).strip())
                     self.nab.storeJTextFieldsForSelectedRow()
 
             monoFont = NAB.moneydanceContext.getUI().getFonts().code
             tagPickerMenu = JPopupMenu()
-            for tag, tagName in TextDisplayForSwingConfig.ALL_TAGS_NAMES_LIST:
-                if tag == TextDisplayForSwingConfig.WIDGET_ROW_BLANKROWNAME:
-                    tagPickerMenu.add(MyJLabel(wrap_HTML_bold("  FORMATTING CODES:")))
-                elif tag == TextDisplayForSwingConfig.WIDGET_VAR_ROW_NUMBER:
-                    tagPickerMenu.addSeparator()
-                    tagPickerMenu.add(MyJLabel(wrap_HTML_bold("  VARIABLE CODES:")))
-                tagPickerMenu.add(TagPickerAction(tag, tagName, NAB))
-            for menuComp in tagPickerMenu.getSubElements(): menuComp.setFont(monoFont)
+
+            tagPickerMenu.add(MyJLabel(wrap_HTML_bold("  MAGIC TAGS:")))
+            for tag in NAB.FILTER_FORMULA_EXPR_DEFAULT_TAGS:
+                tagPickerMenu.add(TagPickerAction(tag, "", NAB))
+
+            tagPickerMenu.addSeparator()
+            tagSubMenu = JMenu(wrap_HTML_bold("ROW TAGS:"))
+
+            validTags = []
+            for i in range(0, NAB.getNumberOfRows()):
+                tag = NAB.getTagVariableNameForRowIdx(i, returnOriginalCase=True)
+                if tag is not None: validTags.append([tag, "(row: %s)" %(i + 1)])
+            validTags = sorted(validTags, key=lambda sort_x: (sort_x[0].lower()))
+            for tag, tagName in validTags:
+                tagSubMenu.add(TagPickerAction(tag, tagName, NAB))
+            tagPickerMenu.add(tagSubMenu)
+
+            tagPickerMenu.addSeparator()
+            formulaSubMenu = JMenu(wrap_HTML_bold("FORMULAS:"))
+
+            for i in range(0, len(NAB.FILTER_FORMULA_EXPR_ALLOWED_WORDS)):
+                tag = NAB.FILTER_FORMULA_EXPR_ALLOWED_WORDS[i]
+                tagName = NAB.FILTER_FORMULA_EXPR_FORMULA_DESCRIBED[i]
+                formulaSubMenu.add(TagPickerAction(tag + "()", tagName, NAB))
+            tagPickerMenu.add(formulaSubMenu)
+
+            allCurrencies = [c for c in NAB.moneydanceContext.getCurrentAccountBook().getCurrencies().getAllCurrencies() if not c.getHideInUI()]
+
+            tagPickerMenu.addSeparator()
+            currencySubMenu = JMenu(wrap_HTML_bold("CURRENCY TAGS:"))
+
+            # allCurrencies = sorted(allCurrencies, key=lambda sort_x: (sort_x.getIDString().lower()))
+            allCurrencies = sorted(allCurrencies, key=lambda sort_x: (sort_x.getName().lower()))
+            for c in allCurrencies:
+                if c.getCurrencyType() == CurrencyType.Type.CURRENCY:                                                   # noqa
+                    currID = c.getIDString().strip().lower()
+                    if currID and isGoodRate(c.getRate(None)):
+                        currencySubMenu.add(TagPickerAction("@%s" %(currID), c.getName() + " (%s)" %(round(1.0 / c.getRate(None), 4)), NAB))
+            tagPickerMenu.add(currencySubMenu)
+
+            tagPickerMenu.addSeparator()
+            securitySubMenu = JMenu(wrap_HTML_bold("SECURITY TICKER TAGS:"))
+
+            # allCurrencies = sorted(allCurrencies, key=lambda sort_x: (sort_x.getTickerSymbol().lower()))
+            for c in allCurrencies:
+                if c.getCurrencyType() == CurrencyType.Type.SECURITY:                                                   # noqa
+                    ticker = c.getTickerSymbol().strip().lower()
+                    if ticker and isGoodRate(c.getRate(None)):
+                        securitySubMenu.add(TagPickerAction("@%s" %(ticker), c.getName() + " (%s)" %(round(1.0 / c.getRate(None), 4)), NAB))
+            tagPickerMenu.add(securitySubMenu)
+
+            setFontAllElements(tagPickerMenu, monoFont)
+
             myPrint("DB", "... about to show the tagPicker popup...")
-            tagPickerMenu.show(comp, 0, comp.getHeight())
+            tagPickerMenu.show(comp, 20, comp.getHeight())
             myPrint("DB", "... back from .show() the tagPicker popup...")
 
     class RowScroller(AbstractAction):
-        def actionPerformed(self, event): RowScroller.rowScrollerPicker()                                                 # noqa
+        def actionPerformed(self, event): RowScroller.rowScrollerPicker()                                               # noqa
 
         @staticmethod
         def rowScrollerPicker(comp):
@@ -8872,8 +9019,13 @@ Visit: %s (Author's site)
             if theFrame is None: return
 
             class RowScrollerAction(AbstractAction):
-                def __init__(self, _rowIdx, _row, _displayText, _nab):
-                    super(self.__class__, self).__init__(_displayText)
+                def __init__(self, _rowIdx, _row, _displayText, _nab, _tag=None, _tagName=None, _groupID=None, _groupName=None):
+                    if _tag:
+                        super(self.__class__, self).__init__("%s %s   %s" %(padTruncateWithDots(_tag, 15, padString=True), pad(_tagName, 9), padTruncateWithDots(_displayText, 50, padString=True)))
+                    elif _groupID:
+                        super(self.__class__, self).__init__("%s %s   %s" %(padTruncateWithDots(_groupID, 15, padString=True), pad(_groupName, 9), padTruncateWithDots(_displayText, 50, padString=True)))
+                    else:
+                        super(self.__class__, self).__init__(_displayText)
                     self.rowIdx = _rowIdx
                     self.row = _row
                     self.displayText = _displayText
@@ -8889,10 +9041,15 @@ Visit: %s (Author's site)
 
             rowScrollerMenu = JPopupMenu()
 
+            fg = NAB.moneydanceContext.getUI().getColors().defaultTextForeground
+            monoFont = NAB.moneydanceContext.getUI().getFonts().code
+
+            #######################################
+            rowNameScrollerSubMenu = JMenu(wrap_HTML_bold("All rows by row number / name:"))
+
             HAS_TAGNAME_TXT = "<tag: {}>"
             HAS_GROUPID_TXT = "<groupid: {}>"
 
-            altFG = NAB.moneydanceContext.getUI().getColors().defaultTextForeground
             numRows = NAB.getNumberOfRows()
             for i in range(0, numRows):
                 onRow = i + 1
@@ -8904,29 +9061,52 @@ Visit: %s (Author's site)
                 rowNameTxt = NAB.savedWidgetName[i]
 
                 hasGroupIDTxt = ""
-                if NAB.savedGroupIDTable[i] != "":
+                if NAB.savedGroupIDTable[i]:
                     groupIDTxt = HAS_GROUPID_TXT.replace("{}", padTruncateWithDots(NAB.savedGroupIDTable[i], 10, padString=False))
                     hasGroupIDTxt += " " + html_strip_chars(groupIDTxt)
 
                 hasTagNameTxt = ""
-                rowTag = NAB.getTagVariableNameForRowIdx(i, False)
+                rowTag = NAB.getTagVariableNameForRowIdx(i, returnOriginalCase=True)
                 if rowTag is not None:
                     tagNameTxt = HAS_TAGNAME_TXT.replace("{}", padTruncateWithDots(rowTag, 10, padString=False))
                     hasTagNameTxt += " " + html_strip_chars(tagNameTxt)
 
                 tdfsc = TextDisplayForSwingConfig(rowTxt + " '%s'" %(padTruncateWithDots(rowNameTxt, 75, padString=False)),
                                                   hasGroupIDTxt + hasTagNameTxt,
-                                                  _smallColor=altFG,
+                                                  _smallColor=fg,
                                                   stripSmallChars=False)
 
-                # buildRowHTML = rowTxt + " '%s'" %(padTruncateWithDots(rowNameTxt, 75, padString=False))
-                # buildRowHTML += wrap_HTML_small(hasGroupIDTxt, stripChars=False, addHTML=False)
-                # buildRowHTML += wrap_HTML_small(hasTagNameTxt, stripChars=False, addHTML=False)
-                # thisRowItemTxt = wrap_HTML(buildRowHTML, stripChars=False)
-                # rowScrollerMenu.add(RowScrollerAction(i, onRow, thisRowItemTxt, NAB))
-                rowScrollerMenu.add(RowScrollerAction(i, onRow, tdfsc.getSwingComponentText(), NAB))
+                rowNameScrollerSubMenu.add(RowScrollerAction(i, onRow, tdfsc.getSwingComponentText(), NAB))
+            rowScrollerMenu.add(rowNameScrollerSubMenu)
+            #######################################
 
-            # for menuComp in rowScrollerMenu.getSubElements(): menuComp.setFont(monoFont)
+            rowScrollerMenu.addSeparator()
+
+            tagScrollerSubMenu = JMenu(wrap_HTML_bold("Rows (filtered) by tag:"))
+            validTags = []
+            for i in range(0, NAB.getNumberOfRows()):
+                tag = NAB.getTagVariableNameForRowIdx(i, returnOriginalCase=True)
+                if tag: validTags.append([i, tag, "row: %s" %(i + 1), "name: %s" %(NAB.savedWidgetName[i])])
+            validTags = sorted(validTags, key=lambda sort_x: (sort_x[1].lower()))
+            for idx, tag, displayTxt, rowTxt in validTags:
+                tagScrollerSubMenu.add(RowScrollerAction(idx, idx+1, rowTxt, NAB, _tag=tag, _tagName=displayTxt))
+            setFontAllElements(tagScrollerSubMenu, monoFont)
+            rowScrollerMenu.add(tagScrollerSubMenu)
+            #######################################
+
+            rowScrollerMenu.addSeparator()
+
+            groupScrollerSubMenu = JMenu(wrap_HTML_bold("Rows (filtered) by group id:"))
+            validGroupIDs = []
+            for i in range(0, NAB.getNumberOfRows()):
+                groupID = NAB.savedGroupIDTable[i].strip().lower()
+                if groupID: validGroupIDs.append([i, groupID, "row: %s" %(i + 1), "name: %s" %(NAB.savedWidgetName[i])])
+            validGroupIDs = sorted(validGroupIDs, key=lambda sort_x: (sort_x[1].lower()))
+            for idx, groupID, displayTxt, rowTxt in validGroupIDs:
+                groupScrollerSubMenu.add(RowScrollerAction(idx, idx+1, rowTxt, NAB, _groupID=groupID, _groupName=displayTxt))
+            setFontAllElements(groupScrollerSubMenu, monoFont)
+            rowScrollerMenu.add(groupScrollerSubMenu)
+
             myPrint("DB", "... about to show the rowSelector popup...")
             rowScrollerMenu.show(comp, 0, comp.getHeight())
             myPrint("DB", "... back from .show() the rowSelector popup...")
@@ -9066,11 +9246,31 @@ Visit: %s (Author's site)
             self.ROW_MATHS_CALC_OPERATOR_IDX = 1
             self.ROW_MATHS_CALC_UNUSED_IDX   = 2
 
-            self.savedFinalMathsCalculationTable = None
-            self.FINAL_MATHS_CALC_VALUE_IDX        = 0
-            self.FINAL_MATHS_CALC_OPERATOR_IDX     = 1
-            self.FINAL_MATHS_CALC_UNUSED_IDX       = 2
-            self.FINAL_MATHS_CALC_ABSORB_INTO_UORS = 3
+            self.savedFinalMathsCalculationTable  = None
+            self.FINAL_MATHS_CALC_VALUE_IDX       = 0
+            self.FINAL_MATHS_CALC_OPERATOR_IDX    = 1
+            self.FINAL_MATHS_CALC_UNUSED_IDX      = 2      # Previously display as %
+            self.FINAL_MATHS_CALC_ABSORB_IDX      = 3      # ABSORB (no longer used, but must remain otherwise auto-upgrade messes this up)
+
+            # Search for and then REJECT when NOT digits allowed in our formulas (ignore case)
+            self.FILTER_FORMULA_EXPR_REGEX = re.compile(r"[^\(\)+\-*/a-zA-Z0-9$%@., ]+?", (re.IGNORECASE | re.UNICODE | re.LOCALE))     # noqa
+            self.FILTER_FORMULA_EXPR_REGEX_WORDS = re.compile(r"\b(\w+[\(\[])", (re.IGNORECASE | re.UNICODE | re.LOCALE))               # noqa
+            self.FILTER_FORMULA_EXPR_REGEX_SPECIALVARS = re.compile(r"(?:^|\s)(\@\w+)", (re.IGNORECASE | re.UNICODE | re.LOCALE))       # noqa
+            self.FILTER_FORMULA_EXPR_REGEX_FREEVARS = re.compile(r"\b([a-z]\w*[a-z0-9]*)", (re.IGNORECASE | re.UNICODE | re.LOCALE))    # noqa
+            self.FILTER_FORMULA_EXPR_ALLOWED_WORDS = ["sum", "abs", "min", "max", "round", "float", "random"]
+            self.FILTER_FORMULA_EXPR_FORMULA_DESCRIBED = ["sum(a,b,...)", "abs(n)", "min(a,b)", "max(a,b)", "round(a,n)", "float(a)", "random()"]
+            self.FILTER_FORMULA_EXPR_DEFAULT_TAGS = ["@this"]
+
+            self.savedFormulaTable = None
+            self.FORMULA_EXPR_IDX    = 0
+            self.FORMULA_UNUSED1_IDX = 1
+            self.FORMULA_UNUSED2_IDX = 2
+
+            self.savedFinalDisplayAdjustTable          = None
+            self.FINAL_DISPLAY_ADJUST_VALUE_IDX        = 0
+            self.FINAL_DISPLAY_ADJUST_OPERATOR_IDX     = 1
+            self.FINAL_DISPLAY_ADJUST_UNUSED_IDX       = 2
+            self.FINAL_DISPLAY_ADJUST_UNUSED2_IDX      = 3
 
             self.savedFormatAsPercentTable = None
             self.FORMAT_AS_PERCENT_IDX            = 0
@@ -9163,7 +9363,8 @@ Visit: %s (Author's site)
 
             self.finalMathsCalculationAdjustValue_JRF   = None
             self.finalMathsCalculationOperator_COMBO    = None
-            self.finalMathsCalculationAbsorbIntoUORs_CB = None
+
+            self.formula_JTF                          = None
 
             self.formatAsPercent_CB                   = None
             self.formatAsPercentMult100_CB            = None
@@ -9207,6 +9408,7 @@ Visit: %s (Author's site)
             self.debugIcon = None
             self.warningIcon = None
             self.selectorIcon = None
+            self.formatCodePickerIcon = None
             self.tagPickerIcon = None
 
             myPrint("DB", "Exiting ", inspect.currentframe().f_code.co_name, "()")
@@ -9428,6 +9630,13 @@ Visit: %s (Author's site)
             def mouseExited(self, evt): pass
             def mouseEntered(self, evt): pass
 
+        class FormatCodePickerMouseListener(MouseListener):
+            def mouseClicked(self, evt): pass
+            def mousePressed(self, evt): ShowFormatCodePicker.showFormatCodePicker(evt.getSource())                     # noqa
+            def mouseReleased(self, evt): pass
+            def mouseExited(self, evt): pass
+            def mouseEntered(self, evt): pass
+
         class TagPickerMouseListener(MouseListener):
             def mouseClicked(self, evt): pass
             def mousePressed(self, evt): ShowTagPicker.showTagPicker(evt.getSource())                                   # noqa
@@ -9467,8 +9676,11 @@ Visit: %s (Author's site)
             loadSelectorIcon(reloadSelectorIcon=True)
             myPrint("DB", ".. (Re)loaded Selector icon...")
 
+            loadFormatCodePickerIcon(reloadFormatCodePickerIcon=True)
+            myPrint("DB", ".. (Re)loaded FormatCodePicker icon...")
+
             loadTagPickerIcon(reloadTagPickerIcon=True)
-            myPrint("DB", ".. (Re)loaded TagPicker icon...")
+            myPrint("DB", ".. (Re)loaded TagPickerPicker icon...")
 
             newThemeID = prefs.getSetting(GlobalVars.MD_PREFERENCE_KEY_CURRENT_THEME, ThemeInfo.DEFAULT_THEME_ID)
             if self.themeID and self.themeID != newThemeID:
@@ -9548,6 +9760,7 @@ Visit: %s (Author's site)
             GlobalVars.extn_param_NEW_filterByGroupID_NAB           = copy.deepcopy(NAB.savedFilterByGroupID)
             GlobalVars.extn_param_NEW_presavedFilterByGroupIDsTable = copy.deepcopy(NAB.savedPresavedFilterByGroupIDsTable)
 
+            GlobalVars.parametersLoadedFromFile = {}                                                                    # noqa - Avoid possibility of old/newer settings if retro loading old version of extension...
             GlobalVars.parametersLoadedFromFile[GlobalVars.Strings.PARAMETER_FILEUUID] = GlobalVars.CONTEXT.getCurrentAccountBook().getLocalStorage().getString(GlobalVars.Strings.MD_STORAGE_KEY_FILEUUID, None)
 
             try:
@@ -9597,6 +9810,8 @@ Visit: %s (Author's site)
             GlobalVars.extn_param_NEW_averageByFractionalsTable_NAB  = copy.deepcopy(NAB.savedAverageByFractionalsTable)
             GlobalVars.extn_param_NEW_rowMathsCalculationTable_NAB   = copy.deepcopy(NAB.savedRowMathsCalculationTable)
             GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB = copy.deepcopy(NAB.savedFinalMathsCalculationTable)
+            GlobalVars.extn_param_NEW_formulaTable_NAB               = copy.deepcopy(NAB.savedFormulaTable)
+            GlobalVars.extn_param_NEW_finalDisplayAdjustTable_NAB    = copy.deepcopy(NAB.savedFinalDisplayAdjustTable)
             GlobalVars.extn_param_NEW_formatAsPercentTable_NAB       = copy.deepcopy(NAB.savedFormatAsPercentTable)
             GlobalVars.extn_param_NEW_operateOnAnotherRowTable_NAB   = copy.deepcopy(NAB.savedOperateOnAnotherRowTable)
             GlobalVars.extn_param_NEW_UUIDTable_NAB                  = copy.deepcopy(NAB.savedUUIDTable)
@@ -9616,12 +9831,13 @@ Visit: %s (Author's site)
             GlobalVars.extn_param_NEW_presavedFilterByGroupIDsTable  = copy.deepcopy(NAB.savedPresavedFilterByGroupIDsTable)
 
 
-            if GlobalVars.parametersLoadedFromFile is None: GlobalVars.parametersLoadedFromFile = {}
+            # if GlobalVars.parametersLoadedFromFile is None: GlobalVars.parametersLoadedFromFile = {}
+            GlobalVars.parametersLoadedFromFile = {}                                                                    # noqa - Avoid possibility of old/newer settings if retro loading old version of extension...
+
             GlobalVars.parametersLoadedFromFile[GlobalVars.Strings.PARAMETER_FILEUUID] = GlobalVars.CONTEXT.getCurrentAccountBook().getLocalStorage().getString(GlobalVars.Strings.MD_STORAGE_KEY_FILEUUID, None)
 
             try:
                 # Preventing debug ON from being saved... Stops users leaving 'expensive' debug logging on
-
                 saveDebug = debug
                 myPrint("DB", "@@ ALERT: I am saving debug OFF to parameters file so that debugging will not be enabled at next load (prevents long console debug logs)")
                 debug = False
@@ -10024,7 +10240,7 @@ Visit: %s (Author's site)
                         elif NAB.savedHideRowWhenXXXTable[i] >= GlobalVars.HIDE_ROW_WHEN_ZERO_OR_X:
                             autohideTxt = "<auto hide>"
 
-                        rowTag = NAB.getTagVariableNameForRowIdx(i, False)
+                        rowTag = NAB.getTagVariableNameForRowIdx(i, returnOriginalCase=True)
                         if rowTag is None: rowTag = ""
 
                         output += "%s%s %s %s %s %s %s '%s'\n"\
@@ -10215,7 +10431,7 @@ Visit: %s (Author's site)
 
                 # Check to see if we removed the current GroupID Filter from the saved list (Summary Page only)...
                 if self.fromHomeScreenWidget:
-                    if NAB.savedFilterByGroupID.lower().strip() != "":
+                    if NAB.savedFilterByGroupID.lower().strip():
                         if NAB.savedFilterByGroupID.lower().strip() not in [_filt.lower().strip() for _filt, _filtName in NAB.savedPresavedFilterByGroupIDsTable]:
                             myPrint("DB", "... From SummaryPage Widget and found savedFilterByGroupID: '%s' but not in revised remembered list... Removing...." %(NAB.savedFilterByGroupID))
                             NAB.savedFilterByGroupID = ""
@@ -10273,7 +10489,9 @@ Visit: %s (Author's site)
         def averageByFractionalsDefault(self):          return True
         def operateOnAnotherRowDefault(self):           return [None, None, None]        # int(row), str(operator), None(unused)
         def rowMathsCalculationDefault(self):           return [0.0, None, None]         # float(adjustValue), str(operator), None(unused)
-        def finalMathsCalculationDefault(self):         return [0.0, None, None, None]   # float(adjustValue), str(operator), None(unused), None(bool)
+        def finalMathsCalculationDefault(self):         return [0.0, None, None, None]   # float(adjustValue), str(operator), None(unused), bool(absorbed)
+        def formulaDefault(self):                       return ["", None, None]
+        def finalDisplayAdjustDefault(self):            return [0.0, None, None, None]   # float(adjustValue), str(operator), None(unused), None(unused)
         def formatAsPercentDefault(self):               return [False, False]
         def disableWidgetTitleDefault(self):            return False
         def showDashesInsteadOfZerosDefault(self):      return False
@@ -10374,6 +10592,14 @@ Visit: %s (Author's site)
                 self.savedFinalMathsCalculationTable = [self.finalMathsCalculationDefault() for i in range(0, self.getNumberOfRows())]
                 myPrint("B", "New parameter savedFinalMathsCalculationTable detected, pre-populating with %s (= 0.0 = no adjustment to final calculation)" %(self.savedFinalMathsCalculationTable))
 
+            if self.savedFormulaTable == [self.formulaDefault()] and len(self.savedFormulaTable) != self.getNumberOfRows():
+                self.savedFormulaTable = [self.formulaDefault() for i in range(0, self.getNumberOfRows())]
+                myPrint("B", "New parameter savedFormulaTable detected, pre-populating with %s (= "" no default formula expression)" %(self.savedFormulaTable))
+
+            if self.savedFinalDisplayAdjustTable == [self.finalDisplayAdjustDefault()] and len(self.savedFinalDisplayAdjustTable) != self.getNumberOfRows():
+                self.savedFinalDisplayAdjustTable = [self.finalDisplayAdjustDefault() for i in range(0, self.getNumberOfRows())]
+                myPrint("B", "New parameter savedFinalDisplayAdjustTable detected, pre-populating with %s (= 0.0 = no adjustment to format display value)" %(self.savedFinalDisplayAdjustTable))
+
             if self.savedFormatAsPercentTable == [self.formatAsPercentDefault()] and len(self.savedFormatAsPercentTable) != self.getNumberOfRows():
                 self.savedFormatAsPercentTable = [self.formatAsPercentDefault() for i in range(0, self.getNumberOfRows())]
                 myPrint("B", "New parameter savedFormatAsPercentTable detected, pre-populating with %s (= False, False = no display as %%, no multiply by 100)" %(self.savedFormatAsPercentTable))
@@ -10442,14 +10668,18 @@ Visit: %s (Author's site)
                 self.resetParameters(37)
             elif self.savedFinalMathsCalculationTable is None or not isinstance(self.savedFinalMathsCalculationTable, list) or len(self.savedFinalMathsCalculationTable) < 1:
                 self.resetParameters(38)
-            elif self.savedFormatAsPercentTable is None or not isinstance(self.savedFormatAsPercentTable, list) or len(self.savedFormatAsPercentTable) < 1:
+            elif self.savedFinalDisplayAdjustTable is None or not isinstance(self.savedFinalDisplayAdjustTable, list) or len(self.savedFinalDisplayAdjustTable) < 1:
                 self.resetParameters(39)
-            elif self.savedAutoSumDefault is None or not isinstance(self.savedAutoSumDefault, bool):
+            elif self.savedFormulaTable is None or not isinstance(self.savedFormulaTable, list) or len(self.savedFormulaTable) < 1:
                 self.resetParameters(40)
-            elif self.savedShowPrintIcon is None or not isinstance(self.savedShowPrintIcon, bool):
+            elif self.savedFormatAsPercentTable is None or not isinstance(self.savedFormatAsPercentTable, list) or len(self.savedFormatAsPercentTable) < 1:
                 self.resetParameters(41)
-            elif self.savedShowDashesInsteadOfZeros is None or not isinstance(self.savedShowDashesInsteadOfZeros, bool):
+            elif self.savedAutoSumDefault is None or not isinstance(self.savedAutoSumDefault, bool):
+                self.resetParameters(42)
+            elif self.savedShowPrintIcon is None or not isinstance(self.savedShowPrintIcon, bool):
                 self.resetParameters(43)
+            elif self.savedShowDashesInsteadOfZeros is None or not isinstance(self.savedShowDashesInsteadOfZeros, bool):
+                self.resetParameters(44)
             elif self.savedDisableWarningIcon is None or not isinstance(self.savedDisableWarningIcon, bool):
                 self.resetParameters(45)
             elif self.savedDisableWidgetTitle is None or not isinstance(self.savedDisableWidgetTitle, bool):
@@ -10514,6 +10744,8 @@ Visit: %s (Author's site)
                 self.resetParameters(97)
             elif len(self.savedFinalMathsCalculationTable) != self.getNumberOfRows():
                 self.resetParameters(98)
+            elif len(self.savedFinalDisplayAdjustTable) != self.getNumberOfRows():
+                self.resetParameters(99)
             else:
 
                 if self.savedPresavedFilterByGroupIDsTable is None or not isinstance(self.savedPresavedFilterByGroupIDsTable, list):
@@ -10660,15 +10892,35 @@ Visit: %s (Author's site)
                         printResetMessage("savedRowMathsCalculationTable", self.savedRowMathsCalculationTable[i], self.rowMathsCalculationDefault(), i)
                         self.savedRowMathsCalculationTable[i] = self.rowMathsCalculationDefault()
 
-                    # Upgrade this parameter with new upwards absorb into UORs (False=default / no upwards UOR absorbsion)....
-                    if isinstance(self.savedFinalMathsCalculationTable[i], list) and len(self.savedFinalMathsCalculationTable[i]) == self.FINAL_MATHS_CALC_ABSORB_INTO_UORS:
-                        oldValue = copy.deepcopy(self.savedFinalMathsCalculationTable[i])
+                    # Upgrade this parameter with new upwards absorb into UORs (False=default / no upwards UOR absorb)....
+                    if isinstance(self.savedFinalMathsCalculationTable[i], list) and len(self.savedFinalMathsCalculationTable[i]) == self.FINAL_MATHS_CALC_ABSORB_IDX:
                         self.savedFinalMathsCalculationTable[i].append(None)
-                        myPrint("B", "... Upgrading row: %s saved parameter 'savedFinalMathsCalculationTable' - adding False = no upwards UOR absorbsion - now '%s'" %(i+1, self.savedFinalMathsCalculationTable[i]))
+                        myPrint("B", "... Upgrading row: %s saved parameter 'savedFinalMathsCalculationTable' - adding None(False) = no upwards UOR absorb - now '%s'" %(i+1, self.savedFinalMathsCalculationTable[i]))
+
+                    # Upgrade this parameter. Split non-absorbed into new final / format display adjustment variable....
+                    if (isinstance(self.savedFinalMathsCalculationTable[i], list) and len(self.savedFinalMathsCalculationTable[i]) == (self.FINAL_MATHS_CALC_ABSORB_IDX + 1)
+                            and not self.savedFinalMathsCalculationTable[i][self.FINAL_MATHS_CALC_ABSORB_IDX]
+                            and self.savedFinalMathsCalculationTable[i] != self.finalMathsCalculationDefault() and self.savedFinalDisplayAdjustTable[i] == self.finalDisplayAdjustDefault()):
+                        self.savedFinalDisplayAdjustTable[i][self.FINAL_DISPLAY_ADJUST_VALUE_IDX] = self.savedFinalMathsCalculationTable[i][self.FINAL_MATHS_CALC_VALUE_IDX]
+                        self.savedFinalDisplayAdjustTable[i][self.FINAL_DISPLAY_ADJUST_OPERATOR_IDX] = self.savedFinalMathsCalculationTable[i][self.FINAL_MATHS_CALC_OPERATOR_IDX]
+                        self.savedFinalDisplayAdjustTable[i][self.FINAL_DISPLAY_ADJUST_UNUSED_IDX] = None
+                        self.savedFinalDisplayAdjustTable[i][self.FINAL_DISPLAY_ADJUST_UNUSED2_IDX] = None
+                        self.savedFinalMathsCalculationTable[i] = self.finalMathsCalculationDefault()
+                        myPrint("B", "... Upgrading row: %s split saved parameter 'savedFinalMathsCalculationTable' for non-absorbed 'old' FMC into new 'savedFinalDisplayAdjustTable' old: '%s' - now '%s'" %(i+1, self.savedFinalMathsCalculationTable[i], self.savedFinalDisplayAdjustTable[i]))
 
                     if not self.isValidAndFixFinalMathsCalculationParams(self.savedFinalMathsCalculationTable[i]):
                         printResetMessage("savedFinalMathsCalculationTable", self.savedFinalMathsCalculationTable[i], self.finalMathsCalculationDefault(), i)
                         self.savedFinalMathsCalculationTable[i] = self.finalMathsCalculationDefault()
+
+                    if not self.isValidAndFixFinalDisplayAdjustParams(self.savedFinalDisplayAdjustTable[i]):
+                        printResetMessage("savedFinalDisplayAdjustTable", self.savedFinalDisplayAdjustTable[i], self.finalDisplayAdjustDefault(), i)
+                        self.savedFinalDisplayAdjustTable[i] = self.finalDisplayAdjustDefault()
+
+                    if (self.savedFormulaTable[i] is None or not isinstance(self.savedFormulaTable[i], list)
+                            or len(self.savedFormulaTable[i]) != (self.FORMULA_UNUSED2_IDX + 1)
+                            or not isinstance(self.savedFormulaTable[i][self.FORMULA_EXPR_IDX], basestring)):
+                        printResetMessage("savedFormulaTable", self.savedFormulaTable[i], self.formulaDefault(), i)
+                        self.savedFormulaTable[i] = self.formulaDefault()
 
                     if (self.savedFormatAsPercentTable[i] is None or not isinstance(self.savedFormatAsPercentTable[i], list)
                             or len(self.savedFormatAsPercentTable[i]) != (self.FORMAT_AS_PERCENT_MULT100_IDX + 1)
@@ -10695,6 +10947,7 @@ Visit: %s (Author's site)
                     self.savedOperateOnAnotherRowTable[i][self.OPERATE_OTHER_ROW_UNUSED] = None
                     self.savedRowMathsCalculationTable[i][self.ROW_MATHS_CALC_UNUSED_IDX] = None
                     self.savedFinalMathsCalculationTable[i][self.FINAL_MATHS_CALC_UNUSED_IDX] = None
+                    self.savedFinalDisplayAdjustTable[i][self.FINAL_DISPLAY_ADJUST_UNUSED_IDX] = None
 
                 del printResetMessage
 
@@ -10746,42 +10999,75 @@ Visit: %s (Author's site)
             NAB = self
             return (NAB.savedFinalMathsCalculationTable[rowIdx][NAB.FINAL_MATHS_CALC_VALUE_IDX] != 0.0)
 
-        def isFinalMathsCalculationAbsorbedIntoUORsForRowIdx(self, rowIdx):
-            NAB = self
-            return (NAB.isFinalMathsCalculationForRowIdx(rowIdx) and NAB.savedFinalMathsCalculationTable[rowIdx][NAB.FINAL_MATHS_CALC_ABSORB_INTO_UORS])
-
-        def isValidAndFixFinalMathsCalculationParams(self, finalMathsCalculationParams):
+        def isValidAndFixFinalMathsCalculationParams(self, finalMathsCalculationParams):                    # Now PUM...
             NAB = self
             if not isinstance(finalMathsCalculationParams, list): return False
-            if len(finalMathsCalculationParams) != (NAB.FINAL_MATHS_CALC_ABSORB_INTO_UORS + 1): return False
+            if len(finalMathsCalculationParams) != (NAB.FINAL_MATHS_CALC_ABSORB_IDX + 1): return False
             # [0.0, None, None, None] is OK
             if not (finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_VALUE_IDX] == 0.0
                     and finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_OPERATOR_IDX] is None
                     and finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_UNUSED_IDX] is None
-                    and finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_ABSORB_INTO_UORS] is None):
+                    and finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_ABSORB_IDX] is None):
                 if isinstance(finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_VALUE_IDX], (int, long)):
                     myPrint("B", "WARNING: isValidAndFixFinalMathsCalculationParams(%s) converting operand to float...." %(finalMathsCalculationParams))
                     finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_VALUE_IDX] = float(finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_VALUE_IDX])
                 if finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_VALUE_IDX] == 0.0:
                     pass
                 else:
-                    NoneType = type(None)
-                    if not isinstance(finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_VALUE_IDX], float):                    return False
-                    if not isinstance(finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_OPERATOR_IDX], basestring):            return False
-                    if (finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_OPERATOR_IDX] not in "+-/*"):                        return False
-                    if not isinstance(finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_ABSORB_INTO_UORS], (bool, NoneType)):  return False
-                    # if not isinstance(finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_UNUSED_IDX], bool):     return False
+                    NoneType = type(None)                                                                               # noqa
+                    if not isinstance(finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_VALUE_IDX], float):                     return False
+                    if not isinstance(finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_OPERATOR_IDX], basestring):             return False
+                    if (finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_OPERATOR_IDX] not in "+-/*"):                         return False
+                    if not isinstance(finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_ABSORB_IDX], (bool, NoneType)):         return False
+                    # if not isinstance(finalMathsCalculationParams[NAB.FINAL_MATHS_CALC_UNUSED_IDX], bool):                     return False
             return True
 
-        def isValidTagNameForRowIdx(self, rowIdx):
-            # type: (int) -> bool
+        def isFinalDisplayAdjustForRowIdx(self, rowIdx):
+            NAB = self
+            return (NAB.savedFinalDisplayAdjustTable[rowIdx][NAB.FINAL_DISPLAY_ADJUST_VALUE_IDX] != 0.0)
+
+        def isValidAndFixFinalDisplayAdjustParams(self, finalDisplayAdjustParams):
+            NAB = self
+            if not isinstance(finalDisplayAdjustParams, list): return False
+            if len(finalDisplayAdjustParams) != (NAB.FINAL_DISPLAY_ADJUST_UNUSED2_IDX + 1): return False
+            # [0.0, None, None, None] is OK
+            if not (finalDisplayAdjustParams[NAB.FINAL_DISPLAY_ADJUST_VALUE_IDX] == 0.0
+                    and finalDisplayAdjustParams[NAB.FINAL_DISPLAY_ADJUST_OPERATOR_IDX] is None
+                    and finalDisplayAdjustParams[NAB.FINAL_DISPLAY_ADJUST_UNUSED_IDX] is None
+                    and finalDisplayAdjustParams[NAB.FINAL_DISPLAY_ADJUST_UNUSED2_IDX] is None):
+                if isinstance(finalDisplayAdjustParams[NAB.FINAL_DISPLAY_ADJUST_VALUE_IDX], (int, long)):
+                    myPrint("B", "WARNING: isValidAndFixFinalDisplayAdjustParams(%s) converting operand to float...." %(finalDisplayAdjustParams))
+                    finalDisplayAdjustParams[NAB.FINAL_DISPLAY_ADJUST_VALUE_IDX] = float(finalDisplayAdjustParams[NAB.FINAL_DISPLAY_ADJUST_VALUE_IDX])
+                if finalDisplayAdjustParams[NAB.FINAL_DISPLAY_ADJUST_VALUE_IDX] == 0.0:
+                    pass
+                else:
+                    NoneType = type(None)                                                                               # noqa
+                    if not isinstance(finalDisplayAdjustParams[NAB.FINAL_DISPLAY_ADJUST_VALUE_IDX], float):                    return False
+                    if not isinstance(finalDisplayAdjustParams[NAB.FINAL_DISPLAY_ADJUST_OPERATOR_IDX], basestring):            return False
+                    if (finalDisplayAdjustParams[NAB.FINAL_DISPLAY_ADJUST_OPERATOR_IDX] not in "+-/*"):                        return False
+                    # if not isinstance(finalDisplayAdjustParams[NAB.FINAL_DISPLAY_ADJUST_UNUSED_IDX], bool):                    return False
+                    # if not isinstance(finalDisplayAdjustParams[NAB.FINAL_DISPLAY_ADJUST_UNUSED2_IDX], (bool, NoneType)):       return False
+            return True
+
+        def isFormulaForRowIdx(self, rowIdx):
+            NAB = self
+            expr = NAB.savedFormulaTable[rowIdx][NAB.FORMULA_EXPR_IDX]
+            return (isinstance(expr, basestring) and len(expr) > 0)
+
+        def isValidTagNameForRowIdx(self, rowIdx, validTagDict=None):
+            # type: (int, {basestring: float}) -> bool
             """Checks all other rows for a tag name. If one found matches this row's tag, then it's a duplicate and invalid!"""
             NAB = self
-            thisTagName = NAB.getTagVariableNameForRowIdx(rowIdx, True)
+            thisTagName = NAB.getTagVariableNameForRowIdx(rowIdx)
             if thisTagName is None: return True
+
+            if validTagDict is not None:
+                return thisTagName in validTagDict
+
+            # Otherwise do it the hard way......
             for i in range(0, NAB.getNumberOfRows()):
                 if i == rowIdx: continue
-                otherTagName = NAB.getTagVariableNameForRowIdx(i, True)
+                otherTagName = NAB.getTagVariableNameForRowIdx(i)
                 if otherTagName is None: continue
                 if otherTagName == thisTagName:
                     # myPrint("B", "@@ FAILED: row: %s '%s' on OtherIDx: %s, '%s'" %(rowIdx+1, thisTagName, i+1, otherTagName));
@@ -10791,17 +11077,168 @@ Visit: %s (Author's site)
             # myPrint("B", "@@ OK - row: %s '%s'" %(rowIdx+1, thisTagName));
             return True
 
-        def getTagVariableNameForRowIdx(self, rowIdx, returnDefault):
+        def getTagVariableNameForRowIdx(self, rowIdx, returnOriginalCase=False):
             # type: (int, bool) -> basestring
-            """Retrieves the tag name for the specified row(idx) (stripped of leading/trailing whitespace, and lowercase)
-            if no tag name is set, then depending on 'returnDefault', will return None or a default internal tag - e.g. 'row1'"""
+            """Retrieves the tag name for the specified row(idx) (stripped of leading/trailing whitespace, and lowercase)"""
             NAB = self
             tagName = NAB.savedTagNameTable[rowIdx].strip()
-            if len(tagName) > 0:
-                return tagName.lower()
-            elif returnDefault:
-                return "row" + str(rowIdx + 1)
+            if tagName:
+                return (tagName if (returnOriginalCase) else tagName.lower())
             return None
+
+        def buildDictValidTagVariablesAndFormulas(self, defaultValue):
+            # type: (int) -> ({basestring: float}, {})
+            """Builds two dictionaries referencing a) valid tag names / values, and b) valid tags names and formulas"""
+            NAB = self
+            validTagsDict = {}
+            validTagsFormulaDict = {}
+
+            class _StoreTagFormula:
+                def __init__(self, _idx, _tag, _formula):
+                    self.idx = _idx
+                    self.tag = _tag
+                    self.formula = _formula
+                    self.shouldIgnore = (self.tag is None and self.formula is None)
+
+            for i in range(0, NAB.getNumberOfRows()):
+                validTagsFormulaDict[i] = _StoreTagFormula(i, None, None)
+                if not NAB.savedTagNameTable[i] and not NAB.savedFormulaTable[i][NAB.FORMULA_EXPR_IDX]: continue        # built for speed
+                tagName = NAB.getTagVariableNameForRowIdx(i)
+                formula, errorType, exc_value = NAB.getFormulaExprForRowIdx(i, True)
+                if tagName is None and formula is None: continue
+                validTagsFormulaDict[i] = _StoreTagFormula(i, tagName, formula)
+                if tagName is None: continue
+                if validTagsDict.get(tagName, None) is not None:
+                    del validTagsDict[tagName]                                   # Remove all instances of duplicates...
+                    continue
+                validTagsDict[tagName] = defaultValue
+            validTagsDict["dan00000specialnumber"] = 24601.0                                # for DTD
+            validTagsDict["pi00000"] = Math.PI                                              # for fun!
+            validTagsDict["mdversion00000"] = float(NAB.moneydanceContext.getVersion())     # for fun!
+            validTagsDict["mdbuild00000"] = NAB.moneydanceContext.getBuild()                # for fun!
+
+            allCurrencies = [c for c in NAB.moneydanceContext.getCurrentAccountBook().getCurrencies().getAllCurrencies() if not c.getHideInUI()]
+            for c in allCurrencies:
+                currID = c.getIDString().strip().lower()
+                ticker = c.getTickerSymbol().strip().lower()
+                if c.getCurrencyType() == CurrencyType.Type.CURRENCY and currID and isGoodRate(c.getRate(None)):  # noqa
+                    validTagsDict["curr00000%s" %(currID)] = 1.0 / c.getRate(None)
+                if c.getCurrencyType() == CurrencyType.Type.SECURITY and ticker and isGoodRate(c.getRate(None)):  # noqa
+                    validTagsDict["curr00000%s" %(ticker)] = 1.0 / c.getRate(None)
+
+            if debug:
+                myPrint("B", "------ buildDictValidTagVariablesAndFormulas() - validTagsDict:")
+                for k, v in validTagsDict.items(): myPrint("B", "TagKey: '%s', value: %s" %(k, v))
+                myPrint("B", "----------------------------------------------------")
+                myPrint("B", "------ buildDictValidTagVariablesAndFormulas() - validTagsFormulaDict:")
+                for k, v in validTagsFormulaDict.items(): myPrint("B", "rowIdx: '%s' [tag: '%s', formula: '%s']" %(k, v.tag, v.formula))
+                myPrint("B", "----------------------------------------------------")
+
+            return validTagsDict, validTagsFormulaDict
+
+        def confirmEvalExprValid(self, checkString):
+            NAB = self
+            result = NAB.FILTER_FORMULA_EXPR_REGEX.search(checkString)              # Check for non-allowed characters
+            if result is None:
+                if debug: myPrint("B", "@@ confirmEvalExprValid('%s') is VALID!" %(checkString))
+            else:
+                # This should NEVER happen as GUI input traps for this?!
+                myPrint("B", "@@ LOGIC ERROR >> confirmEvalExprValid('%s') INVALID character '%s' at %s (contact developer!)" %(checkString, result.string[result.start():result.end()], result.span()))
+                return False
+
+            result = NAB.FILTER_FORMULA_EXPR_REGEX_WORDS.findall(checkString)        # Check for non-allowed words aka methods
+            if debug:
+                myPrint("B", "@@ confirmEvalExprValid('%s') found %s words: %s" %(checkString, len(result), result))
+            if len(result) < 1: return True
+            for foundWord in result:
+                word = foundWord[:-1]
+                if word not in NAB.FILTER_FORMULA_EXPR_ALLOWED_WORDS:
+                    if debug: myPrint("B", "... REJECTING word '%s' as not in allowed list: %s !" %(word, NAB.FILTER_FORMULA_EXPR_ALLOWED_WORDS))
+                    return False
+            return True
+
+        def isFormulaValid(self, formulaExpr):
+            NAB = self
+            isValidFormula = True
+            if formulaExpr is None: return isValidFormula
+            isValidFormula = NAB.confirmEvalExprValid(formulaExpr)
+            if not isValidFormula: return isValidFormula
+            # todo - Extra validation checks here? Valid tags? Does forumla compile? That result is double/float?
+            return isValidFormula
+
+        def compileFormula(self, formulaExpr):
+            code = None                                                                                                 # noqa
+            e_type = exc_value = None
+            try: code = compile(formulaExpr, "<formula>", "eval")
+            except:
+                code = None
+                e_type, exc_value, exc_traceback = sys.exc_info()                                                       # noqa
+                if debug: myPrint("B", "@@ Failed to compile formula expression '%s', error: %s" %(formulaExpr, exc_value))
+            return code, e_type, exc_value
+
+        def evalFormula(self, formulaExpr, formulaCode, validTagDict):
+            result = None                                                                                               # noqa
+            e_type = exc_value = None
+            TAG_VARIABLES = {k: v for k, v in validTagDict.items()}
+
+            # Hide/replace builtin sum() method to not require list[]
+            def sum(*args):                                                                                             # noqa
+                _result = 0.0
+                for arg in args: _result += float(arg)
+                return _result
+
+            TAG_VARIABLES["sum"] = sum
+
+            # Define random
+            def random(): return Math.random()
+            TAG_VARIABLES["random"] = random
+
+
+            try:
+                result = eval(formulaCode, {"__builtins__": {}}, TAG_VARIABLES)
+                if isinstance(result, (int, long)): result = float(result)
+                if not isinstance(result, (float)):
+                    if debug: myPrint("B", "@@ LOGIC ERROR: evalFormula() result for formula expression's code '%s' returned: '%s' (type: %s) (requires a float)?!" %(formulaExpr, result, type(result)))
+                    result = None
+            except:
+                result = None
+                e_type, exc_value, exc_traceback = sys.exc_info()                                                       # noqa
+                if debug: myPrint("B", "@@ Failed to evaluate the formula expression's code '%s', error: %s" %(formulaExpr, exc_value))
+
+            if debug: myPrint("B", "@@ evalFormula() result for formula expression's code '%s' returned: '%s' (type: %s) (any error: %s %s)" %(formulaExpr, result, type(result), e_type, exc_value))
+            return result, e_type, exc_value
+
+        def getFormulaExprForRowIdx(self, rowIdx, onlyReturnValidFormula):
+            # type: (int, bool) -> (basestring, Exception, Exception)
+            """Retrieves the formula expression for the specified row(idx) (stripped of leading/trailing whitespace, and lowercase)"""
+            NAB = self
+            expr = NAB.savedFormulaTable[rowIdx][NAB.FORMULA_EXPR_IDX]
+            if expr is None: expr = ""
+            expr = expr.strip()
+            if len(expr) < 1:
+                return None, None, None
+            expr = expr.lower()
+            if "@this" in expr: expr = expr.replace("@this", "this00000row%s" %(str(rowIdx+1)))
+            if "@danspecialnumber" in expr: expr = expr.replace("@danspecialnumber", "dan00000specialnumber")
+            if "@pi" in expr: expr = expr.replace("@pi", "pi00000")
+            if "@mdversion" in expr: expr = expr.replace("@mdversion", "mdversion00000")
+            if "@mdbuild" in expr: expr = expr.replace("@mdbuild", "mdbuild00000")
+            result = NAB.FILTER_FORMULA_EXPR_REGEX_SPECIALVARS.findall(expr)               # Check for @specialvariables
+            if debug: myPrint("B", "Result of formula search for all special vars:", result)
+            if result:
+                for foundSpecialVar in result:
+                    if len(foundSpecialVar) > 1:
+                        specialVar = foundSpecialVar[1:]
+                        expr = expr.replace(foundSpecialVar, "curr00000%s" %(specialVar))
+
+            expr = expr.replace("@", "")
+            expr = expr.strip()
+            if len(expr) < 1:
+                return None, None, None
+            if onlyReturnValidFormula:
+                if not NAB.isFormulaValid(expr):
+                    return None, SyntaxError, SyntaxError("Formula syntax appears invalid (own validations)?!")
+            return expr, None, None
 
         def isRowFilteredOutByGroupID(self, thisRowIdx):
             FILTER_SPLIT_TOKEN = ";"
@@ -10837,7 +11274,7 @@ Visit: %s (Author's site)
                 filterTokens = filterString.split(FILTER_SPLIT_TOKEN)
                 groupID = NAB.savedGroupIDTable[thisRowIdx].strip().lower()
 
-                if ("".join(filterTokens)).strip() != "":       # Test for all tokens blank, if so, just ignore filter...
+                if ("".join(filterTokens)).strip():       # Test for all tokens blank, if so, just ignore filter...
 
                     countFilterTokens = 0
                     countMatches = 0
@@ -10994,6 +11431,8 @@ Visit: %s (Author's site)
             self.savedAverageByFractionalsTable     = [self.averageByFractionalsDefault()]
             self.savedRowMathsCalculationTable      = [self.rowMathsCalculationDefault()]
             self.savedFinalMathsCalculationTable    = [self.finalMathsCalculationDefault()]
+            self.savedFormulaTable                  = [self.formulaDefault()]
+            self.savedFinalDisplayAdjustTable       = [self.finalDisplayAdjustDefault()]
             self.savedFormatAsPercentTable          = [self.formatAsPercentDefault()]
             self.savedUUIDTable                     = [self.UUIDDefault(newUUID=True)]
             self.savedGroupIDTable                  = [self.groupIDDefault()]
@@ -11299,17 +11738,17 @@ Visit: %s (Author's site)
                                     thisRowAlwaysOrAutoHideTxt += wrap_HTML_fontColor(red, AUTO_HIDE_TXT, addHTML=False)
 
                         isFilteredTxt = ""
-                        if NAB.savedFilterByGroupID != "" and NAB.isRowFilteredOutByGroupID(i):
+                        if NAB.savedFilterByGroupID and NAB.isRowFilteredOutByGroupID(i):
                             isFiltered = True
                             isFilteredTxt += " " + wrap_HTML_fontColor(red, FILTERED_TXT, addHTML=False)
 
                         hasGroupIDTxt = ""
-                        if NAB.savedGroupIDTable[i] != "":
+                        if NAB.savedGroupIDTable[i]:
                             groupIDTxt = HAS_GROUPID_TXT.replace("{}", padTruncateWithDots(NAB.savedGroupIDTable[i], 10, padString=False))
                             hasGroupIDTxt += " " + html_strip_chars(groupIDTxt) if (not isFiltered) else wrap_HTML_fontColor(red, groupIDTxt, addHTML=False)
 
                         hasTagNameTxt = ""
-                        rowTag = NAB.getTagVariableNameForRowIdx(i, False)
+                        rowTag = NAB.getTagVariableNameForRowIdx(i, returnOriginalCase=True)
                         if rowTag is not None:
                             tagNameTxt = HAS_TAGNAME_TXT.replace("{}", padTruncateWithDots(rowTag, 10, padString=False))
                             hasTagNameTxt += " " + html_strip_chars(tagNameTxt) if (not isFiltered) else wrap_HTML_fontColor(red, tagNameTxt, addHTML=False)
@@ -11373,7 +11812,7 @@ Visit: %s (Author's site)
                                       NAB.rowMathsCalculationOperator_COMBO,
                                       NAB.finalMathsCalculationAdjustValue_JRF,
                                       NAB.finalMathsCalculationOperator_COMBO,
-                                      NAB.finalMathsCalculationAbsorbIntoUORs_CB,
+                                      NAB.formula_JTF,
                                       NAB.formatAsPercent_CB,
                                       NAB.formatAsPercentMult100_CB,
                                       NAB.utiliseOtherRow_JTFAI,
@@ -11519,9 +11958,17 @@ Visit: %s (Author's site)
             finalMathsCalculationOperator = NAB.savedFinalMathsCalculationTable[selectRowIndex][NAB.FINAL_MATHS_CALC_OPERATOR_IDX]
             if finalMathsCalculationOperator is None: finalMathsCalculationOperator = "+"
             NAB.finalMathsCalculationOperator_COMBO.setSelectedItem(finalMathsCalculationOperator)
-            absorb = NAB.savedFinalMathsCalculationTable[selectRowIndex][NAB.FINAL_MATHS_CALC_ABSORB_INTO_UORS]
-            if absorb is None: absorb = False
-            NAB.finalMathsCalculationAbsorbIntoUORs_CB.setSelected(absorb)
+            # Absorb is just set to True behind the scenes... No need for a swing component
+
+            myPrint("DB", "..about to set savedFormulaTable...")
+            NAB.formula_JTF.setText(NAB.savedFormulaTable[selectRowIndex][NAB.FORMULA_EXPR_IDX])
+
+            myPrint("DB", "..about to set savedFinalDisplayAdjustTable...")
+            finalDisplayAdjustOperand = NAB.savedFinalDisplayAdjustTable[selectRowIndex][NAB.FINAL_DISPLAY_ADJUST_VALUE_IDX]
+            NAB.finalDisplayAdjustAdjustValue_JRF.setValue(finalDisplayAdjustOperand)
+            finalDisplayOperator = NAB.savedFinalDisplayAdjustTable[selectRowIndex][NAB.FINAL_DISPLAY_ADJUST_OPERATOR_IDX]
+            if finalDisplayOperator is None: finalDisplayOperator = "+"
+            NAB.finalDisplayAdjustOperator_COMBO.setSelectedItem(finalDisplayOperator)
 
             myPrint("DB", "..about to set savedFormatAsPercentTable...")
             NAB.formatAsPercent_CB.setSelected(NAB.savedFormatAsPercentTable[selectRowIndex][NAB.FORMAT_AS_PERCENT_IDX])
@@ -11641,7 +12088,11 @@ Visit: %s (Author's site)
                 myPrint("B", ".....savedFinalMathsCalculationTable: %s"         %(NAB.savedFinalMathsCalculationTable[selectRowIndex]))
                 myPrint("B", ".....finalMathsCalculationAdjustValue_JRF: %s"    %(NAB.finalMathsCalculationAdjustValue_JRF.getValue()))
                 myPrint("B", ".....finalMathsCalculationOperator_COMBO: %s"     %(NAB.finalMathsCalculationOperator_COMBO.getSelectedItem()))
-                myPrint("B", ".....finalMathsCalculationAbsorbIntoUORs_CB: %s"  %(NAB.finalMathsCalculationAbsorbIntoUORs_CB.isSelected()))
+                myPrint("B", ".....savedFormulaTable: %s"                       %(NAB.savedFormulaTable[selectRowIndex]))
+                myPrint("B", ".....formula_JTF: %s"                             %(NAB.formula_JTF.getText()))
+                myPrint("B", ".....savedFinalDisplayAdjustTable: %s"            %(NAB.savedFinalDisplayAdjustTable[selectRowIndex]))
+                myPrint("B", ".....finalDisplayAdjustAdjustValue_JRF: %s"       %(NAB.finalDisplayAdjustAdjustValue_JRF.getValue()))
+                myPrint("B", ".....finalDisplayAdjustOperator_COMBO: %s"        %(NAB.finalDisplayAdjustOperator_COMBO.getSelectedItem()))
                 myPrint("B", ".....savedFormatAsPercentTable: %s"               %(NAB.savedFormatAsPercentTable[selectRowIndex]))
                 myPrint("B", ".....formatAsPercent_CB: %s"                      %(NAB.formatAsPercent_CB.isSelected()))
                 myPrint("B", ".....formatAsPercentMult100_CB: %s"               %(NAB.formatAsPercentMult100_CB.isSelected()))
@@ -11744,97 +12195,117 @@ Visit: %s (Author's site)
         def storeJTextFieldsForSelectedRow(self):
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
 
-            if self.switchFromHomeScreen:
+            NAB = self
+
+            if NAB.switchFromHomeScreen:
                 myPrint("DB", ".. switchFromHomeScreen detected... ignoring....")
-                self.switchFromHomeScreen = False
+                NAB.switchFromHomeScreen = False
             else:
-                txtFieldValue = self.widgetNameField_JTF.getText()
-                if self.savedWidgetName[self.getSelectedRowIndex()] != txtFieldValue:
+                txtFieldValue = NAB.widgetNameField_JTF.getText()
+                if NAB.savedWidgetName[NAB.getSelectedRowIndex()] != txtFieldValue:
                     myPrint("DB", ".. selectedRowIndex(): %s savedWidgetName was: '%s', will set to: '%s'"
-                            %(self.getSelectedRowIndex(), self.savedWidgetName[self.getSelectedRowIndex()], txtFieldValue))
+                            %(NAB.getSelectedRowIndex(), NAB.savedWidgetName[NAB.getSelectedRowIndex()], txtFieldValue))
                     myPrint("DB", "..... saving savedWidgetName....")
-                    self.savedWidgetName[self.getSelectedRowIndex()] = txtFieldValue
-                    self.configSaved = False
+                    NAB.savedWidgetName[NAB.getSelectedRowIndex()] = txtFieldValue
+                    NAB.configSaved = False
 
-                txtFieldValue = self.filterByGroupID_JTF.getText()
-                if self.savedFilterByGroupID != txtFieldValue:
+                txtFieldValue = NAB.filterByGroupID_JTF.getText()
+                if NAB.savedFilterByGroupID != txtFieldValue:
                     myPrint("DB", ".. savedFilterByGroupID was: '%s', will set to: '%s'"
-                            %(self.savedFilterByGroupID, txtFieldValue))
+                            %(NAB.savedFilterByGroupID, txtFieldValue))
                     myPrint("DB", "..... saving savedFilterByGroupID....")
-                    self.savedFilterByGroupID = txtFieldValue
-                    self.searchAndStoreGroupIDs(self.savedFilterByGroupID)
-                    self.configSaved = False
+                    NAB.savedFilterByGroupID = txtFieldValue
+                    NAB.searchAndStoreGroupIDs(NAB.savedFilterByGroupID)
+                    NAB.configSaved = False
 
-                txtFieldValue = self.groupIDField_JTF.getText()
-                if self.savedGroupIDTable[self.getSelectedRowIndex()] != txtFieldValue:
+                txtFieldValue = NAB.groupIDField_JTF.getText()
+                if NAB.savedGroupIDTable[NAB.getSelectedRowIndex()] != txtFieldValue:
                     myPrint("DB", ".. selectedRowIndex(): %s savedGroupIDTable was: '%s', will set to: '%s'"
-                            %(self.getSelectedRowIndex(), self.savedGroupIDTable[self.getSelectedRowIndex()], txtFieldValue))
+                            %(NAB.getSelectedRowIndex(), NAB.savedGroupIDTable[NAB.getSelectedRowIndex()], txtFieldValue))
                     myPrint("DB", "..... saving savedGroupIDTable....")
-                    self.savedGroupIDTable[self.getSelectedRowIndex()] = txtFieldValue
-                    self.configSaved = False
+                    NAB.savedGroupIDTable[NAB.getSelectedRowIndex()] = txtFieldValue
+                    NAB.configSaved = False
 
-                txtFieldValue = self.tagName_JTF.getText()
-                if self.savedTagNameTable[self.getSelectedRowIndex()] != txtFieldValue:
+                txtFieldValue = NAB.tagName_JTF.getText()
+                if NAB.savedTagNameTable[NAB.getSelectedRowIndex()] != txtFieldValue:
                     myPrint("DB", ".. selectedRowIndex(): %s savedTagNameTable was: '%s', will set to: '%s'"
-                            %(self.getSelectedRowIndex(), self.savedTagNameTable[self.getSelectedRowIndex()], txtFieldValue))
+                            %(NAB.getSelectedRowIndex(), NAB.savedTagNameTable[NAB.getSelectedRowIndex()], txtFieldValue))
                     myPrint("DB", "..... saving savedTagNameTable....")
-                    self.savedTagNameTable[self.getSelectedRowIndex()] = txtFieldValue
-                    self.configSaved = False
+                    NAB.savedTagNameTable[NAB.getSelectedRowIndex()] = txtFieldValue
+                    NAB.configSaved = False
 
-                txtFieldValue = self.hideRowXValue_JRF.getValue()
-                if self.savedHideRowXValueTable[self.getSelectedRowIndex()] != txtFieldValue:
+                txtFieldValue = NAB.hideRowXValue_JRF.getValue()
+                if NAB.savedHideRowXValueTable[NAB.getSelectedRowIndex()] != txtFieldValue:
                     myPrint("DB", ".. selectedRowIndex(): %s savedHideRowXValueTable was: '%s', will set to: '%s'"
-                            %(self.getSelectedRowIndex(), self.savedHideRowXValueTable[self.getSelectedRowIndex()], txtFieldValue))
+                            %(NAB.getSelectedRowIndex(), NAB.savedHideRowXValueTable[NAB.getSelectedRowIndex()], txtFieldValue))
                     myPrint("DB", "..... saving savedHideRowXValueTable....")
-                    self.savedHideRowXValueTable[self.getSelectedRowIndex()] = txtFieldValue
-                    self.configSaved = False
+                    NAB.savedHideRowXValueTable[NAB.getSelectedRowIndex()] = txtFieldValue
+                    NAB.configSaved = False
 
-                txtFieldValue = self.displayAverage_JRF.getValue()
-                if self.savedDisplayAverageTable[self.getSelectedRowIndex()] != txtFieldValue:
+                txtFieldValue = NAB.displayAverage_JRF.getValue()
+                if NAB.savedDisplayAverageTable[NAB.getSelectedRowIndex()] != txtFieldValue:
                     myPrint("DB", ".. selectedRowIndex(): %s savedDisplayAverageTable was: '%s', will set to: '%s'"
-                            %(self.getSelectedRowIndex(), self.savedDisplayAverageTable[self.getSelectedRowIndex()], txtFieldValue))
+                            %(NAB.getSelectedRowIndex(), NAB.savedDisplayAverageTable[NAB.getSelectedRowIndex()], txtFieldValue))
                     myPrint("DB", "..... savedDisplayAverageTable....")
-                    self.savedDisplayAverageTable[self.getSelectedRowIndex()] = txtFieldValue
-                    self.setAvgByLabel(self.getSelectedRowIndex())
-                    self.setAvgByControls(self.getSelectedRowIndex())
-                    self.configSaved = False
+                    NAB.savedDisplayAverageTable[NAB.getSelectedRowIndex()] = txtFieldValue
+                    NAB.setAvgByLabel(NAB.getSelectedRowIndex())
+                    NAB.setAvgByControls(NAB.getSelectedRowIndex())
+                    NAB.configSaved = False
 
-                txtFieldValue = self.rowMathsCalculationAdjustValue_JRF.getValue()
-                if self.savedRowMathsCalculationTable[self.getSelectedRowIndex()][self.ROW_MATHS_CALC_VALUE_IDX] != txtFieldValue:
+                txtFieldValue = NAB.rowMathsCalculationAdjustValue_JRF.getValue()
+                if NAB.savedRowMathsCalculationTable[NAB.getSelectedRowIndex()][NAB.ROW_MATHS_CALC_VALUE_IDX] != txtFieldValue:
                     myPrint("DB", ".. selectedRowIndex(): %s savedRowMathsCalculationTable was: '%s', will set to: '%s'"
-                            %(self.getSelectedRowIndex(), self.savedRowMathsCalculationTable[self.getSelectedRowIndex()][self.ROW_MATHS_CALC_VALUE_IDX], txtFieldValue))
-                    myPrint("DB", "..... saving savedRowMathsCalculationTable[elements].... was: %s" %(self.savedRowMathsCalculationTable[self.getSelectedRowIndex()]))
-                    self.savedRowMathsCalculationTable[self.getSelectedRowIndex()][self.ROW_MATHS_CALC_VALUE_IDX] = txtFieldValue
-                    self.savedRowMathsCalculationTable[self.getSelectedRowIndex()][self.ROW_MATHS_CALC_OPERATOR_IDX] = self.rowMathsCalculationOperator_COMBO.getSelectedItem()
-                    # self.savedRowMathsCalculationTable[self.getSelectedRowIndex()][self.ROW_MATHS_CALC_WANTPERCENT_IDX] = self.rowMathsCalculationIsPercent_CB.isSelected()
-                    myPrint("DB", "........ now : %s" %(self.savedRowMathsCalculationTable[self.getSelectedRowIndex()]))
-                    self.configSaved = False
+                            %(NAB.getSelectedRowIndex(), NAB.savedRowMathsCalculationTable[NAB.getSelectedRowIndex()][NAB.ROW_MATHS_CALC_VALUE_IDX], txtFieldValue))
+                    myPrint("DB", "..... saving savedRowMathsCalculationTable[elements].... was: %s" %(NAB.savedRowMathsCalculationTable[NAB.getSelectedRowIndex()]))
+                    NAB.savedRowMathsCalculationTable[NAB.getSelectedRowIndex()][NAB.ROW_MATHS_CALC_VALUE_IDX] = txtFieldValue
+                    NAB.savedRowMathsCalculationTable[NAB.getSelectedRowIndex()][NAB.ROW_MATHS_CALC_OPERATOR_IDX] = NAB.rowMathsCalculationOperator_COMBO.getSelectedItem()
+                    # NAB.savedRowMathsCalculationTable[NAB.getSelectedRowIndex()][NAB.ROW_MATHS_CALC_WANTPERCENT_IDX] = NAB.rowMathsCalculationIsPercent_CB.isSelected()
+                    myPrint("DB", "........ now : %s" %(NAB.savedRowMathsCalculationTable[NAB.getSelectedRowIndex()]))
+                    NAB.configSaved = False
 
-                txtFieldValue = self.finalMathsCalculationAdjustValue_JRF.getValue()
-                if self.savedFinalMathsCalculationTable[self.getSelectedRowIndex()][self.FINAL_MATHS_CALC_VALUE_IDX] != txtFieldValue:
+                txtFieldValue = NAB.finalMathsCalculationAdjustValue_JRF.getValue()
+                if NAB.savedFinalMathsCalculationTable[NAB.getSelectedRowIndex()][NAB.FINAL_MATHS_CALC_VALUE_IDX] != txtFieldValue:
                     myPrint("DB", ".. selectedRowIndex(): %s savedFinalMathsCalculationTable was: '%s', will set to: '%s'"
-                            %(self.getSelectedRowIndex(), self.savedFinalMathsCalculationTable[self.getSelectedRowIndex()][self.FINAL_MATHS_CALC_VALUE_IDX], txtFieldValue))
-                    myPrint("DB", "..... saving savedFinalMathsCalculationTable[elements].... was: %s" %(self.savedFinalMathsCalculationTable[self.getSelectedRowIndex()]))
-                    self.savedFinalMathsCalculationTable[self.getSelectedRowIndex()][self.FINAL_MATHS_CALC_VALUE_IDX] = txtFieldValue
-                    self.savedFinalMathsCalculationTable[self.getSelectedRowIndex()][self.FINAL_MATHS_CALC_OPERATOR_IDX] = self.finalMathsCalculationOperator_COMBO.getSelectedItem()
-                    self.savedFinalMathsCalculationTable[self.getSelectedRowIndex()][self.FINAL_MATHS_CALC_ABSORB_INTO_UORS] = self.finalMathsCalculationAbsorbIntoUORs_CB.isSelected()
-                    myPrint("DB", "........ now : %s" %(self.savedFinalMathsCalculationTable[self.getSelectedRowIndex()]))
-                    self.configSaved = False
+                            %(NAB.getSelectedRowIndex(), NAB.savedFinalMathsCalculationTable[NAB.getSelectedRowIndex()][NAB.FINAL_MATHS_CALC_VALUE_IDX], txtFieldValue))
+                    myPrint("DB", "..... saving savedFinalMathsCalculationTable[elements].... was: %s" %(NAB.savedFinalMathsCalculationTable[NAB.getSelectedRowIndex()]))
+                    NAB.savedFinalMathsCalculationTable[NAB.getSelectedRowIndex()][NAB.FINAL_MATHS_CALC_VALUE_IDX] = txtFieldValue
+                    NAB.savedFinalMathsCalculationTable[NAB.getSelectedRowIndex()][NAB.FINAL_MATHS_CALC_OPERATOR_IDX] = NAB.finalMathsCalculationOperator_COMBO.getSelectedItem()
+                    NAB.savedFinalMathsCalculationTable[NAB.getSelectedRowIndex()][NAB.FINAL_MATHS_CALC_ABSORB_IDX] = True
+                    myPrint("DB", "........ now : %s" %(NAB.savedFinalMathsCalculationTable[NAB.getSelectedRowIndex()]))
+                    NAB.configSaved = False
 
-                txtFieldValue = self.utiliseOtherRow_JTFAI.getValueIntOrNone()
-                if self.savedOperateOnAnotherRowTable[self.getSelectedRowIndex()][self.OPERATE_OTHER_ROW_ROW] != txtFieldValue:
+                txtFieldValue = NAB.formula_JTF.getText()
+                if NAB.savedFormulaTable[NAB.getSelectedRowIndex()][NAB.FORMULA_EXPR_IDX] != txtFieldValue:
+                    myPrint("DB", ".. selectedRowIndex(): %s savedFormulaTable was: '%s', will set to: '%s'"
+                            %(NAB.getSelectedRowIndex(), NAB.savedFormulaTable[NAB.getSelectedRowIndex()], txtFieldValue))
+                    myPrint("DB", "..... saving savedFormulaTable....")
+                    NAB.savedFormulaTable[NAB.getSelectedRowIndex()][NAB.FORMULA_EXPR_IDX] = txtFieldValue
+                    NAB.configSaved = False
+
+                txtFieldValue = NAB.finalDisplayAdjustAdjustValue_JRF.getValue()
+                if NAB.savedFinalDisplayAdjustTable[NAB.getSelectedRowIndex()][NAB.FINAL_DISPLAY_ADJUST_VALUE_IDX] != txtFieldValue:
+                    myPrint("DB", ".. selectedRowIndex(): %s savedFinalDisplayAdjustTable was: '%s', will set to: '%s'"
+                            %(NAB.getSelectedRowIndex(), NAB.savedFinalDisplayAdjustTable[NAB.getSelectedRowIndex()][NAB.FINAL_DISPLAY_ADJUST_VALUE_IDX], txtFieldValue))
+                    myPrint("DB", "..... saving savedFinalDisplayAdjustTable[elements].... was: %s" %(NAB.savedFinalDisplayAdjustTable[NAB.getSelectedRowIndex()]))
+                    NAB.savedFinalDisplayAdjustTable[NAB.getSelectedRowIndex()][NAB.FINAL_DISPLAY_ADJUST_VALUE_IDX] = txtFieldValue
+                    NAB.savedFinalDisplayAdjustTable[NAB.getSelectedRowIndex()][NAB.FINAL_DISPLAY_ADJUST_OPERATOR_IDX] = NAB.finalDisplayAdjustOperator_COMBO.getSelectedItem()
+                    myPrint("DB", "........ now : %s" %(NAB.savedFinalDisplayAdjustTable[NAB.getSelectedRowIndex()]))
+                    NAB.configSaved = False
+
+                txtFieldValue = NAB.utiliseOtherRow_JTFAI.getValueIntOrNone()
+                if NAB.savedOperateOnAnotherRowTable[NAB.getSelectedRowIndex()][NAB.OPERATE_OTHER_ROW_ROW] != txtFieldValue:
                     myPrint("DB", ".. selectedRowIndex(): %s savedOperateOnAnotherRowTable was: '%s', will set to: '%s'"
-                            %(self.getSelectedRowIndex(), self.savedOperateOnAnotherRowTable[self.getSelectedRowIndex()][self.OPERATE_OTHER_ROW_ROW], txtFieldValue))
-                    myPrint("DB", "..... saving savedOperateOnAnotherRowTable[elements].... was: %s" %(self.savedOperateOnAnotherRowTable[self.getSelectedRowIndex()]))
-                    self.savedOperateOnAnotherRowTable[self.getSelectedRowIndex()][self.OPERATE_OTHER_ROW_ROW] = txtFieldValue
-                    self.savedOperateOnAnotherRowTable[self.getSelectedRowIndex()][self.OPERATE_OTHER_ROW_OPERATOR] = self.otherRowMathsOperator_COMBO.getSelectedItem()
-                    myPrint("DB", "........ now : %s" %(self.savedOperateOnAnotherRowTable[self.getSelectedRowIndex()]))
-                    self.configSaved = False
-                    otherRowIdx  = self.getOperateOnAnotherRowRowIdx(self.getSelectedRowIndex())
+                            %(NAB.getSelectedRowIndex(), NAB.savedOperateOnAnotherRowTable[NAB.getSelectedRowIndex()][NAB.OPERATE_OTHER_ROW_ROW], txtFieldValue))
+                    myPrint("DB", "..... saving savedOperateOnAnotherRowTable[elements].... was: %s" %(NAB.savedOperateOnAnotherRowTable[NAB.getSelectedRowIndex()]))
+                    NAB.savedOperateOnAnotherRowTable[NAB.getSelectedRowIndex()][NAB.OPERATE_OTHER_ROW_ROW] = txtFieldValue
+                    NAB.savedOperateOnAnotherRowTable[NAB.getSelectedRowIndex()][NAB.OPERATE_OTHER_ROW_OPERATOR] = NAB.otherRowMathsOperator_COMBO.getSelectedItem()
+                    myPrint("DB", "........ now : %s" %(NAB.savedOperateOnAnotherRowTable[NAB.getSelectedRowIndex()]))
+                    NAB.configSaved = False
+                    otherRowIdx  = NAB.getOperateOnAnotherRowRowIdx(NAB.getSelectedRowIndex())
                     if otherRowIdx is None:
-                        myPrint("B", "...... NOTE: This row %s >> OtherRow appears INVALID (and will therefore be ignored)" %(self.getSelectedRow()))
+                        myPrint("B", "...... NOTE: This row %s >> OtherRow appears INVALID (and will therefore be ignored)" %(NAB.getSelectedRow()))
                     else:
-                        myPrint("B", "...... NOTE: This row %s >> OtherRow validity confirmed as %s" %(self.getSelectedRow(), otherRowIdx + 1))
+                        myPrint("B", "...... NOTE: This row %s >> OtherRow validity confirmed as %s" %(NAB.getSelectedRow(), otherRowIdx + 1))
 
 
         def storeCurrentJListSelected(self):
@@ -12058,6 +12529,8 @@ Visit: %s (Author's site)
                 myPrint("B", "  %s" %(pad("savedAverageByFractionalsTable",60)),  NAB.savedAverageByFractionalsTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedRowMathsCalculationTable",60)),   NAB.savedRowMathsCalculationTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedFinalMathsCalculationTable",60)), NAB.savedFinalMathsCalculationTable[iRowIdx])
+                myPrint("B", "  %s" %(pad("savedFormulaTable",60)),               NAB.savedFormulaTable[iRowIdx])
+                myPrint("B", "  %s" %(pad("savedFinalDisplayAdjustTable",60)),    NAB.savedFinalDisplayAdjustTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedIncExpDateRangeTable",60)),       NAB.savedIncExpDateRangeTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedUseCostBasisTable",60)),          NAB.savedUseCostBasisTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedIncludeRemindersTable",60)),      NAB.savedIncludeRemindersTable[iRowIdx])
@@ -12328,7 +12801,15 @@ Visit: %s (Author's site)
             elif _type == 17:
                 return("TAG (VARIABLE) NAME IS NOT UNIQUE WARNING")
             elif _type == 18:
-                return("FMC ABSORBED INTO OTHER UOR BUT UOR IN ERROR")
+                return("PUM ABSORBED INTO OTHER UOR BUT UOR IN ERROR")
+            elif _type == 19:
+                return("ERROR IN FORMULA WARNING")
+            elif _type == 20:
+                return("FORMULA APPEARS NOT TO REFERENCE THIS ROW WARNING")
+            elif _type == 21:
+                return("TAG NAMES SHOULD NOT START WITH 'ROW' OR USE ROW NUMBER WARNING")
+            elif _type == 22:
+                return("TAG NAMES SHOULD NOT BE THE SAME AS FUNCTION NAMES WARNING")
             return("WARNING <<UNKNOWN>> DETECTED")
 
         class SimulateTotalForRowSwingWorker(SwingWorker):
@@ -12354,7 +12835,7 @@ Visit: %s (Author's site)
 
                 if not self.isCancelled():
                     book = md.getCurrentAccountBook()
-                    totalBalanceTable = MyHomePageView.calculateBalances(book, NAB.getSelectedRowIndex(), lFromSimulate=True, swClass=self)
+                    totalBalanceTable = MyHomePageView.calculateBalances(book, justIndex=NAB.getSelectedRowIndex(), swClass=self)
 
                 return totalBalanceTable
 
@@ -12390,7 +12871,7 @@ Visit: %s (Author's site)
                     else:
                         NAB.warning_label.setText("?")
 
-                    NAB.showWarnings_LBL.setIcon(NAB.warningIcon if len(NAB.warningMessagesTable) > 0 else None)
+                    NAB.showWarnings_LBL.setIcon(NAB.warningIcon if NAB.warningMessagesTable else None)
 
                     if len(totalBalanceTable) < NAB.getSelectedRow():
                         myPrint("@@ ERROR: Returned totalBalanceTable is invalid?!")
@@ -12405,6 +12886,8 @@ Visit: %s (Author's site)
                         lUseAverage = NAB.doesRowUseAvgBy(i)
                         lRowMathsCalculation = (NAB.isRowMathsCalculationForRowIdx(i))
                         lFinalMathsCalculation = (NAB.isFinalMathsCalculationForRowIdx(i))
+                        lFormula = (NAB.isFormulaForRowIdx(i))
+                        lFinalDisplayAdjust = (NAB.isFinalDisplayAdjustForRowIdx(i))
                         lFormatAsPercent = (NAB.savedFormatAsPercentTable[i][NAB.FORMAT_AS_PERCENT_IDX])
                         lUsesOtherRow = (NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_ROW] is not None)
                         lUseTaxDates = (NAB.savedUseTaxDates and isIncomeExpenseDatesSelected(i))
@@ -12431,6 +12914,11 @@ Visit: %s (Author's site)
                             NAB.simulateTotal_label.setForeground(md.getUI().getColors().errorMessageForeground)
                             NAB.simulateTotal_label.setFont(tdfsc.getValueFont(False))
 
+                        elif balanceObj.isFormulaError():
+                            NAB.simulateTotal_label.setText(CalculatedBalance.DEFAULT_WIDGET_ROW_FORMULA_ERROR.lower())
+                            NAB.simulateTotal_label.setForeground(md.getUI().getColors().errorMessageForeground)
+                            NAB.simulateTotal_label.setFont(tdfsc.getValueFont(False))
+
                         else:
                             showCurrText = ""
                             if balanceObj.getCurrencyType() is not baseCurr: showCurrText = " (%s)" %(balanceObj.getCurrencyType().getIDString())
@@ -12448,8 +12936,18 @@ Visit: %s (Author's site)
 
                             showFinalMathsCalcText = ""
                             if lFinalMathsCalculation:
-                                showFinalMathsCalcText = " (fmc)"
-                                if debug: myPrint("DB", ":: Row: %s using final maths calculation (adjustment): %s" %(i+1, NAB.savedFinalMathsCalculationTable[i]))
+                                showFinalMathsCalcText = " (pum)"
+                                if debug: myPrint("DB", ":: Row: %s using post-uor maths calculation (adjustment): %s" %(i+1, NAB.savedFinalMathsCalculationTable[i]))
+
+                            showFormulaText = ""
+                            if lFormula:
+                                showFormulaText = " (for)"
+                                if debug: myPrint("DB", ":: Row: %s using formula: %s" %(i+1, NAB.savedFormulaTable[i]))
+
+                            showFinalDisplayAdjustText = ""
+                            if lFinalDisplayAdjust:
+                                showFinalDisplayAdjustText = " (fda)"
+                                if debug: myPrint("DB", ":: Row: %s using format display adjustment: %s" %(i+1, NAB.savedFinalDisplayAdjustTable[i]))
 
                             showUseTaxDatesText = ""
                             if lUseTaxDates:
@@ -12524,6 +13022,8 @@ Visit: %s (Author's site)
                                                             + showAverageText
                                                             + showRowMathsCalcText
                                                             + showFinalMathsCalcText
+                                                            + showFormulaText
+                                                            + showFinalDisplayAdjustText
                                                             + showUseTaxDatesText
                                                             + showBalanceAsOfText
                                                             + showIncludeRemindersText
@@ -12752,6 +13252,8 @@ Visit: %s (Author's site)
                                    NAB.savedAverageByFractionalsTable,
                                    NAB.savedRowMathsCalculationTable,
                                    NAB.savedFinalMathsCalculationTable,
+                                   NAB.savedFormulaTable,
+                                   NAB.savedFinalDisplayAdjustTable,
                                    NAB.savedFormatAsPercentTable,
                                    NAB.savedWidgetName,
                                    NAB.savedUUIDTable,
@@ -12932,12 +13434,13 @@ Visit: %s (Author's site)
                     if NAB.savedFinalMathsCalculationTable[NAB.getSelectedRowIndex()][NAB.FINAL_MATHS_CALC_OPERATOR_IDX] != event.getSource().getSelectedItem():
                         myPrint("DB", ".. setting savedFinalMathsCalculationTable[operator] to: %s for row: %s" %(event.getSource().getSelectedItem(), NAB.getSelectedRow()))
                         NAB.savedFinalMathsCalculationTable[NAB.getSelectedRowIndex()][NAB.FINAL_MATHS_CALC_OPERATOR_IDX] = event.getSource().getSelectedItem()
+                        NAB.savedFinalMathsCalculationTable[NAB.getSelectedRowIndex()][NAB.FINAL_MATHS_CALC_ABSORB_IDX] = True
                         NAB.configSaved = False
 
-                if event.getSource() is NAB.finalMathsCalculationAbsorbIntoUORs_CB:
-                    if NAB.savedFinalMathsCalculationTable[NAB.getSelectedRowIndex()][NAB.FINAL_MATHS_CALC_ABSORB_INTO_UORS] != event.getSource().isSelected():
-                        myPrint("DB", ".. setting savedFinalMathsCalculationTable[absorb into UORs] to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
-                        NAB.savedFinalMathsCalculationTable[NAB.getSelectedRowIndex()][NAB.FINAL_MATHS_CALC_ABSORB_INTO_UORS] = event.getSource().isSelected()
+                if event.getSource() is NAB.finalDisplayAdjustOperator_COMBO:
+                    if NAB.savedFinalDisplayAdjustTable[NAB.getSelectedRowIndex()][NAB.FINAL_DISPLAY_ADJUST_OPERATOR_IDX] != event.getSource().getSelectedItem():
+                        myPrint("DB", ".. setting savedFinalDisplayAdjustTable[operator] to: %s for row: %s" %(event.getSource().getSelectedItem(), NAB.getSelectedRow()))
+                        NAB.savedFinalDisplayAdjustTable[NAB.getSelectedRowIndex()][NAB.FINAL_DISPLAY_ADJUST_OPERATOR_IDX] = event.getSource().getSelectedItem()
                         NAB.configSaved = False
 
                 if event.getSource() is NAB.includeInactive_COMBO:
@@ -13046,6 +13549,8 @@ Visit: %s (Author's site)
                         NAB.savedAverageByFractionalsTable.insert(NAB.getSelectedRowIndex(),  NAB.averageByFractionalsDefault())
                         NAB.savedRowMathsCalculationTable.insert(NAB.getSelectedRowIndex(),   NAB.rowMathsCalculationDefault())
                         NAB.savedFinalMathsCalculationTable.insert(NAB.getSelectedRowIndex(), NAB.finalMathsCalculationDefault())
+                        NAB.savedFormulaTable.insert(NAB.getSelectedRowIndex(),               NAB.formulaDefault())
+                        NAB.savedFinalDisplayAdjustTable.insert(NAB.getSelectedRowIndex(),    NAB.finalDisplayAdjustDefault())
                         NAB.savedFormatAsPercentTable.insert(NAB.getSelectedRowIndex(),       NAB.formatAsPercentDefault())
 
                         self.correctUseOtherRowNumbers(tableAfterChanges=startingTable)
@@ -13087,6 +13592,8 @@ Visit: %s (Author's site)
                         NAB.savedAverageByFractionalsTable.insert(NAB.getSelectedRowIndex()+1,  NAB.averageByFractionalsDefault())
                         NAB.savedRowMathsCalculationTable.insert(NAB.getSelectedRowIndex()+1,   NAB.rowMathsCalculationDefault())
                         NAB.savedFinalMathsCalculationTable.insert(NAB.getSelectedRowIndex()+1, NAB.finalMathsCalculationDefault())
+                        NAB.savedFormulaTable.insert(NAB.getSelectedRowIndex()+1,               NAB.formulaDefault())
+                        NAB.savedFinalDisplayAdjustTable.insert(NAB.getSelectedRowIndex()+1,    NAB.finalDisplayAdjustDefault())
                         NAB.savedFormatAsPercentTable.insert(NAB.getSelectedRowIndex()+1,       NAB.formatAsPercentDefault())
 
                         self.correctUseOtherRowNumbers(tableAfterChanges=startingTable)
@@ -13693,6 +14200,8 @@ Visit: %s (Author's site)
                 GlobalVars.extn_param_NEW_averageByFractionalsTable_NAB     = [NAB.averageByFractionalsDefault()]
                 GlobalVars.extn_param_NEW_rowMathsCalculationTable_NAB      = [NAB.rowMathsCalculationDefault()]
                 GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB    = [NAB.finalMathsCalculationDefault()]
+                GlobalVars.extn_param_NEW_formulaTable_NAB                  = [NAB.formulaDefault()]
+                GlobalVars.extn_param_NEW_finalDisplayAdjustTable_NAB       = [NAB.finalDisplayAdjustDefault()]
                 GlobalVars.extn_param_NEW_formatAsPercentTable_NAB          = [NAB.formatAsPercentDefault()]
                 GlobalVars.extn_param_NEW_operateOnAnotherRowTable_NAB      = [NAB.operateOnAnotherRowDefault()]
                 GlobalVars.extn_param_NEW_UUIDTable_NAB                     = [NAB.UUIDDefault(newUUID=False)]
@@ -13758,6 +14267,8 @@ Visit: %s (Author's site)
                         self.savedAverageByFractionalsTable     = copy.deepcopy(GlobalVars.extn_param_NEW_averageByFractionalsTable_NAB)
                         self.savedRowMathsCalculationTable      = copy.deepcopy(GlobalVars.extn_param_NEW_rowMathsCalculationTable_NAB)
                         self.savedFinalMathsCalculationTable    = copy.deepcopy(GlobalVars.extn_param_NEW_finalMathsCalculationTable_NAB)
+                        self.savedFormulaTable                  = copy.deepcopy(GlobalVars.extn_param_NEW_formulaTable_NAB)
+                        self.savedFinalDisplayAdjustTable       = copy.deepcopy(GlobalVars.extn_param_NEW_finalDisplayAdjustTable_NAB)
                         self.savedFormatAsPercentTable          = copy.deepcopy(GlobalVars.extn_param_NEW_formatAsPercentTable_NAB)
                         self.savedOperateOnAnotherRowTable      = copy.deepcopy(GlobalVars.extn_param_NEW_operateOnAnotherRowTable_NAB)
                         self.savedUUIDTable                     = copy.deepcopy(GlobalVars.extn_param_NEW_UUIDTable_NAB)
@@ -14132,7 +14643,7 @@ Visit: %s (Author's site)
                                                            %(GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME.title(), titleExtraTxt))
                     NAB.theFrame = net_account_balances_frame_
                     NAB.theFrame.setName(u"%s_main" %(NAB.myModuleID))
-                    NAB.theFrame.setMinimumSize(Dimension(1170, 0))
+                    NAB.theFrame.setMinimumSize(Dimension(1200, 0))
 
                     NAB.theFrame.isActiveInMoneydance = True
                     NAB.theFrame.isRunTimeExtension = True
@@ -14504,11 +15015,11 @@ Visit: %s (Author's site)
                     rowName_pnl.add(NAB.widgetNameField_JTF, GridC.getc(onRowNameCol, onRowNameRow).wx(1.0).fillboth())
                     onRowNameCol += 1
 
-                    tagPicker_LBL = MyJLabel(NAB.tagPickerIcon)
-                    tagPicker_LBL.setFocusable(True)
-                    tagPicker_LBL.putClientProperty("%s.id" %(NAB.myModuleID), "tagPicker_LBL")
-                    tagPicker_LBL.addMouseListener(NAB.TagPickerMouseListener())
-                    rowName_pnl.add(tagPicker_LBL, GridC.getc(onRowNameCol, onRowNameRow).leftInset(2).topInset(5).bottomInset(5).rightInset(2))
+                    formatCodePicker_LBL = MyJLabel(NAB.formatCodePickerIcon)
+                    formatCodePicker_LBL.setFocusable(True)
+                    formatCodePicker_LBL.putClientProperty("%s.id" %(NAB.myModuleID), "formatCodePicker_LBL")
+                    formatCodePicker_LBL.addMouseListener(NAB.FormatCodePickerMouseListener())
+                    rowName_pnl.add(formatCodePicker_LBL, GridC.getc(onRowNameCol, onRowNameRow).leftInset(2).topInset(5).bottomInset(5).rightInset(2))
                     onRowNameCol += 1
 
                     controlPnl.add(rowName_pnl, GridC.getc(onCol, onRow).colspan(2).leftInset(colInsetFiller).topInset(topInset).fillboth())
@@ -14965,7 +15476,7 @@ Visit: %s (Author's site)
                     onRowMathsCalculationRow = 0
                     onRowMathsCalculationCol = 0
 
-                    rowMathsCalculation_lbl = MyJLabel("Row maths calculation:")
+                    rowMathsCalculation_lbl = MyJLabel("Row maths calculation (RMC):")
                     rowMathsCalculation_lbl.putClientProperty("%s.id" %(NAB.myModuleID), "rowMathsCalculation_lbl")
                     rowMathsCalculation_lbl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     controlPnl.add(rowMathsCalculation_lbl, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
@@ -15013,7 +15524,7 @@ Visit: %s (Author's site)
                     operateOnAnotherRow_pnl = MyJPanel(GridBagLayout())
                     operateOnAnotherRow_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
 
-                    operateOnAnotherRow_lbl = MyJLabel("Maths using another row:")
+                    operateOnAnotherRow_lbl = MyJLabel("Maths using another row (UOR):")
                     operateOnAnotherRow_lbl.putClientProperty("%s.id" %(NAB.myModuleID), "operateOnAnotherRow_lbl")
                     operateOnAnotherRow_lbl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     controlPnl.add(operateOnAnotherRow_lbl, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
@@ -15066,7 +15577,7 @@ Visit: %s (Author's site)
                     onFinalMathsCalculationRow = 0
                     onFinalMathsCalculationCol = 0
 
-                    finalMathsCalculation_lbl = MyJLabel("Final maths calculation:")
+                    finalMathsCalculation_lbl = MyJLabel("Post UOR maths calculation (PUM):")
                     finalMathsCalculation_lbl.putClientProperty("%s.id" %(NAB.myModuleID), "finalMathsCalculation_lbl")
                     finalMathsCalculation_lbl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     controlPnl.add(finalMathsCalculation_lbl, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
@@ -15083,7 +15594,7 @@ Visit: %s (Author's site)
                     NAB.finalMathsCalculationAdjustValue_JRF.putClientProperty("%s.id" %(NAB.myModuleID), "finalMathsCalculationAdjustValue_JRF")
                     NAB.finalMathsCalculationAdjustValue_JRF.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.finalMathsCalculationAdjustValue_JRF.setName("finalMathsCalculationAdjustValue_JRF")
-                    NAB.finalMathsCalculationAdjustValue_JRF.setToolTipText("Adjust the final calculated balance using an operand (default 0.0) using the chosen maths operator")
+                    NAB.finalMathsCalculationAdjustValue_JRF.setToolTipText("Adjust the calculated balance using an operand (default 0.0) using the chosen maths operator (ALWAYS ABSORBED into other UORs)")
                     NAB.finalMathsCalculationAdjustValue_JRF.addFocusListener(NAB.saveFocusListener)
                     finalMathsCalculation_pnl.add(NAB.finalMathsCalculationAdjustValue_JRF, GridC.getc(onFinalMathsCalculationCol, onFinalMathsCalculationRow).leftInset(5).wx(1.0).fillboth().west())
                     onFinalMathsCalculationCol += 1
@@ -15097,52 +15608,50 @@ Visit: %s (Author's site)
                     NAB.finalMathsCalculationOperator_COMBO = MyJComboBox(operatorTypes)   # operatorTypes defined above
                     NAB.finalMathsCalculationOperator_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "finalMathsCalculationOperator_COMBO")
                     NAB.finalMathsCalculationOperator_COMBO.setName("finalMathsCalculationOperator_COMBO")
-                    NAB.finalMathsCalculationOperator_COMBO.setToolTipText("Select the final maths calculation 'operator' - e.g. '/' = divide by the value entered....")
+                    NAB.finalMathsCalculationOperator_COMBO.setToolTipText("Select the post-uor maths (PUM) calculation 'operator' - e.g. '/' = divide by the value entered (ALWAYS ABSORBED into other UORs)")
                     NAB.finalMathsCalculationOperator_COMBO.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.finalMathsCalculationOperator_COMBO.addActionListener(NAB.saveActionListener)
                     finalMathsCalculation_pnl.add(NAB.finalMathsCalculationOperator_COMBO, GridC.getc(onFinalMathsCalculationCol, onFinalMathsCalculationRow).leftInset(5))
                     onFinalMathsCalculationCol += 1
 
-                    NAB.finalMathsCalculationAbsorbIntoUORs_CB = MyJCheckBox("Absorb into other UORs", False)
-                    NAB.finalMathsCalculationAbsorbIntoUORs_CB.putClientProperty("%s.id" %(NAB.myModuleID), "finalMathsCalculationAbsorbIntoUORs_CB")
-                    NAB.finalMathsCalculationAbsorbIntoUORs_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
-                    NAB.finalMathsCalculationAbsorbIntoUORs_CB.setName("finalMathsCalculationAbsorbIntoUORs_CB")
-                    NAB.finalMathsCalculationAbsorbIntoUORs_CB.setToolTipText("When enabled, FMC calculation will be absorbed upwards into other UORs")
-                    NAB.finalMathsCalculationAbsorbIntoUORs_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    NAB.finalMathsCalculationAbsorbIntoUORs_CB.addActionListener(NAB.saveActionListener)
-                    finalMathsCalculation_pnl.add(NAB.finalMathsCalculationAbsorbIntoUORs_CB, GridC.getc(onFinalMathsCalculationCol, onFinalMathsCalculationRow).leftInset(5))
-                    onFinalMathsCalculationCol += 1
-
                     controlPnl.add(finalMathsCalculation_pnl, GridC.getc(onCol, onRow).west().leftInset(colInsetFiller).fillx().pady(pady).filly().colspan(2))
                     onCol += 2
 
-                    formatAsPercent_pnl = MyJPanel(GridBagLayout())
-                    formatAsPercent_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    onRow += 1
 
-                    onformatAsPercentRow = 0
-                    onformatAsPercentCol = 0
+                    # --------------------------------------------------------------------------------------------------
+                    onCol = 0
 
-                    NAB.formatAsPercent_CB = MyJCheckBox("Format as %", True)
-                    NAB.formatAsPercent_CB.putClientProperty("%s.id" %(NAB.myModuleID), "formatAsPercent_CB")
-                    NAB.formatAsPercent_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
-                    NAB.formatAsPercent_CB.setName("formatAsPercent_CB")
-                    NAB.formatAsPercent_CB.setToolTipText("When ticked, then the calculation result will be displayed as percentage...")
-                    NAB.formatAsPercent_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    NAB.formatAsPercent_CB.addActionListener(NAB.saveActionListener)
-                    formatAsPercent_pnl.add(NAB.formatAsPercent_CB, GridC.getc(onformatAsPercentCol, onformatAsPercentRow).leftInset(8))
-                    onformatAsPercentCol += 1
+                    formula_lbl = MyJLabel("Formula (FOR):")
+                    formula_lbl.putClientProperty("%s.id" %(NAB.myModuleID), "formula_lbl")
+                    formula_lbl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    controlPnl.add(formula_lbl, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
+                    onCol += 1
 
-                    NAB.formatAsPercentMult100_CB = MyJCheckBox("Multiply by 100", True)
-                    NAB.formatAsPercentMult100_CB.putClientProperty("%s.id" %(NAB.myModuleID), "formatAsPercentMult100_CB")
-                    NAB.formatAsPercentMult100_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
-                    NAB.formatAsPercentMult100_CB.setName("formatAsPercentMult100_CB")
-                    NAB.formatAsPercentMult100_CB.setToolTipText("When both this and format as % are ticked, then the final calculation will be multiplied by 100...")
-                    NAB.formatAsPercentMult100_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    NAB.formatAsPercentMult100_CB.addActionListener(NAB.saveActionListener)
-                    formatAsPercent_pnl.add(NAB.formatAsPercentMult100_CB, GridC.getc(onformatAsPercentCol, onformatAsPercentRow).leftInset(8))
-                    onformatAsPercentCol += 1
+                    formula_pnl = MyJPanel(GridBagLayout())
+                    onFormulaRow = 0
+                    onFormulaCol = 0
 
-                    controlPnl.add(formatAsPercent_pnl, GridC.getc(onCol, onRow).west().leftInset(colInsetFiller).fillx().pady(pady).filly().colspan(1))
+                    NAB.formula_JTF = MyJTextField("not set", 12, minColWidth=18)
+                    NAB.formula_JTF.setDocument(JTextFieldFormulaDocument(NAB.FILTER_FORMULA_EXPR_REGEX))
+                    NAB.formula_JTF.putClientProperty("%s.id" %(NAB.myModuleID), "formula_JTF")
+                    NAB.formula_JTF.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.formula_JTF.setName("formula_JTF")
+                    NAB.formula_JTF.setToolTipText("Enter a formula expression - e.g. '@this * 0.2' or '(('rowtagname / otherrowtagname') * 100)' (REFER HELP GUIDE CMD-I)")
+                    NAB.formula_JTF.addFocusListener(NAB.saveFocusListener)
+                    formula_pnl.add(NAB.formula_JTF, GridC.getc(onFormulaCol, onFormulaRow).west().rightInset(colRightInset).wx(1.0).fillboth().colspan(2))
+                    onFormulaCol += 2
+
+                    tagPicker_LBL = MyJLabel(NAB.tagPickerIcon)
+                    tagPicker_LBL.setFocusable(True)
+                    tagPicker_LBL.putClientProperty("%s.id" %(NAB.myModuleID), "tagPicker_LBL")
+                    tagPicker_LBL.addMouseListener(NAB.TagPickerMouseListener())
+                    formula_pnl.add(tagPicker_LBL, GridC.getc(onFormulaCol, onFormulaRow).leftInset(2).topInset(5).bottomInset(5).rightInset(2))
+                    onFormulaCol += 1
+
+                    controlPnl.add(formula_pnl, GridC.getc(onCol, onRow).colspan(2).leftInset(colInsetFiller).topInset(topInset).fillboth())
+                    onCol += 2
+
                     onRow += 1
 
                     # --------------------------------------------------------------------------------------------------
@@ -15153,6 +15662,84 @@ Visit: %s (Author's site)
                     js.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     controlPnl.add(js, GridC.getc(onCol, onRow).leftInset(colLeftInset).topInset(topInset).rightInset(colRightInset).bottomInset(bottomInset).colspan(3).fillx())
 
+                    onRow += 1
+
+                    # --------------------------------------------------------------------------------------------------
+                    pady = 5
+
+                    onCol = 0
+                    finalDisplayAdjust_pnl = MyJPanel(GridBagLayout())
+                    finalDisplayAdjust_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+
+                    onFinalDisplayAdjustRow = 0
+                    onFinalDisplayAdjustCol = 0
+
+                    finalDisplayAdjust_lbl = MyJLabel("Format display adjust (FDA):")
+                    finalDisplayAdjust_lbl.putClientProperty("%s.id" %(NAB.myModuleID), "finalDisplayAdjust_lbl")
+                    finalDisplayAdjust_lbl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    controlPnl.add(finalDisplayAdjust_lbl, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
+                    onCol += 1
+
+                    finalDisplayAdjust_lbl = MyJLabel("Operand value:")
+                    finalDisplayAdjust_lbl.putClientProperty("%s.id" %(NAB.myModuleID), "finalDisplayAdjust_lbl")
+                    finalDisplayAdjust_lbl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    finalDisplayAdjust_pnl.add(finalDisplayAdjust_lbl, GridC.getc(onFinalDisplayAdjustCol, onFinalDisplayAdjustRow).wx(0.1).east())
+                    onFinalDisplayAdjustCol += 1
+
+                    NAB.finalDisplayAdjustAdjustValue_JRF = MyJRateFieldAdjustCalcBy(12, NAB.decimal)
+                    if isinstance(NAB.finalDisplayAdjustAdjustValue_JRF, (MyJRateFieldAdjustCalcBy, JRateField, JTextField)): pass
+                    NAB.finalDisplayAdjustAdjustValue_JRF.putClientProperty("%s.id" %(NAB.myModuleID), "finalDisplayAdjustAdjustValue_JRF")
+                    NAB.finalDisplayAdjustAdjustValue_JRF.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.finalDisplayAdjustAdjustValue_JRF.setName("finalDisplayAdjustAdjustValue_JRF")
+                    NAB.finalDisplayAdjustAdjustValue_JRF.setToolTipText("Adjust the displayed balance using an operand (default 0.0) using the chosen maths operator")
+                    NAB.finalDisplayAdjustAdjustValue_JRF.addFocusListener(NAB.saveFocusListener)
+                    finalDisplayAdjust_pnl.add(NAB.finalDisplayAdjustAdjustValue_JRF, GridC.getc(onFinalDisplayAdjustCol, onFinalDisplayAdjustRow).leftInset(5).wx(1.0).fillboth().west())
+                    onFinalDisplayAdjustCol += 1
+
+                    operator_lbl = MyJLabel("Operator:")
+                    operator_lbl.putClientProperty("%s.id" %(NAB.myModuleID), "operator_lbl")
+                    operator_lbl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    finalDisplayAdjust_pnl.add(operator_lbl, GridC.getc(onFinalDisplayAdjustCol, onFinalDisplayAdjustRow).leftInset(5))
+                    onFinalDisplayAdjustCol += 1
+
+                    NAB.finalDisplayAdjustOperator_COMBO = MyJComboBox(operatorTypes)   # operatorTypes defined above
+                    NAB.finalDisplayAdjustOperator_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "finalDisplayAdjustOperator_COMBO")
+                    NAB.finalDisplayAdjustOperator_COMBO.setName("finalDisplayAdjustOperator_COMBO")
+                    NAB.finalDisplayAdjustOperator_COMBO.setToolTipText("Select the display adjust maths calculation 'operator' - e.g. '/' = divide by the value entered")
+                    NAB.finalDisplayAdjustOperator_COMBO.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.finalDisplayAdjustOperator_COMBO.addActionListener(NAB.saveActionListener)
+                    finalDisplayAdjust_pnl.add(NAB.finalDisplayAdjustOperator_COMBO, GridC.getc(onFinalDisplayAdjustCol, onFinalDisplayAdjustRow).leftInset(5))
+                    onFinalDisplayAdjustCol += 1
+
+                    controlPnl.add(finalDisplayAdjust_pnl, GridC.getc(onCol, onRow).west().leftInset(colInsetFiller).fillx().pady(pady).filly().colspan(1))
+                    onCol += 1
+
+                    onPercentMult100Row = 0
+                    onPercentMult100Col = 0
+                    percentMult100_pnl = MyJPanel(GridBagLayout())
+                    percentMult100_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+
+                    NAB.formatAsPercent_CB = MyJCheckBox("Format as %", True)
+                    NAB.formatAsPercent_CB.putClientProperty("%s.id" %(NAB.myModuleID), "formatAsPercent_CB")
+                    NAB.formatAsPercent_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    NAB.formatAsPercent_CB.setName("formatAsPercent_CB")
+                    NAB.formatAsPercent_CB.setToolTipText("When ticked, then the calculation result will be displayed as percentage...")
+                    NAB.formatAsPercent_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.formatAsPercent_CB.addActionListener(NAB.saveActionListener)
+                    percentMult100_pnl.add(NAB.formatAsPercent_CB, GridC.getc(onPercentMult100Col, onPercentMult100Row).rightInset(15))
+                    onPercentMult100Col += 1
+
+                    NAB.formatAsPercentMult100_CB = MyJCheckBox("Multiply by 100", True)
+                    NAB.formatAsPercentMult100_CB.putClientProperty("%s.id" %(NAB.myModuleID), "formatAsPercentMult100_CB")
+                    NAB.formatAsPercentMult100_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    NAB.formatAsPercentMult100_CB.setName("formatAsPercentMult100_CB")
+                    NAB.formatAsPercentMult100_CB.setToolTipText("When ticked, the displayed value (after all calculations) will be multiplied by 100...")
+                    NAB.formatAsPercentMult100_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.formatAsPercentMult100_CB.addActionListener(NAB.saveActionListener)
+                    percentMult100_pnl.add(NAB.formatAsPercentMult100_CB, GridC.getc(onPercentMult100Col, onPercentMult100Row))
+                    onPercentMult100Col += 1
+
+                    controlPnl.add(percentMult100_pnl, GridC.getc(onCol, onRow).west().leftInset(30))
                     onRow += 1
 
                     # --------------------------------------------------------------------------------------------------
@@ -15291,8 +15878,7 @@ Visit: %s (Author's site)
                     NAB.hideDecimals_CB.setToolTipText("Hide decimal places for this row. Displayed result will be rounded (e.g. 1.0 to 1.499 will become 1.0, and 1.5 to 1.999 will become 2.0)")
                     NAB.hideDecimals_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.hideDecimals_CB.addActionListener(NAB.saveActionListener)
-
-                    formatting_pnl.add(NAB.hideDecimals_CB, GridC.getc(onFormattingCol, onFormattingRow))
+                    formatting_pnl.add(NAB.hideDecimals_CB, GridC.getc(onFormattingCol, onFormattingRow).leftInset(colLeftInset))
                     onFormattingCol += 1
 
                     NAB.blinkRow_CB = MyJCheckBox("Blink", False)
@@ -15313,7 +15899,7 @@ Visit: %s (Author's site)
                     NAB.showWarnings_CB.setToolTipText("Warnings on 'illogical' calculations will be shown for this row...")
                     NAB.showWarnings_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.showWarnings_CB.addActionListener(NAB.saveActionListener)
-                    formatting_pnl.add(NAB.showWarnings_CB, GridC.getc(onFormattingCol, onFormattingRow).leftInset(13))
+                    formatting_pnl.add(NAB.showWarnings_CB, GridC.getc(onFormattingCol, onFormattingRow).leftInset(25))
                     onFormattingCol += 1
 
                     controlPnl.add(formatting_pnl, GridC.getc(onCol, onRow).colspan(2).fillx().west())
@@ -16429,15 +17015,15 @@ Visit: %s (Author's site)
 
             NAB = NetAccountBalancesExtension.getNAB()
 
-            assert NAB.isFinalMathsCalculationForRowIdx(rowIdx),             "LOGIC ERROR: .updateBalanceUsingFinalMathsCalculationForRowIdx() called on rowIdx: %s. Row does NOT use FMC?! >> balanceObj: %s" %(rowIdx, _balanceObj)
-            assert not _balanceObj.getFinalMathsApplied(),                   "LOGIC ERROR: .updateBalanceUsingFinalMathsCalculationForRowIdx() called on rowIdx: %s. balanceObj has already been applied FMC?! >> balanceObj: %s" %(rowIdx, _balanceObj)
-            assert not _balanceObj.getFinalMathsAppliedIsAbsorbedIntoUORs(), "LOGIC ERROR: .updateBalanceUsingFinalMathsCalculationForRowIdx() called on rowIdx: %s. balanceObj has already been applied FMC and absorbed into UORs?! >> balanceObj: %s" %(rowIdx, _balanceObj)
+            assert NAB.isFinalMathsCalculationForRowIdx(rowIdx),             "LOGIC ERROR: .updateBalanceUsingFinalMathsCalculationForRowIdx() called on rowIdx: %s. Row does NOT use PUM?! >> balanceObj: %s" %(rowIdx, _balanceObj)
+            assert not _balanceObj.getFinalMathsApplied(),                   "LOGIC ERROR: .updateBalanceUsingFinalMathsCalculationForRowIdx() called on rowIdx: %s. balanceObj has already been applied PUM?! >> balanceObj: %s" %(rowIdx, _balanceObj)
 
             if _balanceObj.getBalance() is None: return
 
             originalBalanceLong = _balanceObj.getBalance()
             originalBalanceDecimals = _balanceObj.getBalanceWithDecimalsPreserved()
 
+            # NOTE: Always absorbed anyway...
             operator = NAB.savedFinalMathsCalculationTable[rowIdx][NAB.FINAL_MATHS_CALC_OPERATOR_IDX]
             finalMathsCalculationOperand = NAB.savedFinalMathsCalculationTable[rowIdx][NAB.FINAL_MATHS_CALC_VALUE_IDX]
             finalMathsCalcAdjustedBalanceWithDecimals = MyHomePageView.calculateUsingSymbol(originalBalanceDecimals, operator, finalMathsCalculationOperand)
@@ -16446,20 +17032,20 @@ Visit: %s (Author's site)
             _balanceObj.setBalance(finalMathsCalcAdjustedBalanceLong)
             _balanceObj.setBalanceWithDecimalsPreserved(finalMathsCalcAdjustedBalanceWithDecimals)
             _balanceObj.setFinalMathsApplied(True)
-            _balanceObj.setFinalMathsAppliedIsAbsorbedIntoUORs(NAB.isFinalMathsCalculationAbsorbedIntoUORsForRowIdx(rowIdx))
 
-            if debug:myPrint("DB", ":: Row: %s using final maths calculation (FMC) adjustment of '%s' adjusted: %s (%s) to %s (%s) >> Absorbed into other UORs: %s"
-                              %(rowIdx+1, NAB.savedFinalMathsCalculationTable[rowIdx], originalBalanceLong, originalBalanceDecimals, finalMathsCalcAdjustedBalanceLong, finalMathsCalcAdjustedBalanceWithDecimals, NAB.isFinalMathsCalculationAbsorbedIntoUORsForRowIdx(rowIdx)))
+            if debug: myPrint("DB", ":: Row: %s using post-uor maths calculation (PUM) adjustment of '%s' adjusted: %s (%s) to %s (%s) >> Absorbed into other UORs: %s"
+                              %(rowIdx+1, NAB.savedFinalMathsCalculationTable[rowIdx], originalBalanceLong, originalBalanceDecimals, finalMathsCalcAdjustedBalanceLong, finalMathsCalcAdjustedBalanceWithDecimals, True))
 
 
         @staticmethod
-        def calculateBalances(_book, justIndex=None, lFromSimulate=False, swClass=None):
-            # type: (AccountBook, bool, bool, SwingWorker) -> [CalculatedBalance]
+        def calculateBalances(_book, justIndex=None, swClass=None):
+            # type: (AccountBook, bool, SwingWorker) -> [CalculatedBalance]
 
             if debug: myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
 
+            lFromSimulate = (justIndex is not None)
             if debug or TIMING_DEBUG:
-                if justIndex is not None: myPrint("B", ">> calculateBalances() >> SIMULATION >> RowIdx: %s (row: %s)" %(justIndex, justIndex + 1))
+                if lFromSimulate: myPrint("B", ">> calculateBalances() >> SIMULATION >> RowIdx: %s (row: %s)" %(justIndex, justIndex + 1))
 
             NAB = NetAccountBalancesExtension.getNAB()
 
@@ -16484,18 +17070,54 @@ Visit: %s (Author's site)
                     myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
                 thisSectionStartTime = System.currentTimeMillis()
 
-                # ------- DERIVE MASTER LIST OF ALL ROWS REQUIRED BY UOR CHAINS ----------------------------------------
+                validTagDict, validTagsFormulaDict = NAB.buildDictValidTagVariablesAndFormulas(None)                    # Build the valid tag dict here for efficiency!
+
+                # ------- DERIVE MASTER LIST OF ALL ROWS REQUIRED BY UOR CHAINS / FORMULAS -----------------------------
                 # The master list will contain all indexes that need to be calculated....
-                mstrListUORChainRowIdxsRqdForCalcs = []
-                mstrListUORChainRowUUIDsRqdForCalcs = []
-                for iAccountLoop in (range(0, NAB.getNumberOfRows()) if justIndex is None else [justIndex]):
-                    if justIndex is None:   # When simulating, always show the calculation (ignore hide/filters)
-                        if NAB.savedHideRowWhenXXXTable[iAccountLoop] == GlobalVars.HIDE_ROW_WHEN_ALWAYS: continue
-                        if NAB.isRowFilteredOutByGroupID(iAccountLoop): continue
-                    uorChainRowIdxsRqdForCalcs, uorUORChainRowUUIDsRqdForCalcs = MyHomePageView.deriveUORChainForRowIdx(iAccountLoop)
-                    mstrListUORChainRowIdxsRqdForCalcs.extend(uorChainRowIdxsRqdForCalcs)
-                    mstrListUORChainRowUUIDsRqdForCalcs.extend(uorUORChainRowUUIDsRqdForCalcs)
-                if debug: myPrint("B", ">> Master list of row indexes required and/or required within UOR calculations: %s" %(mstrListUORChainRowIdxsRqdForCalcs))
+                mstrListUORChainAndFormulaRowIdxsRqdForCalcs = set()        # set for speed, also to store unique values
+                mstrListUORChainRowAndFormulaUUIDsRqdForCalcs = set()
+
+                simulationIdxs = [justIndex] if lFromSimulate else []
+                # Hunt down all free variables referred to in formula for this row - if a simulation (otherwise all will get calculated anyway)...
+                # Unfortunately we have to do this for all rows, even when not simulating, in case some rows are hidden.
+                for i in (range(0, NAB.getNumberOfRows()) if not lFromSimulate else [justIndex]):
+
+                    if not lFromSimulate:   # When simulating, always show the calculation (ignore hide/filters)
+                        if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_ALWAYS: continue
+                        if NAB.isRowFilteredOutByGroupID(i): continue
+
+                    tagFormula = validTagsFormulaDict[i]
+                    if tagFormula.formula:
+                        result = NAB.FILTER_FORMULA_EXPR_REGEX_FREEVARS.findall(tagFormula.formula)                     # Check for 'free' variables referenced....
+                        if debug: myPrint("B", "@@ hunting for 'free' variables on row: %s in expr: '%s', found: %s" %(i + 1, tagFormula.formula, result))
+                        if result:
+                            for iLoopAgain in range(0, NAB.getNumberOfRows()):
+                                if iLoopAgain == i or iLoopAgain in simulationIdxs: continue
+                                otherTagFormula = validTagsFormulaDict[iLoopAgain]
+                                if otherTagFormula.tag:
+                                    for freeVarName in result:
+                                        if freeVarName == otherTagFormula.tag:
+                                            if debug: myPrint("B", "... found 'free' variable: '%s', adding row: %s" %(freeVarName, iLoopAgain + 1))
+                                            simulationIdxs.append(iLoopAgain)                                           # Force UOR checks on this row too
+                                            mstrListUORChainAndFormulaRowIdxsRqdForCalcs.add(iLoopAgain)
+                                            mstrListUORChainRowAndFormulaUUIDsRqdForCalcs.add(NAB.savedUUIDTable[iLoopAgain])
+
+                if lFromSimulate: simulationIdxs = sorted(simulationIdxs)
+
+                if debug: myPrint("B", ">> First step... after hunting for 'free' variables, need to include row indexes: %s" %(simulationIdxs))
+
+                for i in (range(0, NAB.getNumberOfRows()) if not lFromSimulate else simulationIdxs):
+                    if not lFromSimulate:   # When simulating, always show the calculation (ignore hide/filters)
+                        if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_ALWAYS: continue
+                        if NAB.isRowFilteredOutByGroupID(i): continue
+                    uorChainRowIdxsRqdForCalcs, uorUORChainRowUUIDsRqdForCalcs = MyHomePageView.deriveUORChainForRowIdx(i)
+                    mstrListUORChainAndFormulaRowIdxsRqdForCalcs.update(uorChainRowIdxsRqdForCalcs)
+                    mstrListUORChainRowAndFormulaUUIDsRqdForCalcs.update(uorUORChainRowUUIDsRqdForCalcs)
+                del simulationIdxs
+                mstrListUORChainAndFormulaRowIdxsRqdForCalcs = sorted(mstrListUORChainAndFormulaRowIdxsRqdForCalcs)
+
+                if debug: myPrint("B", ">> Master list of row indexes required and/or required within UOR / FORMULA calculations: %s" %(mstrListUORChainAndFormulaRowIdxsRqdForCalcs))
+
 
                 # -------- DERIVE LIST OF SELECTED ACCOUNTS ------------------------------------------------------------
                 accountsToShow = buildEmptyAccountList()
@@ -16505,11 +17127,11 @@ Visit: %s (Author's site)
 
                     onRow = iAccountLoop + 1
 
-                    # if justIndex is not None and iAccountLoop not in mstrListUORChainRowIdxsRqdForCalcs: continue
+                    # if justIndex is not None and iAccountLoop not in mstrListUORChainAndFormulaRowIdxsRqdForCalcs: continue
                     # if NAB.savedHideRowWhenXXXTable[iAccountLoop] == GlobalVars.HIDE_ROW_WHEN_ALWAYS: continue
                     # if NAB.isRowFilteredOutByGroupID(iAccountLoop): continue
 
-                    if iAccountLoop not in mstrListUORChainRowIdxsRqdForCalcs: continue
+                    if iAccountLoop not in mstrListUORChainAndFormulaRowIdxsRqdForCalcs: continue
 
                     if debug: myPrint("DB", "HomePageView::calculateBalances() Finding selected accounts for row: %s" %(onRow))
 
@@ -16548,11 +17170,11 @@ Visit: %s (Author's site)
 
                     parallelFullAccountsList = []
 
-                    # if justIndex is not None and iAccountLoop not in mstrListUORChainRowIdxsRqdForCalcs: continue
+                    # if justIndex is not None and iAccountLoop not in mstrListUORChainAndFormulaRowIdxsRqdForCalcs: continue
                     # if NAB.savedHideRowWhenXXXTable[iAccountLoop] == GlobalVars.HIDE_ROW_WHEN_ALWAYS: continue
                     # if NAB.isRowFilteredOutByGroupID(iAccountLoop): continue
 
-                    if iAccountLoop not in mstrListUORChainRowIdxsRqdForCalcs: continue
+                    if iAccountLoop not in mstrListUORChainAndFormulaRowIdxsRqdForCalcs: continue
 
                     if isParallelBalanceTableOperational(iAccountLoop):     # Could be for balance asof date, I/E date range, Cost Basis, Reminders
 
@@ -16655,7 +17277,7 @@ Visit: %s (Author's site)
                             realAutoSum = NAB.savedAutoSumAccounts[iAccountLoop]
 
                             ### START WARNING CHECKS ####
-                            if debug or (NAB.savedShowWarningsTable[iAccountLoop]):
+                            if (debug or NAB.savedShowWarningsTable[iAccountLoop]) and (not lFromSimulate or iAccountLoop == justIndex):
 
                                 # Validate selections.... Look for AutoSum'd accounts where a parent has been selected..
                                 if not NAB.migratedParameters:
@@ -16729,7 +17351,7 @@ Visit: %s (Author's site)
                                     effectiveDateInt = sudoAcctRef.getEffectiveDateInt()
 
                                     ### START WARNING CHECKS ####
-                                    if debug or (NAB.savedShowWarningsTable[iAccountLoop]):
+                                    if (debug or NAB.savedShowWarningsTable[iAccountLoop]) and (not lFromSimulate or iAccountLoop == justIndex):
 
                                         # Check for invalid cost basis issues...
                                         if sudoAcctRef.isCostBasisInvalid():
@@ -16782,15 +17404,15 @@ Visit: %s (Author's site)
                                 totalBalance += (bal * mult)
 
                         ### START WARNING CHECKS ####
-                        if debug or NAB.savedShowWarningsTable[iAccountLoop]:
+                        if (debug or NAB.savedShowWarningsTable[iAccountLoop]) and (not lFromSimulate or iAccountLoop == justIndex):
 
-                            # DETECT ILLOGICAL CALCULATIONS
-                            if not NAB.isValidTagNameForRowIdx(iAccountLoop):
+                            # DETECT ILLOGICAL CALCULATIONS - OR OTHER WARNINGS...
+                            if not NAB.isValidTagNameForRowIdx(iAccountLoop, validTagDict):
                                 lWarningDetected = True
                                 iWarningType = (17 if (iWarningType is None or iWarningType == 17) else 0)
                                 iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                                warnTxt = ("WARNING: Row: %s >> tag name '%s' specified, but is invalid, or it / the default ('%s') used elsewhere!"
-                                           %(onRow, NAB.savedTagNameTable[iAccountLoop], NAB.getTagVariableNameForRowIdx(iAccountLoop, True)))
+                                warnTxt = ("WARNING: Row: %s >> tag name '%s' specified, but is invalid, or it's used elsewhere!"
+                                           %(onRow, NAB.savedTagNameTable[iAccountLoop]))
                                 myPrint("B", warnTxt)
                                 NAB.warningMessagesTable.append(warnTxt)
 
@@ -16885,6 +17507,24 @@ Visit: %s (Author's site)
                                     myPrint("B", warnTxt)
                                     NAB.warningMessagesTable.append(warnTxt)
 
+                            rowTagName = validTagsFormulaDict[iAccountLoop].tag
+                            if rowTagName:
+                                if rowTagName.startswith("row") or (str(onRow) in rowTagName):                          # noqa
+                                    lWarningDetected = True
+                                    iWarningType = (21 if (iWarningType is None or iWarningType == 21) else 0)
+                                    iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                                    warnTxt = ("WARNING: Row: %s >> Tag name '%s' used... Tags should not start with 'row' or contain own row number!" %(onRow, NAB.getTagVariableNameForRowIdx(iAccountLoop, returnOriginalCase=True)))
+                                    myPrint("B", warnTxt)
+                                    NAB.warningMessagesTable.append(warnTxt)
+
+                                if rowTagName in NAB.FILTER_FORMULA_EXPR_ALLOWED_WORDS:
+                                    lWarningDetected = True
+                                    iWarningType = (22 if (iWarningType is None or iWarningType == 22) else 0)
+                                    iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                                    warnTxt = ("WARNING: Row: %s >> Tag name '%s' used... Tags should NOT be the same as function names (%s)!" %(onRow, NAB.getTagVariableNameForRowIdx(iAccountLoop, returnOriginalCase=True), NAB.FILTER_FORMULA_EXPR_ALLOWED_WORDS))
+                                    myPrint("B", warnTxt)
+                                    NAB.warningMessagesTable.append(warnTxt)
+
                         ### END WARNING CHECKS ###
 
                     # This is it, store the calculated balance!
@@ -16910,23 +17550,25 @@ Visit: %s (Author's site)
 
                 # Calculate any averages...
                 for i in range(0, len(_totalBalanceTable)):
+                    if i not in mstrListUORChainAndFormulaRowIdxsRqdForCalcs: continue
                     balanceObj = _totalBalanceTable[i]                                                                  # type: CalculatedBalance
-                    if (balanceObj.getBalance() is not None and balanceObj.getBalance() != 0):   # First usage, so should not need to use .getBalanceWithDecimalsPreserved()...
-                        lUseAverage = NAB.doesRowUseAvgBy(i)
-                        if not lUseAverage: continue
-                        originalBalance = balanceObj.getBalance()
-                        originalBalanceDecimals = balanceObj.getBalanceWithDecimalsPreserved()
-                        avgByForRow = NAB.getAvgByForRow(i)
-                        if avgByForRow == 0.0:
-                            averageDecimals = 0.0
-                            if debug: myPrint("DB", ":: Row: %s >> WARNING: Avg/by ZERO detected - zeroing the result! originalBalance was: %s (%s)" %(i+1, originalBalance, originalBalanceDecimals))
-                        else:
-                            averageDecimals = (originalBalanceDecimals / avgByForRow)
-                        averageLong = balanceObj.getCurrencyType().getLongValue(averageDecimals)
-                        balanceObj.setBalance(averageLong)
-                        balanceObj.setBalanceWithDecimalsPreserved(averageDecimals)
-                        balanceObj.setAverageByApplied(True)
-                        if debug: myPrint("DB", ":: Row: %s using 'average by': %s - converted: %s to %s (%s)" %(i+1, avgByForRow, originalBalance, averageLong, averageDecimals))
+                    if not balanceObj.isAnyError():
+                        if (balanceObj.getBalance() is not None and balanceObj.getBalance() != 0):   # First usage, so should not need to use .getBalanceWithDecimalsPreserved()...
+                            lUseAverage = NAB.doesRowUseAvgBy(i)
+                            if not lUseAverage: continue
+                            originalBalance = balanceObj.getBalance()
+                            originalBalanceDecimals = balanceObj.getBalanceWithDecimalsPreserved()
+                            avgByForRow = NAB.getAvgByForRow(i)
+                            if avgByForRow == 0.0:
+                                averageDecimals = 0.0
+                                if debug: myPrint("DB", ":: Row: %s >> WARNING: Avg/by ZERO detected - zeroing the result! originalBalance was: %s (%s)" %(i+1, originalBalance, originalBalanceDecimals))
+                            else:
+                                averageDecimals = (originalBalanceDecimals / avgByForRow)
+                            averageLong = balanceObj.getCurrencyType().getLongValue(averageDecimals)
+                            balanceObj.setBalance(averageLong)
+                            balanceObj.setBalanceWithDecimalsPreserved(averageDecimals)
+                            balanceObj.setAverageByApplied(True)
+                            if debug: myPrint("DB", ":: Row: %s using 'average by': %s - converted: %s to %s (%s)" %(i+1, avgByForRow, originalBalance, averageLong, averageDecimals))
 
                 tookTime = System.currentTimeMillis() - thisSectionStartTime
                 if debug or TIMING_DEBUG:
@@ -16936,30 +17578,31 @@ Visit: %s (Author's site)
 
                 # RMC: Perform (this) row maths calculations (adjustments)...
                 for i in range(0, len(_totalBalanceTable)):
+                    if i not in mstrListUORChainAndFormulaRowIdxsRqdForCalcs: continue
                     balanceObj = _totalBalanceTable[i]                                                                  # type: CalculatedBalance
+                    if not balanceObj.isAnyError():
+                        rowMathsCalculationOperand = NAB.savedRowMathsCalculationTable[i][NAB.ROW_MATHS_CALC_VALUE_IDX]
+                        lRowMathsCalculation = (rowMathsCalculationOperand != 0.0)
+                        if not lRowMathsCalculation: continue
 
-                    rowMathsCalculationOperand = NAB.savedRowMathsCalculationTable[i][NAB.ROW_MATHS_CALC_VALUE_IDX]
-                    lRowMathsCalculation = (rowMathsCalculationOperand != 0.0)
-                    if not lRowMathsCalculation: continue
+                        if (balanceObj.getBalance() is None):
+                            if debug: myPrint("B", "@@ Row: %s - Balance was None (selected accounts: %s, autoSum: %s), but RMC was requested, so passing 0.0 into RMC (%s)..."
+                                                      %(i+1, balanceObj.getCountSelectedAccounts(), balanceObj.getAutoSum(), NAB.savedRowMathsCalculationTable[i]))
+                            originalBalanceLong = 0
+                            originalBalanceDecimals = 0.0
+                        else:
+                            originalBalanceLong = balanceObj.getBalance()
+                            originalBalanceDecimals = balanceObj.getBalanceWithDecimalsPreserved()
 
-                    if (balanceObj.getBalance() is None):
-                        if debug: myPrint("B", "@@ Row: %s - Balance was None (selected accounts: %s, autoSum: %s), but RMC was requested, so passing 0.0 into RMC (%s)..."
-                                                  %(i+1, balanceObj.getCountSelectedAccounts(), balanceObj.getAutoSum(), NAB.savedRowMathsCalculationTable[i]))
-                        originalBalanceLong = 0
-                        originalBalanceDecimals = 0.0
-                    else:
-                        originalBalanceLong = balanceObj.getBalance()
-                        originalBalanceDecimals = balanceObj.getBalanceWithDecimalsPreserved()
+                        operator = NAB.savedRowMathsCalculationTable[i][NAB.ROW_MATHS_CALC_OPERATOR_IDX]
+                        rowMathsCalcAdjustedBalanceWithDecimals = MyHomePageView.calculateUsingSymbol(originalBalanceDecimals, operator, rowMathsCalculationOperand)
+                        rowMathsCalcAdjustedBalanceLong = balanceObj.getCurrencyType().getLongValue(rowMathsCalcAdjustedBalanceWithDecimals)
 
-                    operator = NAB.savedRowMathsCalculationTable[i][NAB.ROW_MATHS_CALC_OPERATOR_IDX]
-                    rowMathsCalcAdjustedBalanceWithDecimals = MyHomePageView.calculateUsingSymbol(originalBalanceDecimals, operator, rowMathsCalculationOperand)
-                    rowMathsCalcAdjustedBalanceLong = balanceObj.getCurrencyType().getLongValue(rowMathsCalcAdjustedBalanceWithDecimals)
-
-                    balanceObj.setBalance(rowMathsCalcAdjustedBalanceLong)
-                    balanceObj.setBalanceWithDecimalsPreserved(rowMathsCalcAdjustedBalanceWithDecimals)
-                    balanceObj.setRowMathsApplied(True)
-                    if debug: myPrint("DB", ":: Row: %s using (this) row maths calculation adjustment of '%s' adjusted: %s (%s) to %s (%s)"
-                                      %(i+1, NAB.savedRowMathsCalculationTable[i], originalBalanceLong, originalBalanceDecimals, rowMathsCalcAdjustedBalanceLong, rowMathsCalcAdjustedBalanceWithDecimals))
+                        balanceObj.setBalance(rowMathsCalcAdjustedBalanceLong)
+                        balanceObj.setBalanceWithDecimalsPreserved(rowMathsCalcAdjustedBalanceWithDecimals)
+                        balanceObj.setRowMathsApplied(True)
+                        if debug: myPrint("DB", ":: Row: %s using (this) row maths calculation adjustment of '%s' adjusted: %s (%s) to %s (%s)"
+                                          %(i+1, NAB.savedRowMathsCalculationTable[i], originalBalanceLong, originalBalanceDecimals, rowMathsCalcAdjustedBalanceLong, rowMathsCalcAdjustedBalanceWithDecimals))
 
                 tookTime = System.currentTimeMillis() - thisSectionStartTime
                 if debug or TIMING_DEBUG:
@@ -16973,6 +17616,7 @@ Visit: %s (Author's site)
                 # First work out the chains...
                 UORChains = {}
                 for i in range(0, len(_totalBalanceTable)):
+                    if i not in mstrListUORChainAndFormulaRowIdxsRqdForCalcs: continue
                     onRowIdx = i
                     primaryRowUUID = None
                     while True:
@@ -17002,125 +17646,260 @@ Visit: %s (Author's site)
 
                 alreadyUpdatedRowUUIDs = []
                 for i in range(0, len(_totalBalanceTable)):
+                    if i not in mstrListUORChainAndFormulaRowIdxsRqdForCalcs: continue
                     onRow = i + 1
                     balanceObj = _totalBalanceTable[i]                                                                  # type: CalculatedBalance
                     primaryRowUUID = balanceObj.getUUID()
-                    if (balanceObj.getBalance() is not None):
-                        if UORChains[balanceObj.getUUID()][-1] is None:
-                            # This row's chain is invalid!
-                            balanceObj.setUORError(True)
-                            lWarningDetected = True
-                            iWarningType = (5 if (iWarningType is None or iWarningType == 5) else 0)
-                            iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                            warnTxt = ("WARNING: Row: %s >> Wants to use other row: %s but this seems invalid and has been ignored...."
-                                       %(onRow, NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_ROW]))
-                            myPrint("B", warnTxt)
-                            NAB.warningMessagesTable.append(warnTxt)
+                    if not balanceObj.isAnyError():
+                        if (balanceObj.getBalance() is not None):
+                            if UORChains[balanceObj.getUUID()][-1] is None:
+                                # This row's chain is invalid!
+                                balanceObj.setUORError(True)
 
-                            if NAB.isFinalMathsCalculationAbsorbedIntoUORsForRowIdx(i):
-                                lWarningDetected = True
-                                iWarningType = (18 if (iWarningType is None or iWarningType == 18) else 0)
-                                iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                                warnTxt = ("WARNING: Row: %s >> Specified FMC (%s) being absorbed into other UOR, but invalid UOR: %s...."
-                                           %(onRow, NAB.savedFinalMathsCalculationTable[i], NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_ROW]))
-                                myPrint("B", warnTxt)
-                                NAB.warningMessagesTable.append(warnTxt)
-                        else:
-                            for iChainIdx in reversed(range(0, len(UORChains[primaryRowUUID]) -1)):
-                                onChainedUORIdx = UORChains[primaryRowUUID][iChainIdx]
-                                balanceObj = _totalBalanceTable[onChainedUORIdx]                                        # type: CalculatedBalance
-                                if balanceObj.getUUID() in alreadyUpdatedRowUUIDs:
-                                    if debug: myPrint("B", "@@ chains rowIdx: %s chain: %s iChainIdx: %s onChainedUORIdx: %s ALREADY UPDATED - SKIPPING" %(i, UORChains[primaryRowUUID], iChainIdx, onChainedUORIdx))
-                                    continue
-                                otherRowIdx = UORChains[primaryRowUUID][iChainIdx + 1]
-                                if debug: myPrint("B", "@@ chains rowIdx: %s chain: %s iChainIdx: %s onChainedUORIdx: %s otherRowIdx: %s" %(i, UORChains[primaryRowUUID], iChainIdx, onChainedUORIdx, otherRowIdx))
-
-                                thisRowBalLong = balanceObj.getBalance()
-                                thisRowBalWithDecimals = balanceObj.getBalanceWithDecimalsPreserved()
-
-                                otherRowBalanceObj = _totalBalanceTable[otherRowIdx]                                    # type: CalculatedBalance
-                                otherRowBalLong = otherRowBalanceObj.getBalance()
-                                otherRowBalWithDecimals = otherRowBalanceObj.getBalanceWithDecimalsPreserved()
-
-                                # Warning about mixed currencies...
-                                if debug: myPrint("B", "@@ row: %s chain: %s primary: '%s', other: '%s'" %(onRow, UORChains[primaryRowUUID], balanceObj.getCurrencyType(), otherRowBalanceObj.getCurrencyType()))
-                                if balanceObj.getCurrencyType() != otherRowBalanceObj.getCurrencyType():
+                                if (debug or NAB.savedShowWarningsTable[i]) and (not lFromSimulate or i == justIndex):
                                     lWarningDetected = True
-                                    iWarningType = (16 if (iWarningType is None or iWarningType == 16) else 0)
+                                    iWarningType = (5 if (iWarningType is None or iWarningType == 5) else 0)
                                     iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                                    warnTxt = ("WARNING: Row: %s >> Mixing different currencies within a single UOR chain - e.g. '%s' with '%s' (skipping further checks)"
-                                               %(onRow, balanceObj.getCurrencyType(), otherRowBalanceObj.getCurrencyType()))
+                                    warnTxt = ("WARNING: Row: %s >> Wants to use other row: %s but this seems invalid and has been ignored...."
+                                               %(onRow, NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_ROW]))
                                     myPrint("B", warnTxt)
                                     NAB.warningMessagesTable.append(warnTxt)
 
-                                if (otherRowBalLong is None or otherRowBalWithDecimals == 0.0):
-                                    if debug: myPrint("B", "...... RowIdx: %s (calc: %s - %s) otherRowIdx: %s balance (calc: %s - %s) is NOT valid (or is zero), so skipping this step!" %(i, thisRowBalLong, thisRowBalWithDecimals, otherRowIdx, otherRowBalLong, otherRowBalWithDecimals))
-                                    continue
+                                    if NAB.isFinalMathsCalculationForRowIdx(i):
+                                        lWarningDetected = True
+                                        iWarningType = (18 if (iWarningType is None or iWarningType == 18) else 0)
+                                        iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                                        warnTxt = ("WARNING: Row: %s >> Specified PUM (%s) being absorbed into other UOR, but invalid UOR: %s...."
+                                                   %(onRow, NAB.savedFinalMathsCalculationTable[i], NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_ROW]))
+                                        myPrint("B", warnTxt)
+                                        NAB.warningMessagesTable.append(warnTxt)
+                            else:
+                                for iChainIdx in reversed(range(0, len(UORChains[primaryRowUUID]) -1)):
+                                    onChainedUORIdx = UORChains[primaryRowUUID][iChainIdx]
+                                    balanceObj = _totalBalanceTable[onChainedUORIdx]                                    # type: CalculatedBalance
+                                    if balanceObj.getUUID() in alreadyUpdatedRowUUIDs:
+                                        if debug: myPrint("B", "@@ chains rowIdx: %s chain: %s iChainIdx: %s onChainedUORIdx: %s ALREADY UPDATED - SKIPPING" %(i, UORChains[primaryRowUUID], iChainIdx, onChainedUORIdx))
+                                        continue
+                                    otherRowIdx = UORChains[primaryRowUUID][iChainIdx + 1]
+                                    if debug: myPrint("B", "@@ chains rowIdx: %s chain: %s iChainIdx: %s onChainedUORIdx: %s otherRowIdx: %s" %(i, UORChains[primaryRowUUID], iChainIdx, onChainedUORIdx, otherRowIdx))
 
-                                if debug: myPrint("B", "@@ rowIdx: %s, otherRowIdx: %s, thisRowBalLong: %s (%s), otherRowBalLong: %s (%s)" %(i, otherRowIdx, thisRowBalLong, thisRowBalWithDecimals, otherRowBalLong, otherRowBalWithDecimals))
+                                    thisRowBalLong = balanceObj.getBalance()
+                                    thisRowBalWithDecimals = balanceObj.getBalanceWithDecimalsPreserved()
 
-                                # FMC: Perform final maths calculations (stage 1) >> absorbed into other UORs - within a UOR chain....
-                                if NAB.isFinalMathsCalculationAbsorbedIntoUORsForRowIdx(otherRowIdx):
-                                    if not otherRowBalanceObj.getFinalMathsAppliedIsAbsorbedIntoUORs():  # Check not already been calculated elsewhere
-                                        MyHomePageView.updateBalanceUsingFinalMathsCalculationForRowIdx(otherRowIdx, otherRowBalanceObj)
-                                        otherRowBalLong = otherRowBalanceObj.getBalance()
-                                        otherRowBalWithDecimals = otherRowBalanceObj.getBalanceWithDecimalsPreserved()
+                                    otherRowBalanceObj = _totalBalanceTable[otherRowIdx]                                # type: CalculatedBalance
+                                    otherRowBalLong = otherRowBalanceObj.getBalance()
+                                    otherRowBalWithDecimals = otherRowBalanceObj.getBalanceWithDecimalsPreserved()
 
-                                operator = NAB.savedOperateOnAnotherRowTable[onChainedUORIdx][NAB.OPERATE_OTHER_ROW_OPERATOR]
-                                newRowBalWithDecimals = MyHomePageView.calculateUsingSymbol(thisRowBalWithDecimals, operator, otherRowBalWithDecimals)
-                                newRowBalLong = balanceObj.getCurrencyType().getLongValue(newRowBalWithDecimals)
+                                    # Warning about mixed currencies...
+                                    if debug: myPrint("B", "@@ row: %s chain: %s primary: '%s', other: '%s'" %(onRow, UORChains[primaryRowUUID], balanceObj.getCurrencyType(), otherRowBalanceObj.getCurrencyType()))
+                                    if balanceObj.getCurrencyType() != otherRowBalanceObj.getCurrencyType():
+                                        if ((debug or NAB.savedShowWarningsTable[onChainedUORIdx] or NAB.savedShowWarningsTable[otherRowIdx])
+                                                and (not lFromSimulate or onChainedUORIdx == justIndex or otherRowIdx == justIndex)):
+                                            lWarningDetected = True
+                                            iWarningType = (16 if (iWarningType is None or iWarningType == 16) else 0)
+                                            iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                                            warnTxt = ("WARNING: Row: %s >> Mixing different currencies within a single UOR chain - e.g. '%s' with '%s' (skipping further checks)"
+                                                       %(onRow, balanceObj.getCurrencyType(), otherRowBalanceObj.getCurrencyType()))
+                                            myPrint("B", warnTxt)
+                                            NAB.warningMessagesTable.append(warnTxt)
 
-                                balanceObj.setBalance(newRowBalLong)
-                                balanceObj.setBalanceWithDecimalsPreserved(newRowBalWithDecimals)
-                                balanceObj.setMathsUORApplied(True)
+                                    if (otherRowBalLong is None or otherRowBalWithDecimals == 0.0):
+                                        if debug: myPrint("B", "...... RowIdx: %s (calc: %s - %s) otherRowIdx: %s balance (calc: %s - %s) is NOT valid (or is zero), so skipping this step!" %(i, thisRowBalLong, thisRowBalWithDecimals, otherRowIdx, otherRowBalLong, otherRowBalWithDecimals))
+                                        continue
 
-                                if debug: myPrint("DB", "... RowIdx: %s (calc: %s - %s) requires other rowIdx: %s (calc: %s - %s) >> New Balance calculated as: %s (%s)"
-                                                  %(i, thisRowBalLong, thisRowBalWithDecimals, otherRowIdx, otherRowBalLong, otherRowBalWithDecimals, newRowBalLong, newRowBalWithDecimals))
+                                    if debug: myPrint("B", "@@ rowIdx: %s, otherRowIdx: %s, thisRowBalLong: %s (%s), otherRowBalLong: %s (%s)" %(i, otherRowIdx, thisRowBalLong, thisRowBalWithDecimals, otherRowBalLong, otherRowBalWithDecimals))
 
-                                # myPrint("B", "!! Updating balance on onChainedUORIdx: %s with %s" %(onChainedUORIdx, balanceObj));
-                                alreadyUpdatedRowUUIDs.append(balanceObj.getUUID())
+                                    # PUM: Perform post-uor maths calculations >> absorbed into other UORs - within a UOR chain.... (previously fmc absorbed)....
+                                    if NAB.isFinalMathsCalculationForRowIdx(otherRowIdx):
+                                        if not otherRowBalanceObj.getFinalMathsApplied():  # Check not already been calculated elsewhere
+                                            MyHomePageView.updateBalanceUsingFinalMathsCalculationForRowIdx(otherRowIdx, otherRowBalanceObj)
+                                            otherRowBalLong = otherRowBalanceObj.getBalance()
+                                            otherRowBalWithDecimals = otherRowBalanceObj.getBalanceWithDecimalsPreserved()
+
+                                    operator = NAB.savedOperateOnAnotherRowTable[onChainedUORIdx][NAB.OPERATE_OTHER_ROW_OPERATOR]
+                                    newRowBalWithDecimals = MyHomePageView.calculateUsingSymbol(thisRowBalWithDecimals, operator, otherRowBalWithDecimals)
+                                    newRowBalLong = balanceObj.getCurrencyType().getLongValue(newRowBalWithDecimals)
+
+                                    balanceObj.setBalance(newRowBalLong)
+                                    balanceObj.setBalanceWithDecimalsPreserved(newRowBalWithDecimals)
+                                    balanceObj.setMathsUORApplied(True)
+
+                                    if debug: myPrint("DB", "... RowIdx: %s (calc: %s - %s) requires other rowIdx: %s (calc: %s - %s) >> New Balance calculated as: %s (%s)"
+                                                      %(i, thisRowBalLong, thisRowBalWithDecimals, otherRowIdx, otherRowBalLong, otherRowBalWithDecimals, newRowBalLong, newRowBalWithDecimals))
+
+                                    # myPrint("B", "!! Updating balance on onChainedUORIdx: %s with %s" %(onChainedUORIdx, balanceObj));
+                                    alreadyUpdatedRowUUIDs.append(balanceObj.getUUID())
 
                 tookTime = System.currentTimeMillis() - thisSectionStartTime
                 if debug or TIMING_DEBUG:
-                    stage = "5"; stageTxt = "::calculateBalances()"
+                    stage = "5a"; stageTxt = "::calculateBalances()"
                     myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
                 thisSectionStartTime = System.currentTimeMillis()
 
+
                 ############################################################################################
-                # FMC: Perform final maths calculations (stage 2) for any remaining FMCs not already calculated (including absorbed FMCs not consumed)...
+                # PUM: Perform post uor maths (stage 2) for any remaining PUMs not already calculated (because the UOR logic above does not process the top of the UOR chain)...
                 for i in range(0, len(_totalBalanceTable)):
+                    if i not in mstrListUORChainAndFormulaRowIdxsRqdForCalcs: continue
                     balanceObj = _totalBalanceTable[i]                                                                  # type: CalculatedBalance
                     if NAB.isFinalMathsCalculationForRowIdx(i) and not balanceObj.getFinalMathsApplied():
                         balanceObj = _totalBalanceTable[i]                                                              # type: CalculatedBalance
                         MyHomePageView.updateBalanceUsingFinalMathsCalculationForRowIdx(i, balanceObj)
 
-
-                ### DEBUG FMC SECTION
-                if debug:
-                    for i in range(0, len(_totalBalanceTable)):
-                        balanceObj = _totalBalanceTable[i]                                                              # type: CalculatedBalance
-                        if balanceObj.getBalance() is None or not NAB.isFinalMathsCalculationForRowIdx(i):
-                            assert not balanceObj.getFinalMathsApplied() and not balanceObj.getFinalMathsAppliedIsAbsorbedIntoUORs()
-                            continue
-                        assert balanceObj.getFinalMathsApplied()
-                        if NAB.isFinalMathsCalculationAbsorbedIntoUORsForRowIdx(i):
-                            assert balanceObj.getFinalMathsAppliedIsAbsorbedIntoUORs()
-                ### END DEBUG FMC
-
-
                 tookTime = System.currentTimeMillis() - thisSectionStartTime
                 if debug or TIMING_DEBUG:
-                    stage = "6a"; stageTxt = "::calculateBalances()"
+                    stage = "5b"; stageTxt = "::calculateBalances()"
                     myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
                 thisSectionStartTime = System.currentTimeMillis()
 
 
                 ##########################################
-                # Perform very final 'display as percent'...
+                # Perform formula calculations
+                if debug:
+                    myPrint("B", "------ calculateBalances() - PRE validTagsDict (for formulas):")
+                    for k, v in validTagDict.items(): myPrint("B", "TagKey: '%s', value: %s" %(k, v))
+                    myPrint("B", "----------------------------------------------------")
+
+                # Get values for valid tag names...
                 for i in range(0, len(_totalBalanceTable)):
+                    if i not in mstrListUORChainAndFormulaRowIdxsRqdForCalcs: continue
+                    balanceObj = _totalBalanceTable[i]                                                                  # type: CalculatedBalance
+                    defaultThisTag = "this00000row%s" %(str(i+1))
+                    if (balanceObj.getBalance() is not None):
+                        validTagDict[defaultThisTag] = balanceObj.getBalanceWithDecimalsPreserved()
+                    elif not balanceObj.isAnyError():
+                        validTagDict[defaultThisTag] = 0.0
+                    del defaultThisTag
+
+                    tagName = validTagsFormulaDict[i].tag
+                    if tagName is None or tagName not in validTagDict: continue
+
+                    if (balanceObj.isAnyError()):
+                        if debug: myPrint("B", "@@ row: %s has error flagged - removing %s from validTagDict" %(i+1, tagName))
+                        del validTagDict[tagName]                    # None / Invalid - so remove from valid tags...
+                    else:
+                        if debug: myPrint("B", "@@ row: %s updating %s with %s in validTagDict" %(i+1, tagName, balanceObj.getBalanceWithDecimalsPreserved()))
+                        validTagDict[tagName] = balanceObj.getBalanceWithDecimalsPreserved()
+                    continue
+
+                if debug:
+                    myPrint("B", "------ calculateBalances() - POST validTagsDict (for formulas):")
+                    for k, v in validTagDict.items(): myPrint("B", "TagKey: '%s', value: %s" %(k, v))
+                    myPrint("B", "----------------------------------------------------")
+
+                # Process formulas....
+                for i in range(0, len(_totalBalanceTable)):
+                    if i not in mstrListUORChainAndFormulaRowIdxsRqdForCalcs: continue
+                    onRow = i + 1
+                    balanceObj = _totalBalanceTable[i]                                                                  # type: CalculatedBalance
+                    if not balanceObj.isAnyError():
+                        if (balanceObj.getBalance() is None):
+                            if debug: myPrint("B", "@@ Row: %s - Balance was None, but FORMULA was requested (and balanceObj is not in error), so allowing formula to resolve..." %(i+1))
+
+                        result = None
+
+                        formula, errorType, errorValue = NAB.getFormulaExprForRowIdx(i, True)
+                        if formula is None:
+                            if errorType:
+                                balanceObj.setFormulaError(True)
+                        else:
+                            formulaCode, errorType, errorValue = NAB.compileFormula(formula)
+                            if formulaCode is None or errorType:
+                                balanceObj.setFormulaError(True)
+                            else:
+                                result, errorType, errorValue = NAB.evalFormula(formula, formulaCode, validTagDict)
+                                if result is None or errorType:
+                                    balanceObj.setFormulaError(True)
+
+                        # Errors (NOT warnings)...
+                        if (not lFromSimulate or i == justIndex):
+                            if balanceObj.isFormulaError():
+                                lWarningDetected = True
+                                iWarningType = (19 if (iWarningType is None or iWarningType == 19) else 0)
+                                iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                                warnTxt = ("ERROR:   Row: %s >> Formula error: check free variables or syntax in your formula: '%s'" %(onRow, NAB.savedFormulaTable[i][NAB.FORMULA_EXPR_IDX]))
+                                myPrint("B", warnTxt)
+                                NAB.warningMessagesTable.append(warnTxt)
+                                try: errorName = errorValue.__class__. __name__
+                                except: errorName = type(errorValue)
+                                warnTxt = ("ERROR:   Row: %s >> Formula error: %s: '%s'" %(onRow, errorName, errorValue))
+                                myPrint("B", warnTxt)
+                                NAB.warningMessagesTable.append(warnTxt)
+
+                        # Warnings...
+                        if (debug or NAB.savedShowWarningsTable[i]) and (not lFromSimulate or i == justIndex):
+                            if formula is not None:
+                                thisTag = validTagsFormulaDict[i].tag
+                                if ("this00000row" not in formula and (thisTag is None or thisTag not in formula)):
+                                    lWarningDetected = True
+                                    iWarningType = (20 if (iWarningType is None or iWarningType == 20) else 0)
+                                    iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                                    warnTxt = ("WARNING: Row: %s >> Formula appears to NOT reference this row ?! ('%s')" %(onRow, NAB.savedFormulaTable[i][NAB.FORMULA_EXPR_IDX]))
+                                    myPrint("B", warnTxt)
+                                    NAB.warningMessagesTable.append(warnTxt)
+
+                        if formula is None or balanceObj.isFormulaError(): continue
+
+                        originalBalanceLong = balanceObj.getBalance()
+                        originalBalanceDecimals = balanceObj.getBalanceWithDecimalsPreserved()
+
+                        formulaAdjustedBalanceWithDecimals = result
+                        formulaAdjustedBalanceLong = balanceObj.getCurrencyType().getLongValue(formulaAdjustedBalanceWithDecimals)
+
+                        balanceObj.setBalance(formulaAdjustedBalanceLong)
+                        balanceObj.setBalanceWithDecimalsPreserved(formulaAdjustedBalanceWithDecimals)
+                        balanceObj.setFormulaApplied(True)
+
+                        if debug: myPrint("DB", ":: Row: %s formula applied ('%s')- adjusted: %s (%s) to %s (%s)"
+                                          %(i+1, formula, originalBalanceLong, originalBalanceDecimals, formulaAdjustedBalanceLong, formulaAdjustedBalanceWithDecimals))
+
+                tookTime = System.currentTimeMillis() - thisSectionStartTime
+                if debug or TIMING_DEBUG:
+                    stage = "6"; stageTxt = "::calculateBalances()"
+                    myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
+                thisSectionStartTime = System.currentTimeMillis()
+
+
+                ############################################################################################
+                # FDA: Perform final / format display adjust maths calculations... (previously FMC non-absorbed).....
+                for i in range(0, len(_totalBalanceTable)):
+                    if i not in mstrListUORChainAndFormulaRowIdxsRqdForCalcs: continue
+                    if not NAB.isFinalDisplayAdjustForRowIdx(i): continue
+
+                    balanceObj = _totalBalanceTable[i]                                                                  # type: CalculatedBalance
+                    if not balanceObj.isAnyError():
+                        if (balanceObj.getBalance() is None):
+                            if debug: myPrint("B", "@@ Row: %s - Balance was None (selected accounts: %s, autoSum: %s), but FDA was requested, so passing 0.0 into FDA (%s)..."
+                                                      %(i+1, balanceObj.getCountSelectedAccounts(), balanceObj.getAutoSum(), NAB.savedFinalDisplayAdjustTable[i]))
+                            originalBalanceLong = 0
+                            originalBalanceDecimals = 0.0
+                        else:
+                            originalBalanceLong = balanceObj.getBalance()
+                            originalBalanceDecimals = balanceObj.getBalanceWithDecimalsPreserved()
+
+                        operator = NAB.savedFinalDisplayAdjustTable[i][NAB.FINAL_DISPLAY_ADJUST_OPERATOR_IDX]
+                        operand = NAB.savedFinalDisplayAdjustTable[i][NAB.FINAL_DISPLAY_ADJUST_VALUE_IDX]
+                        finalDisplayAdjustedBalanceWithDecimals = MyHomePageView.calculateUsingSymbol(originalBalanceDecimals, operator, operand)
+                        finalDisplayAdjustedBalanceLong = balanceObj.getCurrencyType().getLongValue(finalDisplayAdjustedBalanceWithDecimals)
+
+                        balanceObj.setBalance(finalDisplayAdjustedBalanceLong)
+                        balanceObj.setBalanceWithDecimalsPreserved(finalDisplayAdjustedBalanceWithDecimals)
+                        balanceObj.setFinalDisplayAdjustApplied(True)
+                        if debug: myPrint("DB", ":: Row: %s using format display adjustment of '%s' adjusted: %s (%s) to %s (%s)"
+                                          %(i+1, NAB.savedFinalDisplayAdjustTable[i], originalBalanceLong, originalBalanceDecimals, finalDisplayAdjustedBalanceLong, finalDisplayAdjustedBalanceWithDecimals))
+
+                tookTime = System.currentTimeMillis() - thisSectionStartTime
+                if debug or TIMING_DEBUG:
+                    stage = "7a"; stageTxt = "::calculateBalances()"
+                    myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
+                thisSectionStartTime = System.currentTimeMillis()
+
+                ##########################################
+                # Perform 'display as percent' *100s...
+                for i in range(0, len(_totalBalanceTable)):
+                    if i not in mstrListUORChainAndFormulaRowIdxsRqdForCalcs: continue
                     balanceObj = _totalBalanceTable[i]                                                                  # type: CalculatedBalance
                     if (balanceObj.getBalance() is not None):
-                        if not NAB.savedFormatAsPercentTable[i][NAB.FORMAT_AS_PERCENT_IDX]: continue
                         if not NAB.savedFormatAsPercentTable[i][NAB.FORMAT_AS_PERCENT_MULT100_IDX]: continue
 
                         originalBalanceLong = balanceObj.getBalance()
@@ -17138,15 +17917,18 @@ Visit: %s (Author's site)
 
                 tookTime = System.currentTimeMillis() - thisSectionStartTime
                 if debug or TIMING_DEBUG:
-                    stage = "6b"; stageTxt = "::calculateBalances()"
+                    stage = "7b"; stageTxt = "::calculateBalances()"
                     myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
                 thisSectionStartTime = System.currentTimeMillis()
+
+
 
                 # Update NABs temporary balance table with results
                 with NAB.NAB_TEMP_BALANCE_TABLE_LOCK:
                     if not lFromSimulate:  NAB.clearLastResultsBalanceTable(obtainLockFirst=False)
                     observedUUIDKeys = {}
                     for i in range(0, len(_totalBalanceTable)):
+                        if i not in mstrListUORChainAndFormulaRowIdxsRqdForCalcs: continue
                         onRow = i + 1
                         balanceObj = _totalBalanceTable[i]                                                              # type: CalculatedBalance
                         observedUUIDKeys[balanceObj.getUUID()] = True
@@ -17156,7 +17938,7 @@ Visit: %s (Author's site)
                                 if debug: myPrint("B", "@@ ALERT: uuid: %s not found in lastResultsTable for BalObj: %s (ignoring as I presume it a new row and will update below)..." %(balanceObj.getUUID(), balanceObj.toString()))
                             else:
                                 lastResultsBalObj.setRowNumber(onRow)
-                        if (not lFromSimulate or (balanceObj.getUUID() in mstrListUORChainRowUUIDsRqdForCalcs)):
+                        if (not lFromSimulate or (balanceObj.getUUID() in mstrListUORChainRowAndFormulaUUIDsRqdForCalcs)):
                             if debug: myPrint("DB", ".. Updating temporary balance table - uuid: '%s' with Balance: '%s'" %(balanceObj.getUUID(), balanceObj.toString()))
                             NAB.lastResultsBalanceTable[balanceObj.getUUID()] = balanceObj
                         else:
@@ -17175,7 +17957,7 @@ Visit: %s (Author's site)
 
                 tookTime = System.currentTimeMillis() - thisSectionStartTime
                 if debug or TIMING_DEBUG:
-                    stage = "7"; stageTxt = "::calculateBalances()"
+                    stage = "8"; stageTxt = "::calculateBalances()"
                     myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
                 # thisSectionStartTime = System.currentTimeMillis()
 
@@ -17190,6 +17972,8 @@ Visit: %s (Author's site)
                             result = "<ZERO>"
                         elif balanceObj.isUORError():
                             result = CalculatedBalance.DEFAULT_WIDGET_ROW_UOR_ERROR
+                        elif balanceObj.isFormulaError():
+                            result = CalculatedBalance.DEFAULT_WIDGET_ROW_FORMULA_ERROR
                         else:
                             result = balanceObj.getCurrencyType().getDoubleValue(balanceObj.getBalance())
                             resultDecimals = " (%s)" %(balanceObj.getBalanceWithDecimalsPreserved())
@@ -17382,6 +18166,8 @@ Visit: %s (Author's site)
                                     lUseAverage = NAB.doesRowUseAvgBy(i)
                                     lRowMathsCalculation = (NAB.isRowMathsCalculationForRowIdx(i))
                                     lFinalMathsCalculation = (NAB.isFinalMathsCalculationForRowIdx(i))
+                                    lFormula = (NAB.isFormulaForRowIdx(i))
+                                    lFinalDisplayAdjust = (NAB.isFinalDisplayAdjustForRowIdx(i))
                                     lFormatAsPercent = (NAB.savedFormatAsPercentTable[i][NAB.FORMAT_AS_PERCENT_IDX])
                                     lUsesOtherRow = (NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_ROW] is not None)
                                     lUseTaxDates = (NAB.savedUseTaxDates and isIncomeExpenseDatesSelected(i))
@@ -17453,10 +18239,20 @@ Visit: %s (Author's site)
                                     showFinalMathsCalcText = ""
                                     if lFinalMathsCalculation:
                                         if debug:
-                                            showFinalMathsCalcText = " (fmc: '%s')" %(NAB.savedFinalMathsCalculationTable[i])
+                                            showFinalMathsCalcText = " (pum: '%s')" %(NAB.savedFinalMathsCalculationTable[i])
                                         else:
-                                            showFinalMathsCalcText = " (fmc)"
-                                        if debug: myPrint("DB", ":: Row: %s using final maths calculation: %s" %(i+1, NAB.savedFinalMathsCalculationTable[i]))
+                                            showFinalMathsCalcText = " (pum)"
+                                        if debug: myPrint("DB", ":: Row: %s using post-uor maths calculation: %s" %(i+1, NAB.savedFinalMathsCalculationTable[i]))
+
+                                    showFormulaText = ""
+                                    if lFormula:
+                                        showFormulaText = " (for)"
+                                        if debug: myPrint("DB", ":: Row: %s using formula: %s" %(i+1, NAB.savedFormulaTable[i]))
+
+                                    showFinalDisplayAdjustText = ""
+                                    if lFinalDisplayAdjust:
+                                        showFinalDisplayAdjustText = " (fda)"
+                                        if debug: myPrint("DB", ":: Row: %s using format display adjustment: %s" %(i+1, NAB.savedFinalDisplayAdjustTable[i]))
 
                                     showUseTaxDatesText = ""
                                     if lUseTaxDates:
@@ -17488,6 +18284,8 @@ Visit: %s (Author's site)
                                                                       + showAverageText
                                                                       + showRowMathsCalcText
                                                                       + showFinalMathsCalcText
+                                                                      + showFormulaText
+                                                                      + showFinalDisplayAdjustText
                                                                       + showUseTaxDatesText
                                                                       + showBalanceAsOfText
                                                                       + showIncludeRemindersText
@@ -17509,6 +18307,14 @@ Visit: %s (Author's site)
 
                                     elif balanceObj.isUORError():
                                         netTotalLbl = SpecialJLinkLabel(CalculatedBalance.DEFAULT_WIDGET_ROW_UOR_ERROR.lower(),
+                                                                        "showConfig?%s" %(str(onRow)),
+                                                                        JLabel.RIGHT,
+                                                                        tdfsc=tdfsc)
+                                        netTotalLbl.setFont(tdfsc.getValueFont(False))
+                                        netTotalLbl.setForeground(md.getUI().getColors().errorMessageForeground)
+
+                                    elif balanceObj.isFormulaError():
+                                        netTotalLbl = SpecialJLinkLabel(CalculatedBalance.DEFAULT_WIDGET_ROW_FORMULA_ERROR.lower(),
                                                                         "showConfig?%s" %(str(onRow)),
                                                                         JLabel.RIGHT,
                                                                         tdfsc=tdfsc)
@@ -17633,7 +18439,7 @@ Visit: %s (Author's site)
                                                  parallelText, balanceAsOfText, includeRemindersText, costBasisText, useTaxDatesText,
                                                  hiddenRowsText, filteredRowsText, filterGroupIDText]:
                                         combinedTxt += _txt
-                                        if _txt != "": _countTxtAdded += 1
+                                        if _txt: _countTxtAdded += 1
                                         if _countTxtAdded >= 3:
                                             combinedTxt += "<BR>"
                                             _countTxtAdded = 0

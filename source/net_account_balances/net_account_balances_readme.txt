@@ -31,6 +31,27 @@ This extension creates a 'widget' that calculates / displays totals on the Money
 
 - You can change the name of each row, the balance type, and the currency to display. Also Active/Inactive items.
 
+------------------------------------------------------------------------------------------------------------------------
+UPGRADE NOTES:
+If you have been using recent PREVIEW builds (since 1038 / November 2023) then you may have configured
+'Final Maths Calculation' (FMC), and also come across 'absorbed into other UORs' and also 'not absorbed'. These settings
+have gone, and have been migrated into:
+a) 'Post UOR maths calculation' (PUM) (replacing FMC absorbed), or...
+b) 'Format Display Adjust' (FDA)      (replacing FMC non-absorbed).
+
+DEFINITION: 'absorbed' in this context means that the math takes place before being rolled upwards into other
+UORs that refer to this row... I.e. 'non-absorbed' means the impact of the maths stays on this row alone.
+
+There is a new exciting Formula (FOR) capability with this build. This in effect can replace RMC, UOR, PUM. You can
+continue to use these, or use the new superior formula capability. You can actually combine all these, but this is
+NOT RECOMMENDED as it's duplicative and confusing to understand. RECOMMENDATION: if you want to use formulas, then
+manually update your settings to only use formula. Average by is not affected by this change. FDA and *100 can remain,
+or be replaced by formula - your choice.
+
+Formula gives you the ability to add multiple rows together, or perhaps subtract one row from another (for example).
+These types of calculations are quite tricky to perform using the 'old' UOR maths.
+------------------------------------------------------------------------------------------------------------------------
+
 LET'S GET STARTED:
 
 FIRST: If the configuration area is too large on your screen, and you cannot see the 'Account Selection List' then:
@@ -219,9 +240,11 @@ MATH ON CALCULATED BALANCES:
                            NOTE: You can enter an RMC with no accounts selected in the picklist. The calculation will
                                  start from 0.0. This is a way to create a reusable row constant for use in other
                                  rows - e.g. RMC: + 0.22 for a 22% tax rate. NOTE: As soon as you enable this, then the
-                                 following UOR, FMC, Format as %, Multiply by 100 options will trigger for this row...
+                                 following UOR, PUM, Format as %, Multiply by 100 options will trigger for this row...
 
                            WARNING: You can use both average by, and RMC. This could cause strange results!
+
+                           >> RECOMMENDATION: Use formula instead of RMC/UOR/PUM where possible
 
 - Maths using another row (UOR): You can retrieve the result from another row(x) and then apply maths to the result of
                                  the current row.. E.g. take this row and divide it by the result from row(x).
@@ -230,24 +253,70 @@ MATH ON CALCULATED BALANCES:
 
                                  WARNING: There is no currency conversion between chained UORs
 
-- Final maths calculation (FMC): You can apply maths to the row's final calculation as the very last step
-                                 ... AFTER all other calculations (including other rows) have been applied.
+                                 >> RECOMMENDATION: Use formula instead of RMC/UOR/PUM where possible
 
-                                 >> OR <<
+- Post UOR maths calculation (PUM):
+                                 You can apply maths to the row's calculation as the last step BEFORE formulas
+                                 This PUM will be calculated and always provided 'upwards' into any other UORs consuming
+                                 this row (directly or indirectly). Hence, per row, you can 'roll' PUMs upwards.
+                                 This setting is per row...
 
-                                 If you select 'Absorb into other UORs', then the FMC will be calculated and provided
-                                 'upwards' into any other UORs consuming this row (directly or indirectly)..
-                                 Hence, per row, you can 'roll' FMCs upwards.. This setting is per row.
+                                 PUM EXAMPLE:                                   DISPLAYED
+                                 - Row1: UOR: 2+   accounts: 1.0   PUM +2.0        11,003
+                                 - Row2: UOR: 3+   accounts: 1.0   PUM *1000.0     11,000
+                                 - Row3: UOR: -    accounts: 10.0  no PUM            10.0
 
-                   FMC EXAMPLE:                                           DISPLAYED(default)   DISPLAYED(absorb upwards)
-                   - Row1: UOR: 2+   accounts: 1.0   FMC +2.0       absorb:    NO      14.0        absorb: YES   11,003
-                   - Row2: UOR: 3+   accounts: 1.0   FMC *1000.0    absorb:    NO    11,000        absorb: YES   11,000
-                   - Row3: UOR: -    accounts: 10.0  no FMC         absorb:    NO      10.0        absorb: NO      10.0
+                                 >> RECOMMENDATION: Use formula instead of RMC/UOR/PUM where possible
 
+- Formula (FOR): You can write a formula expression to be applied (AFTER any RMC, UOR, PUM options).
+
+                 - You probably (always) should start with the default tag '@this'. @this will pull in this row's
+                   calculated balance without having to set a 'tag'... Or you can just set a tag on this row and refer
+                   to it... If you don't refer to this row, then the result of any formula will ignore any selected
+                   pre-formula accounts / RMC, UOR, PUM calculations etc....
+
+                   Example formulas: '((@this - applestock) / networth) * 100.0'
+                                     '@this * 0.2' or '(rowtagname / otherrowtagname)' or '@danspecialnumber'
+                                     'NetWorth / @pi' or 'random()' or '@mdbuild * @mdversion'
+
+                 - You can also enter currencyIDs / security ticker symbols if you wish
+                   (if setup in tools>Currencies / tools>Securities) >> E.g. '@this * @GBP' or '@this * @APPL'
+
+                 - Formula can refer to the calculated result from any row with a 'tag' name (including it's own row)
+
+                 - For example '((investments / networth) * 100)' to obtain your investments as a percentage of networth
+                   ... assuming that you set the tags 'investments' and 'networth' on the appropriate row(s)
+
+                 - Formulas NEVER absorb / roll up into other UORs
+
+                 - Formulas NEVER include the results of formulas... Only everything before a formula.. I.e. the result
+                   ... from a Formula is only visible to itself / its own row. I.e. if you refer to a row (tag)
+                   ... in a formula, then you will refer to that row's calculated result BEFORE that row's formula
+
+                 - Formulas are optional. You can use them with or without RMC, UOR, PUM, FDA, *100 etc. For ease of
+                   management, you should probably only use (RMC, UOR, PUM) -OR- formulas,
+                   ... not both (but it's up to you)!
+
+                 NOTE: Currently, the only functions allowed are: sum(), abs(), min(), max(), round(), float(), random()
+                       ** if these do not work properly for you, please contact the author
+
+                 WARNING: You can enter an FORMULA with no accounts selected in the picklist. The formula will
+                          try to resolve. BUT if you refer to @this or this row's tag, then you will probably get an
+                          invalid result!
+
+                 WARNING: ALWAYS use numbers with a decimal such as 10.0 rather than just 10 (decimals may get chopped)
+                          NEVER use currency signs or commas in numbers, only use '.' as the decimal place!
+
+                 >> RECOMMENDATION: Do not mix formula and RMC/UOR/PUM. Ideally, just use formula where possible
+
+- Format display adjustment (FDA): You can apply maths to change the displayed value after all other calculations.
+                                   As you would expect, this result is NEVER used elsewhere.
+                                   - You could optionally perform this step manually in the formula too...
 
 - Format as %: When ticked then normal currency formatting is disabled and the '%' symbol is appended.
-               When 'Multiply by 100' is also ticked, then the final result is multiplied by 100.
-               'Multiply by 100' is important if you haven't already done "math" to make it a true percentage.
+               When 'Multiply by 100' is ticked, then the displayed result after everything else is multiplied by 100.
+                    - You could optionally perform this step manually in the formula too...
+                    - 'Multiply by 100' can be important if you haven't already done "math" to make it a true percentage
 
 ------------------------------------------------------------------------------------------------------------------------
 
@@ -255,7 +324,9 @@ FORMATTING FOR ROW DISPLAY:
 
 - Hide row when options:
     Never, Always(Disable), balance = X, balance >= X, balance <= X. DEFAULT FOR X is ZERO
-    >> 'Always(Disable)' normally causes the row NEVER to be calculated, unless its consumed by another row (UOR).
+    >> 'Always(Disable)' normally causes the row NEVER to be calculated, unless consumed by another row (UOR)
+       or formula (FOR)
+
     You can set X to any value (positive or negative)
     NOTE: If you select row option 'Hide Decimal Places', AND 'auto-hide row when balance=X',
           ... AND set X to a whole number (no decimals), then the calculated balance will be rounded when comparing to X
@@ -416,10 +487,16 @@ GroupID allows you create groups of rows that you can separately display.
 NOTE: This is free text, so the numbers are examples. A groupid of "Debt;CCList;Whatever" totally works.
 
 
-TAG FIELD (FUTURE USE - NOT YET ENABLED):
-The tag field allows you to assign a tag/variable name to the selected row. This can be used in UOR and formula
-expressions. This can be blank (i.e. no tag / variable name has been set). Only the digits Aa-Zz, 0-9 are allowed.
-NOTE: If no tag is set then internally a tag with the format 'row' + row number will be assigned (e.g. 'row1').
+TAG FIELD:
+The tag field allows you to assign a tag/variable name to the selected row. This can be used in formula expressions.
+This can be blank (i.e. no tag / variable name has been set). First character can only be alpha(A-Z), followed only by
+alpha-numeric characters. You can enter MiXeD case, but internally it will always use the lowercase version...
+
+       NOTES:
+        - you do NOT need to set a tag for use only in this row - you can simply refer to the magic tag @this.
+        - if no tag is set then the row cannot be referred to by another row's formula.
+        - please do NOT use tags such as 'row1' as these will go wrong if/when you reorder your rows..
+        - ideally use short tags such as 'taxrate'.
 
 
 WARNINGS BOX:
@@ -543,7 +620,9 @@ Against each row you may see (in small grey characters) the following (text) wit
 (cg-s)          Capital Gains - Short Term value
 (cg-l)          Capital Gains - Long Term value
 (rmc)           Row maths calculation is being applied
-(fmc)           Final maths calculation is being applied
+(pum)           Post UOR maths is being applied (will absorb into other UORs that consume this row)
+(for)           Formula is being applied
+(fda)           Format display adjustment is being applied
 (txd)           Tax dates are being used
 (uor: x)        Maths using another row(x) is being applied
 
@@ -555,30 +634,37 @@ DETAILS ON HOW CALCULATIONS OF BALANCES OCCURS:
 
 >> CALCULATION ORDER: The calculations are performed is this sequence (for all rows, or just the simulation row):
     - Derive all rows required, and/or required within other rows (irrespective of always hide / GroupID filter)
-    - (unless used within other rows) skip any 'always hide' rows
-    - (unless used within other rows) skip any rows filtered out by GroupID
+      (this includes hunting for 'free' variables referred to in other formulas, or UOR chains that require this row)
+    - (unless used within other rows / formulas) skip any 'always hide' rows
+    - (unless used within other rows / formulas) skip any rows filtered out by GroupID
     - Calculate raw balances for derived rows/accounts, including recursive sub accounts for autosum rows
     - Convert calculated balances to target currency
     - Iterate over each row/calculation, apply any average/by calculations
-    - Iterate over each row/calculation, apply any row maths calculations specified
+    - Iterate over each row/calculation, apply any row maths calculations (rmc) specified
     - Iterate over each row/calculation, apply any Use Other Row (UOR) calculations.. Iterate the whole UOR chain
-    - Iterate over each row/calculation, apply any final maths calculation specified
-    - Lastly, if 'Format as %' AND *100 are selected, then multiply result by 100.
-    NOTE: Format as %, Disable Currency Formatting, Hide Decimal Places only affect the final display, not calculations
-          ... although 'Hide Decimal Places' can cause rounding to be triggered when 'auto-hide row when balance=X'
-          is specified... but this only affects the hide logic and final display. The calculated result is not impacted.
+                                         Calculate pum into UOR result during processing...
+    - >> results before this point will be stored within the 'tag' variables for formulas - see next step <<
+    - Iterate over each row/calculation, apply any formula (for)
+    - Iterate over each row/calculation, apply any format display adjustments (fda)
+    - If *100 is selected, then multiply displayed result by 100
 
-    WARNING: Rows that are used within other rows are ALWAYS calculated, irrespective of hide/GroupID filter
+    NOTE: Format as %, Disable Currency Formatting, Hide Decimal Places only affect the display, not calculations
+          ... although 'Hide Decimal Places' can cause rounding to be triggered when 'auto-hide row when balance=X'
+          is specified... but this only affects the hide logic and format display. The calculated result is not impacted.
+
+    WARNING: Rows that are used within other rows / formulas are ALWAYS calculated, irrespective of hide/GroupID filter
              >> be mindful of the CPU / speed impact of non-displayed rows especially when using parallel calculations!
+
+    WARNING: Formulas only reference the results from above. They never include the results from other formulas
+             To make a 'this-row' only adjustment, only use a formula, and do not use PUM.
 
 >> DECIMAL PRECISION: Whilst only 2 decimal places will/can be displayed (according to your currency's decimal setting),
                       full decimal precision will be stored internally, and this internal value will be used for maths
-                      functions that operate on the row's calculated result (e.g. average by, maths UOR, final maths
-                      calculations...
+                      functions that operate on the row's calculated result (e.g. average by, RMC, UOR, PUM, FOR, FDA)..
 
 
 >> ROUNDING:
-Rounding is only performed on the final / displayed result when 'Hide Decimal Places' is selected. The internal number
+Rounding is only performed on the displayed result when 'Hide Decimal Places' is selected. The internal number
 is never rounded, and full decimal precision is always preserved internally for onward UOR consumption.
 - Rounding of Java Double / Python float numbers can be problematic. Custom Balances calls Jython's round() method. This
   internally uses Java's BigDecimal class with the RoundingMode.HALF_UP mode (e.g. 0.5 should become 1.0).
