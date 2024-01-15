@@ -6069,7 +6069,7 @@ Visit: %s (Author's site)
                     reportSpec.setReportParameters(theParams)
                 else:
                     myPrint("B","No graph parameters found (or invalid), resetting to defaults....")
-                    reportSpec.setReportParameters(None)
+                    reportSpec.setReportParameters(theParams)
 
                 if debug:
                     myPrint("B","---")
