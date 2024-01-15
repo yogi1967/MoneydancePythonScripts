@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# security_performance_graph.py build: 1009 - Oct 2023 - Stuart Beesley StuWareSoftSystems
+# security_performance_graph.py build: 1010 - Jan 2024 - Stuart Beesley StuWareSoftSystems
 
 # requires: MD 2021.1(3069) due to NPE on SwingUtilities - something to do with 'theGenerator.setInfo(reportSpec)'
 
@@ -44,6 +44,7 @@
 # build: 1007 - Common code tweaks
 # build: 1008 - Cleanup references to MD Objects; Change CurrencyNumberFormat to hold a WeakReference() to CurrencyType...
 # build: 1009 - Common code - FileFilter fix...
+# build: 1010 - Fixed call to .setReportParameters(None) for 5064+ build
 
 # todo - hunt down why something retains a reference to MD object..?
 
@@ -56,7 +57,7 @@
 
 # SET THESE LINES
 myModuleID = u"security_performance_graph"
-version_build = "1009"
+version_build = "1010"
 MIN_BUILD_REQD = 3069
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
