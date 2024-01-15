@@ -159,7 +159,7 @@
 #               Added new option showMDLaunchParameters()...; relocated advanced_clone_dataset() into extra_code...
 # build: 1063 - Common code - FileFilter fix...; Tweak OFX_view_CUSIP_settings() to deal with blank CUSIP schemes...
 #               tweaked: force_change_all_accounts_categories_currencies(); added: validateAndFixBaseCurrency. Tweaked base currency validation/repair code.
-#               Tweaked diag/fix currencies/securities and diag/fix base currency routines
+#               Tweaked diag/fix currencies/securities and diag/fix base currency routines; tweak menu for fix base currency
 
 # todo - undo the patch to DetectMobileAppTxnFiles() for Sonoma.. Perhaps put into a Thread()?
 
@@ -28132,7 +28132,7 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                     user_fix_price_date = MenuJRadioButton("FIX: Manually edit a currency/ security's current price hidden 'price_date' field (2021.2(3089) onwards)", False, updateMenu=True, secondaryEnabled=(isRRateCurrencyIssueFixedBuild()))
                     user_fix_price_date.setToolTipText("Allows you to manually edit a Currency / Security's current price hidden 'price_date' field....")
 
-                    user_fixBaseCurr = MenuJRadioButton("DIAG: Fix base currency (apply this fix before diagnosing/fixing currencies (below))", False, updateMenu=True, secondaryEnabled=(validateAndFixBaseCurrency(validationOnly=True, popupAlert=False, modalPopup=False, adviseNoErrors=False)))
+                    user_fixBaseCurr = MenuJRadioButton("FIX: Fix base currency (apply this fix before diagnosing/fixing currencies (below))", False, updateMenu=True, secondaryEnabled=(validateAndFixBaseCurrency(validationOnly=True, popupAlert=False, modalPopup=False, adviseNoErrors=False)))
                     user_fixBaseCurr.setToolTipText("This will fix your base Currency. Apply this fix before diagnosing/fixing currencies (below)")
 
                     user_fix_curr_sec = MenuJRadioButton("FIX: Fix currencies / securities (including relative currencies) (based on reset_relative_currencies.py) (MUST RUN DIAGNOSE ABOVE FIRST)", False, updateMenu=True, secondaryEnabled=(GlobalVars.fixRCurrencyCheck is not None and GlobalVars.fixRCurrencyCheck > 1))
