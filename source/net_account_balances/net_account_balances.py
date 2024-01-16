@@ -127,7 +127,9 @@
 # build: 1047 - Basically 1046 with formula... Just bumping the build number....
 #               Fixed PUM(Absorb) auto-upgrade; fixed(re-added) 'mop up' PUM code in calculateBalances...
 
-# todo - formula: find way to regex find / replace integers with integer.0 or float(integer)? Perhaps enhance std fucntions to float all parameters?
+# todo - consider better formula handlers... e.g. com.infinitekind.util.StringUtils.parseFormula(String, char)
+# todo - formula: find way to regex find / replace integers with integer.0 or float(integer)? Perhaps enhance std functions to float all parameters?
+
 # todo - option to show different dpc (e.g. full decimal precision)
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -11729,7 +11731,8 @@ Visit: %s (Author's site)
                             if lastBalObj is None:
                                 isAutoHidden = True
                                 thisRowAlwaysOrAutoHideTxt = " "
-                                thisRowAlwaysOrAutoHideTxt += html_strip_chars(AUTO_HIDE_LOOKUP_ERROR)
+                                thisRowAlwaysOrAutoHideTxt += html_strip_chars(AUTO_HIDE_LOOKUP_ERROR);
+                                if True or debug: myPrint("B", "LOGIC ERROR: rebuildRowSelectorCombo:: could not find row %s in lastResultsBalanceTable" %(onRow));
                                 # raise Exception("LOGIC ERROR: could not find row %s in lastResultsBalanceTable" %(onRow))
                             else:
                                 isAutoHidden = NAB.isThisRowAlwaysHideOrAutoHidden(lastBalObj, i, checkAlwaysHide=False, checkAutoHideWhen=True)
@@ -17823,7 +17826,7 @@ Visit: %s (Author's site)
                                 try: errorName = errorValue.__class__. __name__
                                 except: errorName = type(errorValue)
                                 warnTxt = ("ERROR:   Row: %s >> Formula error: %s: '%s'" %(onRow, errorName, errorValue))
-                                myPrint("B", warnTxt)
+                                if True or debug: myPrint("B", warnTxt);
                                 NAB.warningMessagesTable.append(warnTxt)
 
                         # Warnings...
@@ -17835,7 +17838,7 @@ Visit: %s (Author's site)
                                     iWarningType = (20 if (iWarningType is None or iWarningType == 20) else 0)
                                     iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
                                     warnTxt = ("WARNING: Row: %s >> Formula appears to NOT reference this row ?! ('%s')" %(onRow, NAB.savedFormulaTable[i][NAB.FORMULA_EXPR_IDX]))
-                                    myPrint("B", warnTxt)
+                                    if True or debug: myPrint("B", warnTxt);
                                     NAB.warningMessagesTable.append(warnTxt)
 
                         if formula is None or balanceObj.isFormulaError(): continue
@@ -17928,7 +17931,7 @@ Visit: %s (Author's site)
                     if not lFromSimulate:  NAB.clearLastResultsBalanceTable(obtainLockFirst=False)
                     observedUUIDKeys = {}
                     for i in range(0, len(_totalBalanceTable)):
-                        if i not in mstrListUORChainAndFormulaRowIdxsRqdForCalcs: continue
+                        # if i not in mstrListUORChainAndFormulaRowIdxsRqdForCalcs: continue
                         onRow = i + 1
                         balanceObj = _totalBalanceTable[i]                                                              # type: CalculatedBalance
                         observedUUIDKeys[balanceObj.getUUID()] = True
