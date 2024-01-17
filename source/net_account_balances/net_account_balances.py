@@ -121,7 +121,8 @@ from __future__ import division    # Has to occur at the beginning of file... Ch
 #               Added format code tag picker to row name field...; added row selector popup; added Tag Name field (etc)....
 #               Switched to using MyHomePageView.calculateUsingSymbol() for all "+-*/" operations using symbol as string...
 #               FMC - absorb into other UORs enabled....
-# build: 1046 - NEW: row formulas... (changed FMC to PFM / then PUM - post-uor maths). NOTE: variable 'finalMathsCalculationTable' NOT renamed to maintain backwards settings.....
+# build: 1046 - NEW: row formulas... Uses a heavily protected eval...
+#               (changed FMC to PFM / then PUM - post-uor maths). NOTE: variable 'finalMathsCalculationTable' NOT renamed to maintain backwards settings.....
 #               Split old FMC (now PUM) for Dan's Final Display Adjust (FDA)... Thus PUM is always absorbed, FDA is last and never absorbed...
 #               FDA renamed display name to Format Display Adjustment; PFM renamed now to PUM (post-uor maths)
 #               Fixed: now always reset GlobalVars.parametersLoadedFromFile to avoid possibility of old/newer settings if retro-loading old version of extension...
@@ -131,6 +132,7 @@ from __future__ import division    # Has to occur at the beginning of file... Ch
 #               Deep breath! Now using 'from __future__ import division' so that division on integers returns a float (python 3 functionality).
 #                            Why!? So that formulas using protected eval can handle division by int without loosing precision
 #               Created own min, max, abs functions for protected eval that convert parameters to floats etc...
+#               Added formula warning label(red)...
 
 # todo - consider better formula handlers... e.g. com.infinitekind.util.StringUtils.parseFormula(String, char)
 
@@ -9203,6 +9205,7 @@ Visit: %s (Author's site)
             self.warningInParametersDetectedType = False
             self.warningInParametersDetectedInRow = None
             self.warningMessagesTable = []
+            self.lastFormulaWarning = None
             self.parallelBalanceTableOperating = False
             self.lastResultsBalanceTable = {}
 
@@ -9264,7 +9267,7 @@ Visit: %s (Author's site)
             self.FILTER_FORMULA_EXPR_REGEX_SPECIALVARS = re.compile(r"(?:^|\s)(\@\w+)", (re.IGNORECASE | re.UNICODE | re.LOCALE))       # noqa
             self.FILTER_FORMULA_EXPR_REGEX_FREEVARS = re.compile(r"\b([a-z]\w*[a-z0-9]*)", (re.IGNORECASE | re.UNICODE | re.LOCALE))    # noqa
             self.FILTER_FORMULA_EXPR_ALLOWED_WORDS = ["sum", "abs", "min", "max", "round", "float", "random"]
-            self.FILTER_FORMULA_EXPR_FORMULA_DESCRIBED = ["sum(a,b,...)", "abs(n)", "min(a,b)", "max(a,b)", "round(a,n)", "float(a)", "random()"]
+            self.FILTER_FORMULA_EXPR_FORMULA_DESCRIBED = ["sum(a,b[,...])", "abs(n)", "min(a,b[,...])", "max(a,b[,...])", "round(a[,n])", "float(a)", "random()"]
             self.FILTER_FORMULA_EXPR_DEFAULT_TAGS = ["@this"]
 
             self.savedFormulaTable = None
@@ -9371,6 +9374,7 @@ Visit: %s (Author's site)
             self.finalMathsCalculationOperator_COMBO    = None
 
             self.formula_JTF                          = None
+            self.formulaWarning_LBL                   = None
 
             self.formatAsPercent_CB                   = None
             self.formatAsPercentMult100_CB            = None
@@ -11189,50 +11193,72 @@ Visit: %s (Author's site)
 
             ############################################################################################################
             # Hide/replace/simplify builtin math methods (e.g. not require [lists], convert args to float etc...
-            def sum(*args):                                                                                             # noqa
+            def _sum(*args):
                 if len(args) < 1: raise TypeError("CB's sum() takes at least 1 argument (%s given)" %(len(args)))
                 _result = 0.0
                 for arg in args:
                     if not isinstance(arg, (int, float, long)): raise TypeError("CB's sum() requires int, long, float parameters (%s given)" %(type(arg)))
                     _result += float(arg)
-                # myPrint("B", "my sum result: %s" %(_result));
+                # myPrint("B", "_sum result: %s" %(_result));
                 return _result
 
-            def min(*args):                                                                                             # noqa
+            def _min(*args):
                 if len(args) < 1: raise TypeError("CB's min() takes at least 1 argument (%s given)" %(len(args)))
                 _result = None
                 for arg in args:
                     if not isinstance(arg, (int, float, long)): raise TypeError("CB's min() requires int, long, float parameters (%s given)" %(type(arg)))
                     if _result is None: _result = float(arg)
                     _result = Math.min(float(arg), _result)
-                # myPrint("B", "my min result: %s" %(_result));
+                # myPrint("B", "_min result: %s" %(_result));
                 return _result
 
-            def max(*args):                                                                                             # noqa
+            def _max(*args):
                 if len(args) < 1: raise TypeError("CB's max() takes at least 1 argument (%s given)" %(len(args)))
                 _result = None
                 for arg in args:
                     if not isinstance(arg, (int, float, long)): raise TypeError("CB's max() requires int, long, float parameters (%s given)" %(type(arg)))
                     if _result is None: _result = float(arg)
                     _result = Math.max(float(arg), _result)
-                # myPrint("B", "my max result: %s" %(_result));
+                # myPrint("B", "_max result: %s" %(_result));
                 return _result
 
-            def abs(value):                                                                                             # noqa
-                if not isinstance(value, (int, float, long)):
-                    raise TypeError("CB's abs() requires int, long, float parameters (%s given)" %(type(value)))
-                myPrint("B", "... result:", Math.abs(float(value)))
-                _result = Math.abs(float(value))
-                # myPrint("B", "my abs result: %s" %(_result))
+            def _abs(*args):
+                if len(args) != 1: raise TypeError("CB's abs() takes exactly 1 argument (%s given)" %(len(args)))
+                _result = None
+                for arg in args:
+                    if not isinstance(arg, (int, float, long)): raise TypeError("CB's abs() requires int, long, float parameters (%s given)" %(type(arg)))
+                    myPrint("B", "... result:", Math.abs(float(arg)))
+                    _result = Math.abs(float(arg))
+                    break
+                # myPrint("B", "_abs result: %s" %(_result))
                 return _result
 
-            def random(): return Math.random()
+            def _round(*args):
+                if len(args) < 1 or len(args) > 2: raise TypeError("CB's round() takes exactly 1-2 arguments (%s given)" %(len(args)))
+                value = args[0]
+                dpc = 0
+                if len(args) == 2: dpc = args[1]
+                if not isinstance(value, (int, float, long)): raise TypeError("CB's round() requires int, long, float value parameter (%s given)" %(type(value)))
+                if not isinstance(dpc, (int)):   raise TypeError("CB's round() requires int rounding dpc parameter (%s given)" %(type(dpc)))
+                if dpc < 0: raise TypeError("CB's round() requires positive int rounding dpc parameter (%s given)" %(dpc))
+                value = float(value)
+                dpc = int(dpc)
+                _result = round(value, dpc)
+                # myPrint("B", "_round() result: %s" %(_result));
+                return _result
 
-            TAG_VARIABLES["sum"] = sum
-            TAG_VARIABLES["min"] = min
-            TAG_VARIABLES["max"] = max
-            TAG_VARIABLES["abs"] = abs
-            TAG_VARIABLES["random"] = random
+            def _random(*args):                                                                                          # noqa
+                if len(args) != 0: raise TypeError("CB's random() takes no arguments (%s given)" %(len(args)))
+                _result = Math.random()
+                # myPrint("B", "_random() result: %s" %(_result));
+                return _result
+
+            TAG_VARIABLES["sum"] = _sum
+            TAG_VARIABLES["min"] = _min
+            TAG_VARIABLES["max"] = _max
+            TAG_VARIABLES["abs"] = _abs
+            TAG_VARIABLES["round"] = _round
+            TAG_VARIABLES["random"] = _random
             # No need to touch round() as it always provides a float back!
 
             ############################################################################################################
@@ -11528,6 +11554,13 @@ Visit: %s (Author's site)
             NAB.incExpDateRangeLabel.setHorizontalAlignment(JLabel.LEFT)
             NAB.incExpDateRangeLabel.repaint()
 
+        def setFormulaWarningLabel(self):
+            NAB = NetAccountBalancesExtension.getNAB()
+            myPrint("DB", "about to set formula warning rang label..")
+            NAB.incExpDateRangeLabel.setText("")
+            NAB.incExpDateRangeLabel.setHorizontalAlignment(JLabel.LEFT)
+            NAB.incExpDateRangeLabel.repaint()
+
         def setCapGainsDateRangeLabel(self, _rowIdx):
             NAB = NetAccountBalancesExtension.getNAB()
 
@@ -11666,6 +11699,7 @@ Visit: %s (Author's site)
             NAB.setAcctListKeyLabel(_rowIdx)
             NAB.setParallelBalancesWarningLabel(_rowIdx)
             NAB.setAccountListChangedLabel()
+            NAB.setFormulaWarningLabel()
             NAB.saveSettings_JBTN.setForeground(getColorRed() if not NAB.configSaved else NAB.moneydanceContext.getUI().getColors().defaultTextForeground)
 
         def refreshJListDisplay(self): self.jlst.repaint()
@@ -12914,6 +12948,9 @@ Visit: %s (Author's site)
                         NAB.warning_label.setText(wrap_HTML_BIG_small("", "warnings turned off", altFG))
                     else:
                         NAB.warning_label.setText("?")
+
+                    NAB.formulaWarning_LBL.setText("" if (not NAB.lastFormulaWarning) else NAB.lastFormulaWarning)
+                    NAB.formulaWarning_LBL.setForeground(md.getUI().getColors().errorMessageForeground)
 
                     NAB.showWarnings_LBL.setIcon(NAB.warningIcon if NAB.warningMessagesTable else None)
 
@@ -15347,7 +15384,7 @@ Visit: %s (Author's site)
                     # vs.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")                                    # noqa
                     # controlPnl.add(vs, GridC.getc(onCol, onRow))
                     #
-                    onCol += 2
+                    onCol += 3
 
                     onRow += 1
 
@@ -15396,7 +15433,7 @@ Visit: %s (Author's site)
                     vs.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")                                    # noqa
                     controlPnl.add(vs, GridC.getc(onCol, onRow))
 
-                    onCol += 2
+                    onCol += 3
 
                     onRow += 1
 
@@ -15696,6 +15733,24 @@ Visit: %s (Author's site)
                     controlPnl.add(formula_pnl, GridC.getc(onCol, onRow).colspan(2).leftInset(colInsetFiller).topInset(topInset).fillboth())
                     onCol += 2
 
+                    onRow += 1
+
+                    # --------------------------------------------------------------------------------------------------
+
+                    onCol = 1
+                    topInset = 0
+                    bottomInset = 0
+
+                    NAB.formulaWarning_LBL = MyJLabel("")
+                    NAB.formulaWarning_LBL.putClientProperty("%s.id" %(NAB.myModuleID), "formulaWarning_LBL")
+                    NAB.formulaWarning_LBL.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    controlPnl.add(NAB.formulaWarning_LBL, GridC.getc(onCol, onRow).colspan(3).fillx().insets(topInset,colInsetFiller,bottomInset,colRightInset))
+
+                    # vs = Box.createVerticalStrut(18)
+                    # vs.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")                                    # noqa
+                    # controlPnl.add(vs, GridC.getc(onCol, onRow))
+
+                    onCol += 3
                     onRow += 1
 
                     # --------------------------------------------------------------------------------------------------
@@ -17264,6 +17319,8 @@ Visit: %s (Author's site)
                 del parallelTxnTable
                 # --------------------------------------------------------------------------------------------------
 
+                NAB.lastFormulaWarning = None
+
                 lWarningDetected = False
                 iWarningType = None
                 iWarningDetectedInRow = None
@@ -17870,6 +17927,7 @@ Visit: %s (Author's site)
                                 warnTxt = ("ERROR:   Row: %s >> Formula error: %s: '%s'" %(onRow, errorName, errorValue))
                                 if debug: myPrint("B", warnTxt)
                                 NAB.warningMessagesTable.append(warnTxt)
+                                NAB.lastFormulaWarning = "Formula error: %s: '%s'" %(errorName, errorValue)
 
                         # Warnings...
                         if (debug or NAB.savedShowWarningsTable[i]) and (not lFromSimulate or i == justIndex):
@@ -17882,6 +17940,7 @@ Visit: %s (Author's site)
                                     warnTxt = ("WARNING: Row: %s >> Formula appears to NOT reference this row ?! ('%s')" %(onRow, NAB.savedFormulaTable[i][NAB.FORMULA_EXPR_IDX]))
                                     if debug: myPrint("B", warnTxt)
                                     NAB.warningMessagesTable.append(warnTxt)
+                                    if not NAB.lastFormulaWarning: NAB.lastFormulaWarning = "Warning: Formula appears to NOT reference this row?!"
 
                         if formula is None or balanceObj.isFormulaError(): continue
 
