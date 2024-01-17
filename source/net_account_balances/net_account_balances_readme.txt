@@ -304,8 +304,7 @@ MATH ON CALCULATED BALANCES:
                           try to resolve. BUT if you refer to @this or this row's tag, then you will probably get an
                           invalid result!
 
-                 WARNING: ALWAYS use numbers with a decimal such as 10.0 rather than just 10 (decimals may get chopped)
-                          NEVER use currency signs or commas in numbers, only use '.' as the decimal place!
+                 WARNING: NEVER use currency signs or commas in numbers, only use '.' as the decimal place!
 
                  >> RECOMMENDATION: Do not mix formula and RMC/UOR/PUM. Ideally, just use formula where possible
 

@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
+from __future__ import division    # Has to occur at the beginning of file... Changes division to always produce a float
+
 # net_account_balances.py build: 1047 - Jan 2024 - Stuart Beesley - StuWareSoftSystems
 # Display Name in MD changed to 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
 
@@ -126,9 +128,11 @@
 #               Enhanced/new row selector(s)...;
 # build: 1047 - Basically 1046 with formula... Just bumping the build number....
 #               Fixed PUM(Absorb) auto-upgrade; fixed(re-added) 'mop up' PUM code in calculateBalances...
+#               Deep breath! Now using 'from __future__ import division' so that division on integers returns a float (python 3 functionality).
+#                            Why!? So that formulas using protected eval can handle division by int without loosing precision
+#               Created own min, max, abs functions for protected eval that convert parameters to floats etc...
 
 # todo - consider better formula handlers... e.g. com.infinitekind.util.StringUtils.parseFormula(String, char)
-# todo - formula: find way to regex find / replace integers with integer.0 or float(integer)? Perhaps enhance std functions to float all parameters?
 
 # todo - option to show different dpc (e.g. full decimal precision)
 
@@ -11183,18 +11187,55 @@ Visit: %s (Author's site)
             e_type = exc_value = None
             TAG_VARIABLES = {k: v for k, v in validTagDict.items()}
 
-            # Hide/replace builtin sum() method to not require list[]
+            ############################################################################################################
+            # Hide/replace/simplify builtin math methods (e.g. not require [lists], convert args to float etc...
             def sum(*args):                                                                                             # noqa
+                if len(args) < 1: raise TypeError("CB's sum() takes at least 1 argument (%s given)" %(len(args)))
                 _result = 0.0
-                for arg in args: _result += float(arg)
+                for arg in args:
+                    if not isinstance(arg, (int, float, long)): raise TypeError("CB's sum() requires int, long, float parameters (%s given)" %(type(arg)))
+                    _result += float(arg)
+                # myPrint("B", "my sum result: %s" %(_result));
                 return _result
 
-            TAG_VARIABLES["sum"] = sum
+            def min(*args):                                                                                             # noqa
+                if len(args) < 1: raise TypeError("CB's min() takes at least 1 argument (%s given)" %(len(args)))
+                _result = None
+                for arg in args:
+                    if not isinstance(arg, (int, float, long)): raise TypeError("CB's min() requires int, long, float parameters (%s given)" %(type(arg)))
+                    if _result is None: _result = float(arg)
+                    _result = Math.min(float(arg), _result)
+                # myPrint("B", "my min result: %s" %(_result));
+                return _result
 
-            # Define random
+            def max(*args):                                                                                             # noqa
+                if len(args) < 1: raise TypeError("CB's max() takes at least 1 argument (%s given)" %(len(args)))
+                _result = None
+                for arg in args:
+                    if not isinstance(arg, (int, float, long)): raise TypeError("CB's max() requires int, long, float parameters (%s given)" %(type(arg)))
+                    if _result is None: _result = float(arg)
+                    _result = Math.max(float(arg), _result)
+                # myPrint("B", "my max result: %s" %(_result));
+                return _result
+
+            def abs(value):                                                                                             # noqa
+                if not isinstance(value, (int, float, long)):
+                    raise TypeError("CB's abs() requires int, long, float parameters (%s given)" %(type(value)))
+                myPrint("B", "... result:", Math.abs(float(value)))
+                _result = Math.abs(float(value))
+                # myPrint("B", "my abs result: %s" %(_result))
+                return _result
+
             def random(): return Math.random()
-            TAG_VARIABLES["random"] = random
 
+            TAG_VARIABLES["sum"] = sum
+            TAG_VARIABLES["min"] = min
+            TAG_VARIABLES["max"] = max
+            TAG_VARIABLES["abs"] = abs
+            TAG_VARIABLES["random"] = random
+            # No need to touch round() as it always provides a float back!
+
+            ############################################################################################################
 
             try:
                 result = eval(formulaCode, {"__builtins__": {}}, TAG_VARIABLES)
@@ -11731,8 +11772,8 @@ Visit: %s (Author's site)
                             if lastBalObj is None:
                                 isAutoHidden = True
                                 thisRowAlwaysOrAutoHideTxt = " "
-                                thisRowAlwaysOrAutoHideTxt += html_strip_chars(AUTO_HIDE_LOOKUP_ERROR);
-                                if True or debug: myPrint("B", "LOGIC ERROR: rebuildRowSelectorCombo:: could not find row %s in lastResultsBalanceTable" %(onRow));
+                                thisRowAlwaysOrAutoHideTxt += html_strip_chars(AUTO_HIDE_LOOKUP_ERROR)
+                                if debug: myPrint("B", "LOGIC ERROR: rebuildRowSelectorCombo:: could not find row %s in lastResultsBalanceTable" %(onRow))
                                 # raise Exception("LOGIC ERROR: could not find row %s in lastResultsBalanceTable" %(onRow))
                             else:
                                 isAutoHidden = NAB.isThisRowAlwaysHideOrAutoHidden(lastBalObj, i, checkAlwaysHide=False, checkAutoHideWhen=True)
@@ -14081,7 +14122,7 @@ Visit: %s (Author's site)
                 self.initFont(g2d.getFont())
                 fm = g2d.getFontMetrics()
                 textheight = fm.getMaxAscent()
-                texty = self.coord_h / 2 + textheight / 2
+                texty = int(self.coord_h / 2) + int(textheight / 2)
 
                 bg = (md.getUI().getColors().sidebarSelectedBG if self.isSelected else md.getUI().getColors().defaultBackground)
                 if self.isSelected:
@@ -14130,9 +14171,9 @@ Visit: %s (Author's site)
 
                 fm = g2d.getFontMetrics()
                 textheight = fm.getMaxAscent()
-                texty = self.coord_h / 2 + textheight / 2
+                texty = int(self.coord_h / 2) + int(textheight / 2)
                 if iconAccount is not None and self.paintIcons:
-                    iconAccount.paintIcon(self, g2d, xshift, (self.coord_h - iconAccount.getIconHeight()) / 2)
+                    iconAccount.paintIcon(self, g2d, xshift, int((self.coord_h - iconAccount.getIconHeight()) / 2))
                     xshift += iconAccount.getIconWidth() + 5
 
                 if iconInactive is not None and self.paintIcons:
@@ -17000,16 +17041,17 @@ Visit: %s (Author's site)
             return UORRowIdxs, UORRowUUIDs
 
         @staticmethod
-        def calculateUsingSymbol(originalNumber, operatorStr, operand):
+        def calculateUsingSymbol(originalNumberDecimals, operatorStr, operand):
+            if not isinstance(originalNumberDecimals, float): raise TypeError("LOGIC ERROR: calculateUsingSymbol() requires a float value (%s provided: %s)" %(type(originalNumberDecimals), originalNumberDecimals))
             if operatorStr == "+":
-                result = (originalNumber + operand)
+                result = (originalNumberDecimals + operand)
             elif operatorStr == "-":
-                result = (originalNumber - operand)
+                result = (originalNumberDecimals - operand)
             elif operatorStr == "*":
-                result = (originalNumber * operand)
+                result = (originalNumberDecimals * operand)
             elif operatorStr == "/":
-                result = (originalNumber / operand)
-            else: raise Exception("LOGIC ERROR - Unknown calculation operator '%s' (original: %s '%s' operand: %s)" %(operatorStr, originalNumber, operatorStr, operand))
+                result = (originalNumberDecimals / operand)
+            else: raise Exception("LOGIC ERROR - Unknown calculation operator '%s' (original: %s '%s' operand: %s)" %(operatorStr, originalNumberDecimals, operatorStr, operand))
             return result
 
         @staticmethod
@@ -17018,8 +17060,8 @@ Visit: %s (Author's site)
 
             NAB = NetAccountBalancesExtension.getNAB()
 
-            assert NAB.isFinalMathsCalculationForRowIdx(rowIdx),             "LOGIC ERROR: .updateBalanceUsingFinalMathsCalculationForRowIdx() called on rowIdx: %s. Row does NOT use PUM?! >> balanceObj: %s" %(rowIdx, _balanceObj)
-            assert not _balanceObj.getFinalMathsApplied(),                   "LOGIC ERROR: .updateBalanceUsingFinalMathsCalculationForRowIdx() called on rowIdx: %s. balanceObj has already been applied PUM?! >> balanceObj: %s" %(rowIdx, _balanceObj)
+            assert NAB.isFinalMathsCalculationForRowIdx(rowIdx), "LOGIC ERROR: .updateBalanceUsingFinalMathsCalculationForRowIdx() called on rowIdx: %s. Row does NOT use PUM?! >> balanceObj: %s" %(rowIdx, _balanceObj)
+            assert not _balanceObj.getFinalMathsApplied(),       "LOGIC ERROR: .updateBalanceUsingFinalMathsCalculationForRowIdx() called on rowIdx: %s. balanceObj has already been applied PUM?! >> balanceObj: %s" %(rowIdx, _balanceObj)
 
             if _balanceObj.getBalance() is None: return
 
@@ -17826,7 +17868,7 @@ Visit: %s (Author's site)
                                 try: errorName = errorValue.__class__. __name__
                                 except: errorName = type(errorValue)
                                 warnTxt = ("ERROR:   Row: %s >> Formula error: %s: '%s'" %(onRow, errorName, errorValue))
-                                if True or debug: myPrint("B", warnTxt);
+                                if debug: myPrint("B", warnTxt)
                                 NAB.warningMessagesTable.append(warnTxt)
 
                         # Warnings...
@@ -17838,7 +17880,7 @@ Visit: %s (Author's site)
                                     iWarningType = (20 if (iWarningType is None or iWarningType == 20) else 0)
                                     iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
                                     warnTxt = ("WARNING: Row: %s >> Formula appears to NOT reference this row ?! ('%s')" %(onRow, NAB.savedFormulaTable[i][NAB.FORMULA_EXPR_IDX]))
-                                    if True or debug: myPrint("B", warnTxt);
+                                    if debug: myPrint("B", warnTxt)
                                     NAB.warningMessagesTable.append(warnTxt)
 
                         if formula is None or balanceObj.isFormulaError(): continue
