@@ -2,6 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 from __future__ import division    # Has to occur at the beginning of file... Changes division to always produce a float
+assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes that division of integers yields a float! Do you have this statement: 'from __future__ import division'?"
 
 # net_account_balances.py build: 1047 - Jan 2024 - Stuart Beesley - StuWareSoftSystems
 # Display Name in MD changed to 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
@@ -15123,6 +15124,12 @@ Visit: %s (Author's site)
                     controlPnl.add(balanceOptionLabel, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
                     onCol += 1
 
+
+                    balanceOption_pnl = MyJPanel(GridBagLayout())
+                    balanceOption_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    onBalanceOptionRow = 0
+                    onBalanceOptionCol = 0
+
                     balanceTypes = ["Balance", "Current Balance", "Cleared Balance"]
                     NAB.balanceType_COMBO = MyJComboBox(balanceTypes)
                     NAB.balanceType_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "balanceType_COMBO")
@@ -15130,8 +15137,8 @@ Visit: %s (Author's site)
                     NAB.balanceType_COMBO.setToolTipText("Select the balance type to total: Balance (i.e. the final balance), Current Balance (as of today), Cleared Balance")
                     NAB.balanceType_COMBO.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.balanceType_COMBO.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(NAB.balanceType_COMBO, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx().padx(padx))
-                    onCol += 1
+                    balanceOption_pnl.add(NAB.balanceType_COMBO, GridC.getc(onBalanceOptionCol, onBalanceOptionRow).leftInset(colInsetFiller).topInset(topInset).fillx().padx(padx))
+                    onBalanceOptionCol += 1
 
                     NAB.autoSumAccounts_CB = MyJCheckBox("AutoSum Accts", True)
                     NAB.autoSumAccounts_CB.putClientProperty("%s.id" %(NAB.myModuleID), "autoSumAccounts_CB")
@@ -15140,8 +15147,8 @@ Visit: %s (Author's site)
                     NAB.autoSumAccounts_CB.setToolTipText("AutoSum will auto sum/total the account recursively down the tree, including Securities. AutoSum=OFF means each item is totalled separately")
                     NAB.autoSumAccounts_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.autoSumAccounts_CB.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(NAB.autoSumAccounts_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).colspan(1).fillx().padx(padx))
-                    onCol += 1
+                    balanceOption_pnl.add(NAB.autoSumAccounts_CB, GridC.getc(onBalanceOptionCol, onBalanceOptionRow).leftInset(colInsetFiller).topInset(topInset).colspan(1).fillx().padx(padx))
+                    onBalanceOptionCol += 1
 
                     tagAndGroupID_pnl = MyJPanel(GridBagLayout())
                     tagAndGroupID_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
@@ -15179,9 +15186,10 @@ Visit: %s (Author's site)
                     NAB.groupIDField_JTF.addFocusListener(NAB.saveFocusListener)
                     tagAndGroupID_pnl.add(NAB.groupIDField_JTF, GridC.getc(onGroupIDCol, onGroupIDRow).leftInset(5).wx(0.5).fillboth().west())
 
-                    controlPnl.add(tagAndGroupID_pnl, GridC.getc(onCol, onRow).west().leftInset(colInsetFiller).rightInset(colRightInset))
-                    onCol += 1
+                    balanceOption_pnl.add(tagAndGroupID_pnl, GridC.getc(onBalanceOptionCol, onBalanceOptionRow).west().leftInset(colInsetFiller).rightInset(colRightInset))
+                    onBalanceOptionCol += 1
 
+                    controlPnl.add(balanceOption_pnl, GridC.getc(onCol, onRow).colspan(3))
                     onRow += 1
 
                     # --------------------------------------------------------------------------------------------------
@@ -15449,14 +15457,14 @@ Visit: %s (Author's site)
                     onCol += 1
 
                     NAB.currency_COMBO = MyJComboBox([None])
-                    NAB.currency_COMBO.setPrototypeDisplayValue(""*45)
+                    # NAB.currency_COMBO.setPrototypeDisplayValue(""*45)
                     NAB.currency_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "currency_COMBO")
                     NAB.currency_COMBO.setName("currency_COMBO")
                     NAB.currency_COMBO.setToolTipText("Select the Currency to convert / display totals (default = your base currency)")
                     NAB.currency_COMBO.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.currency_COMBO.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(NAB.currency_COMBO, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).colspan(2).fillx())
-                    onCol += 2
+                    controlPnl.add(NAB.currency_COMBO, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).colspan(1).fillx())
+                    onCol += 1
 
                     NAB.disableCurrencyFormatting_CB = MyJCheckBox("Disable Currency Formatting", False)
                     NAB.disableCurrencyFormatting_CB.putClientProperty("%s.id" %(NAB.myModuleID), "disableCurrencyFormatting_CB")
