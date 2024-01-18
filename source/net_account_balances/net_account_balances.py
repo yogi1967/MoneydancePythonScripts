@@ -8591,7 +8591,7 @@ Visit: %s (Author's site)
                                               font.deriveFont(font.getStyle() & ~Font.BOLD) if (flipBold) else font
                                               ])
                 super(self.__class__, self).__init__(max(timeMS, 1200), None)   # Less than 1000ms will prevent whole application from closing when requested...
-                if self.getInitialDelay() > 0: self.setInitialDelay(int(self.getInitialDelay()/2))
+                if self.getInitialDelay() > 0: self.setInitialDelay(int(self.getInitialDelay() / 2))
                 self.addActionListener(self)
                 BlinkSwingTimer.ALL_BLINKERS.append(self)
                 if debug: myPrint("DB", "Blinker initiated - id: %s; with %s components" %(self.uuid, len(swComponents)))
@@ -14160,7 +14160,7 @@ Visit: %s (Author's site)
                 self.initFont(g2d.getFont())
                 fm = g2d.getFontMetrics()
                 textheight = fm.getMaxAscent()
-                texty = int(self.coord_h / 2) + int(textheight / 2)
+                texty = self.coord_h // 2 + textheight // 2
 
                 bg = (md.getUI().getColors().sidebarSelectedBG if self.isSelected else md.getUI().getColors().defaultBackground)
                 if self.isSelected:
@@ -14209,13 +14209,13 @@ Visit: %s (Author's site)
 
                 fm = g2d.getFontMetrics()
                 textheight = fm.getMaxAscent()
-                texty = int(self.coord_h / 2) + int(textheight / 2)
+                texty = self.coord_h // 2 + textheight // 2
                 if iconAccount is not None and self.paintIcons:
-                    iconAccount.paintIcon(self, g2d, xshift, int((self.coord_h - iconAccount.getIconHeight()) / 2))
+                    iconAccount.paintIcon(self, g2d, xshift, (self.coord_h - iconAccount.getIconHeight()) // 2)
                     xshift += iconAccount.getIconWidth() + 5
 
                 if iconInactive is not None and self.paintIcons:
-                    iconInactive.paintIcon(self, g2d, self.coord_w - x_right_shift, (self.coord_h - iconInactive.getIconHeight()) / 2)
+                    iconInactive.paintIcon(self, g2d, self.coord_w - x_right_shift, (self.coord_h - iconInactive.getIconHeight()) // 2)
 
                 oldClip = g2d.getClip()                                                                                 # noqa
 
