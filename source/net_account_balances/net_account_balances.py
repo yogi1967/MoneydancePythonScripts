@@ -134,9 +134,10 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 #                            Why!? So that formulas using protected eval can handle division by int without loosing precision
 #               Created own min, max, abs functions for protected eval that convert parameters to floats etc...
 #               Added formula warning label(red)...
+#               Truncate row name (with ...) when > max length on Summary Page widget...; Fix config GUI currency dropdown; further GUI tweaks...
+#               Fixed debug error - exclude ROOT account...
 
 # todo - consider better formula handlers... e.g. com.infinitekind.util.StringUtils.parseFormula(String, char)
-
 # todo - option to show different dpc (e.g. full decimal precision)
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -3613,7 +3614,6 @@ Visit: %s (Author's site)
 
                     # allocate as many shares as possible from this buy transaction
                     # but first, un-apply any splits so that we're talking about the same number shares
-                    # unallottedSellShares = self.secCurr.unadjustValueForSplitsInt(sell.getDate(), -sell.getUnallottedSharesAdded(), buy.getDate())
                     unallottedSellShares = self.secCurr.unadjustValueForSplitsInt(buy.getDate(), -sell.getUnallottedSharesAdded(), sell.getDate())  # todo - MDFIX
                     sharesFromBuy = Math.min(unallottedSellShares, buy.getUnallottedSharesAdded())
                     sharesFromBuyAdjusted = self.secCurr.adjustValueForSplitsInt(buy.getDate(), sharesFromBuy, sell.getDate())
@@ -3656,7 +3656,6 @@ Visit: %s (Author's site)
                         if (lotMatchedBoughtPos is not None):
                             lotMatchedBoughtShares = lotMatchedBuyTable.get(lotMatchedBuyID)
 
-                            # lotMatchedBoughtSharesAdjusted = self.secCurr.adjustValueForSplitsInt(lotMatchedBoughtPos.getDate(), lotMatchedBoughtShares, sellPosition.getDate())
                             lotMatchedBoughtSharesAdjusted = self.secCurr.unadjustValueForSplitsInt(lotMatchedBoughtPos.getDate(), lotMatchedBoughtShares, sellPosition.getDate())  # todo - MDFIX
 
                             if self.COST_DEBUG: myPrint("B", "#### lotMatchedBoughtPos.getDate(): %s, lotMatchedBoughtShares: %s, sellPosition.getDate(): %s, lotMatchedBoughtSharesAdjusted: %s"
@@ -3999,7 +3998,6 @@ Visit: %s (Author's site)
                     txnShares = -fields.shares
                     runningAvgPrice = float(fields.price)
                     if (previousPosition is not None and previousPosition.getSharesOwnedAsOfAsOf() != 0):
-                        # runningAvgPrice = float(txnRunningCost) / float(previousPosition.getSharesOwnedAsOfAsOf())
                         priorSharesOwnedAdjusted = self.callingClass.secCurr.unadjustValueForSplitsInt(previousPosition.getDate(), previousPosition.getSharesOwnedAsOfAsOf(), self.callingClass.getAsOfDate())
                         runningAvgPrice = float(txnRunningCost) / float(priorSharesOwnedAdjusted)                       # todo - MDFIX
                     sellCost = Math.round(float(txnShares) * runningAvgPrice)                   
@@ -5075,34 +5073,62 @@ Visit: %s (Author's site)
     class MyJPanel(JPanel):
 
         def __init__(self, *args, **kwargs):
+            self.fixedWidth = kwargs.pop("fixedWidth", None)
             super(self.__class__, self).__init__(*args, **kwargs)
 
         def updateUI(self):
             super(self.__class__, self).updateUI()
             setJComponentStandardUIDefaults(self)
 
+        def getMaximumSize(self):
+            if self.fixedWidth is not None: return self.getPreferredSize()
+            return super(self.__class__, self).getMaximumSize()
+
+        def getMinimumSize(self):
+            if self.fixedWidth is not None: return self.getPreferredSize()
+            return super(self.__class__, self).getMinimumSize()
+
+        # Used to constrain the main control panel (that sits inside a JScrollPane)...
+        def getPreferredSize(self):
+            dim = super(self.__class__, self).getPreferredSize()
+            if self.fixedWidth is not None: dim.width = self.fixedWidth
+            return dim
+
     class MyJLabel(JLabel):
 
         def __init__(self, *args, **kwargs):
             self.maxWidth = -1
+            self.fixedWidth = kwargs.pop("fixedWidth", None)
+            self.fixedHeight = kwargs.pop("fixedHeight", None)
             self.hasMDHeaderBorder = False
             super(self.__class__, self).__init__(*args, **kwargs)
 
         def updateUI(self):
             super(self.__class__, self).updateUI()
             setJComponentStandardUIDefaults(self)
-
             if self.hasMDHeaderBorder: self.setMDHeaderBorder()
 
         def setMDHeaderBorder(self):
             self.hasMDHeaderBorder = True
             self.setBorder(BorderFactory.createLineBorder(GlobalVars.CONTEXT.getUI().getColors().headerBorder))
 
-        # Avoid the dreaded issue when Blinking changes the width...
+        def getMaximumSize(self):
+            if self.fixedWidth is not None or self.fixedHeight is not None: return self.getPreferredSize()
+            return super(self.__class__, self).getMaximumSize()
+
+        def getMinimumSize(self):
+            if self.fixedWidth is not None or self.fixedHeight is not None: return self.getPreferredSize()
+            return super(self.__class__, self).getMinimumSize()
+
+        # Avoid the field auto-resizing when using GridC layout (e.g. when blinking or updates change the field width)...
         def getPreferredSize(self):
             dim = super(self.__class__, self).getPreferredSize()
-            self.maxWidth = Math.max(self.maxWidth, dim.width)
-            dim.width = self.maxWidth
+            if self.fixedWidth is not None or self.fixedHeight is not None:
+                if self.fixedWidth is not None: dim.width = self.fixedWidth
+                if self.fixedHeight is not None: dim.height = self.fixedHeight
+            else:
+                self.maxWidth = Math.max(self.maxWidth, dim.width)
+                dim.width = self.maxWidth
             return dim
 
     class MyJComboBox(JComboBox, MouseListener):
@@ -5826,7 +5852,6 @@ Visit: %s (Author's site)
             varDict[TextDisplayForSwingConfig.WIDGET_VAR_REM_ASOF_DATE] = remAsOfDateTxt
             varDict[TextDisplayForSwingConfig.WIDGET_VAR_REM_ASOF_DATE_NAME] = remAsOfDateChoice.getDisplayName()
 
-            # if cgDateRangeSettings[GlobalVars.COSTBASIS_TYPE_IDX] != GlobalVars.COSTBASIS_TYPE_CAPITALGAINS_SIMPLE:
             if not isUseCostBasisCapitalGainsSelected(None, cgDateRangeSettings[GlobalVars.COSTBASIS_TYPE_IDX]):
                 cgDateRangeTxt = "not enabled"
                 cgDateRangeChoice = AsOfDateChooser.AsOfDateChoice(cgDateRangeTxt, cgDateRangeTxt, 0)
@@ -5845,7 +5870,7 @@ Visit: %s (Author's site)
 
             return varDict
 
-        def __init__(self, _rowText, _smallText, _smallColor=None, stripBigChars=True, stripSmallChars=True, insertVars=None):
+        def __init__(self, _rowText, _smallText, _smallColor=None, stripBigChars=True, stripSmallChars=True, insertVars=None, maxLenRowText=50):
             if insertVars is None: insertVars = {}
             self.ui = GlobalVars.CONTEXT.getUI()
             self.mono = self.ui.getFonts().mono
@@ -5855,6 +5880,7 @@ Visit: %s (Author's site)
             self.originalStripBigChars = stripBigChars
             self.originalStripSmallChars = stripSmallChars
             self.originalVars = insertVars
+            self.maxLenRowText = maxLenRowText
             self.swingComponentText = None
             self.color = None
             self.blankRow = False
@@ -5974,8 +6000,10 @@ Visit: %s (Author's site)
                 self.forceUnderlineDots = True
                 self.noUnderlineDots = False
 
+            if len(_rowText) > maxLenRowText: _rowText = padTruncateWithDots(_rowText, maxLenRowText, padString=False)
+
             if self.getJustification() == JLabel.CENTER:
-                self.noUnderlineDots = True         # These don't work properly when centered....
+                self.noUnderlineDots = True                                # These don't work properly when centered....
                 self.forceUnderlineDots = False
 
             if self.blankZero: self.disableBlinkOnValue = True
@@ -5997,7 +6025,8 @@ Visit: %s (Author's site)
                                                  _smallColor=tdfsc.originalSmallText,
                                                  stripBigChars=tdfsc.originalStripBigChars,
                                                  stripSmallChars=tdfsc.originalStripSmallChars,
-                                                 insertVars=tdfsc.originalVars)
+                                                 insertVars=tdfsc.originalVars,
+                                                 maxLenRowText=tdfsc.maxLenRowText)
             return newTDFSC
 
         def getSwingComponentText(self): return self.swingComponentText
@@ -7168,11 +7197,12 @@ Visit: %s (Author's site)
             self.nextAccount = None
 
 
-    def allMatchesForSearch(book, search):
+    def allMatchesForSearch(book, search, ignoreROOT=True):
         # com.infinitekind.moneydance.model.AccountUtil.allMatchesForSearch(AccountBook, AcctFilter) : List
         accts = []
         ai = MyAccountIterator(book)
         for _acct in ai:
+            if ignoreROOT and _acct.getAccountType() == Account.AccountType.ROOT: continue                              # noqa
             if search.matches(_acct): accts.append(_acct)
         return accts
     # ------------------------------------------------------------------------------------------------------------------
@@ -9080,10 +9110,11 @@ Visit: %s (Author's site)
                     tagNameTxt = HAS_TAGNAME_TXT.replace("{}", padTruncateWithDots(rowTag, 10, padString=False))
                     hasTagNameTxt += " " + html_strip_chars(tagNameTxt)
 
-                tdfsc = TextDisplayForSwingConfig(rowTxt + " '%s'" %(padTruncateWithDots(rowNameTxt, 75, padString=False)),
+                tdfsc = TextDisplayForSwingConfig(rowTxt + " '%s'" %(rowNameTxt),
                                                   hasGroupIDTxt + hasTagNameTxt,
                                                   _smallColor=fg,
-                                                  stripSmallChars=False)
+                                                  stripSmallChars=False,
+                                                  maxLenRowText=75)
 
                 rowNameScrollerSubMenu.add(RowScrollerAction(i, onRow, tdfsc.getSwingComponentText(), NAB))
             rowScrollerMenu.add(rowNameScrollerSubMenu)
@@ -11528,7 +11559,7 @@ Visit: %s (Author's site)
 
         def setSimulateEnabled(self, enabled):
             self.simulate_JBTN.setEnabled(enabled)
-            self.simulate_JBTN.setVisible(enabled)
+            # self.simulate_JBTN.setVisible(enabled)
 
         def setIncExpDateRangeLabel(self, _rowIdx):
             NAB = NetAccountBalancesExtension.getNAB()
@@ -11677,7 +11708,6 @@ Visit: %s (Author's site)
         def setAccountListChangedLabel(self):
             NAB = self
             NAB.storeAccountList_JBTN.setForeground(getColorRed() if NAB.jlst.hasListSelectionChanged() else NAB.moneydanceContext.getUI().getColors().defaultTextForeground)
-            # NAB.storeAccountList_JBTN.setText("<list changed>" if NAB.jlst.hasListSelectionChanged() else "")
 
         def setCostBasisControls(self, _rowIdx):
             NAB = self
@@ -11690,6 +11720,7 @@ Visit: %s (Author's site)
 
         def setAllGUILabelsControls(self, _rowIdx):
             NAB = self
+            NAB.debug_LBL.setIcon(NAB.debugIcon if debug else None)
             NAB.setIncExpDateRangeLabel(_rowIdx)
             NAB.setAvgByLabel(_rowIdx)
             NAB.setAvgByControls(_rowIdx)
@@ -11762,8 +11793,6 @@ Visit: %s (Author's site)
                 FILTERED_TXT = "<FILTERED OUT>"
                 HAS_GROUPID_TXT = "<groupid: {}>"
                 HAS_TAGNAME_TXT = "<tag: {}>"
-                # DEFAULT_START_SMALL_LEN = 56
-                # DEFAULT_START_BIG_LEN = 3
 
                 red = getColorRed()
 
@@ -11839,7 +11868,6 @@ Visit: %s (Author's site)
                         thisRowItemTxt = wrap_HTML(buildRowHTML, stripChars=False)
 
                     else:
-                        # thisRowItemTxt = wrap_HTML_BIG_small(pad(rowTxt, DEFAULT_START_BIG_LEN), pad("<awaiting row rebuild>", DEFAULT_START_SMALL_LEN) if debug else pad("", DEFAULT_START_SMALL_LEN))
                         thisRowItemTxt = wrap_HTML_BIG_small(rowTxt, "<awaiting row rebuild>" if debug else "")
 
                     rowItems.append(thisRowItemTxt)
@@ -12490,7 +12518,7 @@ Visit: %s (Author's site)
 
                 BlinkSwingTimer.stopAllBlinkers()
                 NAB.simulateTotal_label.setForeground(NAB.moneydanceContext.getUI().getColors().tertiaryTextFG)
-                NAB.simulateTotal_label.setText("<parallel balances calculating>")
+                NAB.simulateTotal_label.setText(wrap_HTML_BIG_small("<parallel balances calculating>", ""))
 
                 NAB.jlst.parallelAccountBalances = buildEmptyTxnOrBalanceArray()
                 NAB.jlst.parallelAccountBalances = rebuildParallelAccountBalances(self)
@@ -12941,14 +12969,14 @@ Visit: %s (Author's site)
                     NAB.warning_label.setForeground(md.getUI().getColors().defaultTextForeground)
 
                     if NAB.warningInParametersDetected and NAB.savedShowWarningsTable[NAB.getSelectedRowIndex()]:
-                        NAB.warning_label.setText("*%s*" %(NAB.getWarningType(NAB.warningInParametersDetectedType)))
+                        NAB.warning_label.setText(wrap_HTML_BIG_small("*%s*" %(NAB.getWarningType(NAB.warningInParametersDetectedType)), ""))
                         NAB.warning_label.setForeground(md.getUI().getColors().errorMessageForeground)
                     elif NAB.savedShowWarningsTable[NAB.getSelectedRowIndex()]:
-                        NAB.warning_label.setText(wrap_HTML_BIG_small("", "no warnings detected", altFG))
+                        NAB.warning_label.setText(wrap_HTML_BIG_small("no warnings detected", "", altFG))
                     elif not NAB.savedShowWarningsTable[NAB.getSelectedRowIndex()]:
-                        NAB.warning_label.setText(wrap_HTML_BIG_small("", "warnings turned off", altFG))
+                        NAB.warning_label.setText(wrap_HTML_BIG_small("warnings turned off", "", altFG))
                     else:
-                        NAB.warning_label.setText("?")
+                        NAB.warning_label.setText(wrap_HTML_BIG_small("?", ""))
 
                     NAB.formulaWarning_LBL.setText("" if (not NAB.lastFormulaWarning) else NAB.lastFormulaWarning)
                     NAB.formulaWarning_LBL.setForeground(md.getUI().getColors().errorMessageForeground)
@@ -12957,7 +12985,7 @@ Visit: %s (Author's site)
 
                     if len(totalBalanceTable) < NAB.getSelectedRow():
                         myPrint("@@ ERROR: Returned totalBalanceTable is invalid?!")
-                        NAB.simulateTotal_label.setText("<ERROR>")
+                        NAB.simulateTotal_label.setText(wrap_HTML_BIG_small("<ERROR>", ""))
                         NAB.simulateTotal_label.setForeground(md.getUI().getColors().errorMessageForeground)
                     else:
                         if debug: myPrint("DB", "Result of simulation:", totalBalanceTable)
@@ -12979,25 +13007,25 @@ Visit: %s (Author's site)
 
                         tdfsc = TextDisplayForSwingConfig(NAB.savedWidgetName[i], "")
                         if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_ALWAYS:
-                            NAB.simulateTotal_label.setText(GlobalVars.WIDGET_ROW_DISABLED)
+                            NAB.simulateTotal_label.setText(wrap_HTML_BIG_small(GlobalVars.WIDGET_ROW_DISABLED, ""))
 
                         # NOTE: Leave "  " (two spaces) to avoid the row height collapsing.....
                         elif balanceOrAverageLong is None and NAB.isRowFilteredOutByGroupID(i):
-                            NAB.simulateTotal_label.setText("  " if tdfsc.getBlankZero() else GlobalVars.DEFAULT_WIDGET_ROW_HIDDEN_BY_FILTER.lower())
+                            NAB.simulateTotal_label.setText(wrap_HTML_BIG_small("  " if tdfsc.getBlankZero() else GlobalVars.DEFAULT_WIDGET_ROW_HIDDEN_BY_FILTER.lower(), ""))
                             NAB.simulateTotal_label.setForeground(md.getUI().getColors().errorMessageForeground)
                             NAB.simulateTotal_label.setFont(tdfsc.getValueFont(False))
 
                         elif balanceOrAverageLong is None:
-                            NAB.simulateTotal_label.setText("  " if tdfsc.getBlankZero() else GlobalVars.DEFAULT_WIDGET_ROW_NOT_CONFIGURED.lower())
+                            NAB.simulateTotal_label.setText(wrap_HTML_BIG_small("  " if tdfsc.getBlankZero() else GlobalVars.DEFAULT_WIDGET_ROW_NOT_CONFIGURED.lower(), ""))
                             NAB.simulateTotal_label.setFont(tdfsc.getValueFont(False))
 
                         elif balanceObj.isUORError():
-                            NAB.simulateTotal_label.setText(CalculatedBalance.DEFAULT_WIDGET_ROW_UOR_ERROR.lower())
+                            NAB.simulateTotal_label.setText(wrap_HTML_BIG_small(CalculatedBalance.DEFAULT_WIDGET_ROW_UOR_ERROR.lower(), ""))
                             NAB.simulateTotal_label.setForeground(md.getUI().getColors().errorMessageForeground)
                             NAB.simulateTotal_label.setFont(tdfsc.getValueFont(False))
 
                         elif balanceObj.isFormulaError():
-                            NAB.simulateTotal_label.setText(CalculatedBalance.DEFAULT_WIDGET_ROW_FORMULA_ERROR.lower())
+                            NAB.simulateTotal_label.setText(wrap_HTML_BIG_small(CalculatedBalance.DEFAULT_WIDGET_ROW_FORMULA_ERROR.lower(), ""))
                             NAB.simulateTotal_label.setForeground(md.getUI().getColors().errorMessageForeground)
                             NAB.simulateTotal_label.setFont(tdfsc.getValueFont(False))
 
@@ -13351,6 +13379,7 @@ Visit: %s (Author's site)
                 # ##########################################################################################################
                 # if event.getActionCommand() == "simulate":
                 if event.getSource() is NAB.simulate_JBTN:
+                    # myPrint("B", "@@ Frame size: %s" %(NAB.theFrame.getSize()));
                     event.getSource().grabFocus()
                     myPrint("DB", ".. SIMULATE triggered... Setting controls/labels, then calling necessary parallel operations/simulate actions...")
                     myPrint("DB", "...... NOTE: JList of selected accounts reports hasListSelectionChanged: %s" %(NAB.jlst.hasListSelectionChanged()))
@@ -14725,7 +14754,7 @@ Visit: %s (Author's site)
                                                            %(GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME.title(), titleExtraTxt))
                     NAB.theFrame = net_account_balances_frame_
                     NAB.theFrame.setName(u"%s_main" %(NAB.myModuleID))
-                    NAB.theFrame.setMinimumSize(Dimension(1200, 0))
+                    # NAB.theFrame.setMinimumSize(Dimension(1200, 0));
 
                     NAB.theFrame.isActiveInMoneydance = True
                     NAB.theFrame.isRunTimeExtension = True
@@ -14845,7 +14874,7 @@ Visit: %s (Author's site)
                     NAB.savePropertyChangeListener = NAB.MyPropertyChangeListener()
                     NAB.saveFocusListener = NAB.MyFocusListener()
 
-                    controlPnl = MyJPanel(GridBagLayout())
+                    controlPnl = MyJPanel(GridBagLayout(), fixedWidth=1100)
                     controlPnl.putClientProperty("%s.id" %(NAB.myModuleID), "controlPnl")
 
                     colLeftInset = 3
@@ -14947,20 +14976,24 @@ Visit: %s (Author's site)
                     selectRow_pnl.add(filterSelector_LBL, GridC.getc(onSelectCol, onSelectRow).leftInset(colInsetFiller).topInset(5).bottomInset(5).rightInset(colRightInset))
                     onSelectCol += 1
 
-                    NAB.warning_label = MyJLabel("", JLabel.LEFT)
+                    # NAB.warning_label = MyJLabel("", JLabel.LEFT, fixedWidth=250, fixedHeight=20);
+                    NAB.warning_label = MyJLabel("", JLabel.LEFT, fixedHeight=20)
                     NAB.warning_label.putClientProperty("%s.id" %(NAB.myModuleID), "warning_label")
                     NAB.warning_label.setMDHeaderBorder()
 
-                    warnLblScrollPane = MyJScrollPane(NAB.warning_label, JScrollPane.VERTICAL_SCROLLBAR_NEVER,JScrollPane.HORIZONTAL_SCROLLBAR_NEVER)
+                    warnLblScrollPane = MyJScrollPane(NAB.warning_label, JScrollPane.VERTICAL_SCROLLBAR_NEVER, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER)
                     warnLblScrollPane.putClientProperty("%s.id" %(NAB.myModuleID), "warnLblScrollPane")
                     warnLblScrollPane.setViewportBorder(EmptyBorder(0, 0, 0, 0))
                     warnLblScrollPane.setOpaque(False)
-                    # warnLblScrollPane.setPreferredSize(Dimension(200, NAB.filterByGroupID_JTF.getPreferredSize().height));
-                    warnLblScrollPane.setMinimumSize(Dimension(200, 30))
-                    warnLblScrollPane.setPreferredSize(Dimension(200, 30))
+                    dim = NAB.warning_label.getPreferredSize()
+                    # dim.width += 5; dim.height += 5
+                    dim.width = 250
+                    dim.height += 5
+                    warnLblScrollPane.setMinimumSize(dim)
+                    warnLblScrollPane.setPreferredSize(dim)
+                    warnLblScrollPane.setMaximumSize(dim)
 
-                    # selectRow_pnl.add(NAB.warning_label, GridC.getc(onSelectCol, onSelectRow).colspan(2).leftInset(colInsetFiller).topInset(5).bottomInset(5).rightInset(colRightInset).fillx())
-                    selectRow_pnl.add(warnLblScrollPane, GridC.getc(onSelectCol, onSelectRow).colspan(2).leftInset(colInsetFiller).topInset(5).bottomInset(5).rightInset(colRightInset).wx(0.5).fillx())
+                    selectRow_pnl.add(warnLblScrollPane, GridC.getc(onSelectCol, onSelectRow).leftInset(colInsetFiller).topInset(5).bottomInset(5).rightInset(colRightInset).fillx())
                     onSelectCol += 1
 
                     controlPnl.add(selectRow_pnl, GridC.getc(onCol, onRow).leftInset(colLeftInset).fillboth().colspan(4))
@@ -15094,7 +15127,7 @@ Visit: %s (Author's site)
                     NAB.widgetNameField_JTF.setName("widgetNameField_JTF")
                     NAB.widgetNameField_JTF.setToolTipText("Set the name displayed for this row (See help for <#> & html formatting codes)")
                     NAB.widgetNameField_JTF.addFocusListener(NAB.saveFocusListener)
-                    rowName_pnl.add(NAB.widgetNameField_JTF, GridC.getc(onRowNameCol, onRowNameRow).wx(1.0).fillboth())
+                    rowName_pnl.add(NAB.widgetNameField_JTF, GridC.getc(onRowNameCol, onRowNameRow).padx(500).fillx().wx(1.0))
                     onRowNameCol += 1
 
                     formatCodePicker_LBL = MyJLabel(NAB.formatCodePickerIcon)
@@ -15104,13 +15137,12 @@ Visit: %s (Author's site)
                     rowName_pnl.add(formatCodePicker_LBL, GridC.getc(onRowNameCol, onRowNameRow).leftInset(2).topInset(5).bottomInset(5).rightInset(2))
                     onRowNameCol += 1
 
-                    controlPnl.add(rowName_pnl, GridC.getc(onCol, onRow).colspan(2).leftInset(colInsetFiller).topInset(topInset).fillboth())
-                    onCol += 2
-
-                    NAB.simulateTotal_label = MyJLabel("<html><i>result here</i></html>",JLabel.CENTER)
+                    NAB.simulateTotal_label = MyJLabel("<html><i>result here</i></html>", JLabel.CENTER, fixedWidth=150)
                     NAB.simulateTotal_label.putClientProperty("%s.id" %(NAB.myModuleID), "simulateTotal_label")
                     NAB.simulateTotal_label.setMDHeaderBorder()
-                    controlPnl.add(NAB.simulateTotal_label, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).rightInset(colRightInset).fillx())
+                    rowName_pnl.add(NAB.simulateTotal_label, GridC.getc(onRowNameCol, onRowNameRow).leftInset(25).padx(150).fillx().wx(0.0))
+
+                    controlPnl.add(rowName_pnl, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).rightInset(colRightInset).west().colspan(3))
                     onRow += 1
 
                     # --------------------------------------------------------------------------------------------------
@@ -15134,10 +15166,11 @@ Visit: %s (Author's site)
                     NAB.balanceType_COMBO = MyJComboBox(balanceTypes)
                     NAB.balanceType_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "balanceType_COMBO")
                     NAB.balanceType_COMBO.setName("balanceType_COMBO")
+                    NAB.balanceType_COMBO.setPrototypeDisplayValue(" "*30)
                     NAB.balanceType_COMBO.setToolTipText("Select the balance type to total: Balance (i.e. the final balance), Current Balance (as of today), Cleared Balance")
                     NAB.balanceType_COMBO.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.balanceType_COMBO.addActionListener(NAB.saveActionListener)
-                    balanceOption_pnl.add(NAB.balanceType_COMBO, GridC.getc(onBalanceOptionCol, onBalanceOptionRow).leftInset(colInsetFiller).topInset(topInset).fillx().padx(padx))
+                    balanceOption_pnl.add(NAB.balanceType_COMBO, GridC.getc(onBalanceOptionCol, onBalanceOptionRow).topInset(topInset))
                     onBalanceOptionCol += 1
 
                     NAB.autoSumAccounts_CB = MyJCheckBox("AutoSum Accts", True)
@@ -15147,19 +15180,14 @@ Visit: %s (Author's site)
                     NAB.autoSumAccounts_CB.setToolTipText("AutoSum will auto sum/total the account recursively down the tree, including Securities. AutoSum=OFF means each item is totalled separately")
                     NAB.autoSumAccounts_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.autoSumAccounts_CB.addActionListener(NAB.saveActionListener)
-                    balanceOption_pnl.add(NAB.autoSumAccounts_CB, GridC.getc(onBalanceOptionCol, onBalanceOptionRow).leftInset(colInsetFiller).topInset(topInset).colspan(1).fillx().padx(padx))
+                    balanceOption_pnl.add(NAB.autoSumAccounts_CB, GridC.getc(onBalanceOptionCol, onBalanceOptionRow).leftInset(colInsetFiller).topInset(topInset).rightInset(35))
                     onBalanceOptionCol += 1
-
-                    tagAndGroupID_pnl = MyJPanel(GridBagLayout())
-                    tagAndGroupID_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    onGroupIDRow = 0
-                    onGroupIDCol = 0
 
                     tagNameLabel = MyJLabel("Tag:")
                     tagNameLabel.putClientProperty("%s.id" %(NAB.myModuleID), "tagNameLabel")
                     tagNameLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    tagAndGroupID_pnl.add(tagNameLabel, GridC.getc(onGroupIDCol, onGroupIDRow).wx(0.1).east())
-                    onGroupIDCol += 1
+                    balanceOption_pnl.add(tagNameLabel, GridC.getc(onBalanceOptionCol, onBalanceOptionRow).wx(0.1).east())
+                    onBalanceOptionCol += 1
 
                     NAB.tagName_JTF = MyJTextField("not set", 8, minColWidth=10)
                     NAB.tagName_JTF.setDocument(JTextFieldTagNameDocument())
@@ -15168,14 +15196,14 @@ Visit: %s (Author's site)
                     NAB.tagName_JTF.setName("tagName_JTF")
                     NAB.tagName_JTF.setToolTipText("Enter a 'tag' (variable) name (text >> digits Aa-Zz, 0-9) that can be referred to in UOR / formula expressions (refer CMD-I help)")
                     NAB.tagName_JTF.addFocusListener(NAB.saveFocusListener)
-                    tagAndGroupID_pnl.add(NAB.tagName_JTF, GridC.getc(onGroupIDCol, onGroupIDRow).leftInset(5).wx(0.5).fillboth().west())
-                    onGroupIDCol += 1
+                    balanceOption_pnl.add(NAB.tagName_JTF, GridC.getc(onBalanceOptionCol, onBalanceOptionRow).leftInset(5).wx(0.5).fillx().west())
+                    onBalanceOptionCol += 1
 
                     groupIDLabel = MyJLabel("GroupID:")
                     groupIDLabel.putClientProperty("%s.id" %(NAB.myModuleID), "groupIDLabel")
                     groupIDLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    tagAndGroupID_pnl.add(groupIDLabel, GridC.getc(onGroupIDCol, onGroupIDRow).wx(0.1).east().leftInset(5))
-                    onGroupIDCol += 1
+                    balanceOption_pnl.add(groupIDLabel, GridC.getc(onBalanceOptionCol, onBalanceOptionRow).wx(0.1).east().leftInset(5))
+                    onBalanceOptionCol += 1
 
                     NAB.groupIDField_JTF = MyJTextField("not set", 12, minColWidth=18)
                     NAB.groupIDField_JTF.setDocument(JTextFieldGroupIDDocument())
@@ -15184,12 +15212,9 @@ Visit: %s (Author's site)
                     NAB.groupIDField_JTF.setName("groupIDField_JTF")
                     NAB.groupIDField_JTF.setToolTipText("Enter 'Group ID' (text >> digits 0-9, Aa-Zz, '_', '-', '.', ':', '%', ';') that can be used to filter out rows (refer CMD-I help)")
                     NAB.groupIDField_JTF.addFocusListener(NAB.saveFocusListener)
-                    tagAndGroupID_pnl.add(NAB.groupIDField_JTF, GridC.getc(onGroupIDCol, onGroupIDRow).leftInset(5).wx(0.5).fillboth().west())
+                    balanceOption_pnl.add(NAB.groupIDField_JTF, GridC.getc(onBalanceOptionCol, onBalanceOptionRow).leftInset(5).wx(0.5).fillx().west())
 
-                    balanceOption_pnl.add(tagAndGroupID_pnl, GridC.getc(onBalanceOptionCol, onBalanceOptionRow).west().leftInset(colInsetFiller).rightInset(colRightInset))
-                    onBalanceOptionCol += 1
-
-                    controlPnl.add(balanceOption_pnl, GridC.getc(onCol, onRow).colspan(3))
+                    controlPnl.add(balanceOption_pnl, GridC.getc(onCol, onRow).colspan(4).leftInset(colInsetFiller).west().fillx().rightInset(colRightInset))
                     onRow += 1
 
                     # --------------------------------------------------------------------------------------------------
@@ -15300,11 +15325,11 @@ Visit: %s (Author's site)
                     useCostBasis_pnl = MyJPanel(GridBagLayout())
                     useCostBasis_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
 
-                    NAB.useCostBasisNone_JRB = MyJRadioButton("Rtn Value")
+                    NAB.useCostBasisNone_JRB = MyJRadioButton("Value")
                     NAB.useCostBasisNone_JRB.setName("useCostBasisNone_JRB")
-                    NAB.useCostBasisNone_JRB.setToolTipText("When selected, then this option is disabled")
+                    NAB.useCostBasisNone_JRB.setToolTipText("When selected, then the normal value is returned (i.e. cost basis/urg/c-gains are disabled)")
 
-                    NAB.useCostBasisCB_JRB = MyJRadioButton("Rtn Cost Basis")
+                    NAB.useCostBasisCB_JRB = MyJRadioButton("Cost Basis")
                     NAB.useCostBasisCB_JRB.setName("useCostBasisCB_JRB")
                     NAB.useCostBasisCB_JRB.setToolTipText("When selected, then Security Accounts will return the Cost Basis, (rather than the value)")
 
@@ -15312,11 +15337,11 @@ Visit: %s (Author's site)
                     NAB.useCostBasisCBInclCash_JRB.setName("useCostBasisCBInclCash_JRB")
                     NAB.useCostBasisCBInclCash_JRB.setToolTipText("When enabled, Investment account cash balances will be included in Security Cost Basis calculations")
 
-                    NAB.useCostBasisURGains_JRB = MyJRadioButton("Rtn U/R Gains")
+                    NAB.useCostBasisURGains_JRB = MyJRadioButton("U/R Gains")
                     NAB.useCostBasisURGains_JRB.setName("useCostBasisURGains_JRB")
                     NAB.useCostBasisURGains_JRB.setToolTipText("When selected, then Security Accounts will return the Unrealised Gains (rather than the value)")
 
-                    NAB.useCostBasisCapitalGainsSimple_JRB = MyJRadioButton("Rtn Capital Gains")
+                    NAB.useCostBasisCapitalGainsSimple_JRB = MyJRadioButton("Capital Gains")
                     NAB.useCostBasisCapitalGainsSimple_JRB.setName("useCostBasisCapitalGainsSimple_JRB")
                     NAB.useCostBasisCapitalGainsSimple_JRB.setToolTipText("When selected, then Security Accounts will return Capital Gains for the CG period (rather than the value)")
 
@@ -15374,7 +15399,7 @@ Visit: %s (Author's site)
                     NAB.securitiesCapitalGains_DRC.getEndIntField().setToolTipText("Select the end date for the Securities Capital Gains custom date range")
                     NAB.securitiesCapitalGains_DRC.getSkipBackPeriodsField().setToolTipText("Enter the number of period offsets to manipulate the Securities Capital Gains date range (-past, +future)")
                     NAB.securitiesCapitalGains_DRC.addPropertyChangeListener(NAB.savePropertyChangeListener)
-                    controlPnl.add(NAB.securitiesCapitalGains_DRC.getPanel(includeChoiceLabel=False), GridC.getc(onCol, onRow).colspan(3).leftInset(colInsetFiller).topInset(topInset).fillx())
+                    controlPnl.add(NAB.securitiesCapitalGains_DRC.getPanel(includeChoiceLabel=False), GridC.getc(onCol, onRow).colspan(3).leftInset(colInsetFiller).topInset(topInset).west())
 
                     onRow += 1
                     # --------------------------------------------------------------------------------------------------
@@ -15388,10 +15413,6 @@ Visit: %s (Author's site)
                     NAB.capGainsDateRange_LBL.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     controlPnl.add(NAB.capGainsDateRange_LBL, GridC.getc(onCol, onRow).colspan(3).fillx().insets(topInset,colInsetFiller,bottomInset,colRightInset).north())
 
-                    # vs = Box.createVerticalStrut(18)
-                    # vs.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")                                    # noqa
-                    # controlPnl.add(vs, GridC.getc(onCol, onRow))
-                    #
                     onCol += 3
 
                     onRow += 1
@@ -15406,24 +15427,20 @@ Visit: %s (Author's site)
                     controlPnl.add(incExpDateRangeOptionLabel, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
                     onCol += 1
 
-                    excludeDRs = [
-                                    "yesterday"
-                                   ]
+                    excludeDRs = ["yesterday"]
 
                     NAB.incomeExpenseDateRange_DRC = MyDateRangeChooser(NAB.moneydanceContext.getUI(), MyDateRangeChooser.KEY_DR_ALL_DATES, excludeDRs)
                     NAB.incomeExpenseDateRange_DRC.setName("incomeExpenseDateRange_DRC")
-                    # NAB.incomeExpenseDateRange_DRC.putClientProperty("%s.id" %(NAB.myModuleID), "incomeExpenseDateRange_DRC")
 
                     drc = NAB.incomeExpenseDateRange_DRC
-                    for comp in drc.getAllSwingComponents():
-                        comp.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    for comp in drc.getAllSwingComponents(): comp.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
 
                     NAB.incomeExpenseDateRange_DRC.getChoiceCombo().setToolTipText("Specify a dynamic date range for Income / Expense Category calculations ('Custom' is always fixed) - does not affect other accounts/securities")
                     NAB.incomeExpenseDateRange_DRC.getStartIntField().setToolTipText("Select the start date for the I/E custom date range")
                     NAB.incomeExpenseDateRange_DRC.getEndIntField().setToolTipText("Select the end date for the I/E custom date range")
                     NAB.incomeExpenseDateRange_DRC.getSkipBackPeriodsField().setToolTipText("Enter the number of period offsets to manipulate the I/E date range (-past, +future)")
                     NAB.incomeExpenseDateRange_DRC.addPropertyChangeListener(NAB.savePropertyChangeListener)
-                    controlPnl.add(NAB.incomeExpenseDateRange_DRC.getPanel(includeChoiceLabel=False), GridC.getc(onCol, onRow).colspan(3).leftInset(colInsetFiller).topInset(topInset).fillx())
+                    controlPnl.add(NAB.incomeExpenseDateRange_DRC.getPanel(includeChoiceLabel=False), GridC.getc(onCol, onRow).colspan(3).leftInset(colInsetFiller).topInset(topInset).west())
 
                     onRow += 1
                     # --------------------------------------------------------------------------------------------------
@@ -15457,7 +15474,7 @@ Visit: %s (Author's site)
                     onCol += 1
 
                     NAB.currency_COMBO = MyJComboBox([None])
-                    # NAB.currency_COMBO.setPrototypeDisplayValue(""*45)
+                    NAB.currency_COMBO.setPrototypeDisplayValue(" "*45)
                     NAB.currency_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "currency_COMBO")
                     NAB.currency_COMBO.setName("currency_COMBO")
                     NAB.currency_COMBO.setToolTipText("Select the Currency to convert / display totals (default = your base currency)")
@@ -15666,7 +15683,7 @@ Visit: %s (Author's site)
                     onFinalMathsCalculationRow = 0
                     onFinalMathsCalculationCol = 0
 
-                    finalMathsCalculation_lbl = MyJLabel("Post UOR maths calculation (PUM):")
+                    finalMathsCalculation_lbl = MyJLabel("Post UOR maths (PUM):")
                     finalMathsCalculation_lbl.putClientProperty("%s.id" %(NAB.myModuleID), "finalMathsCalculation_lbl")
                     finalMathsCalculation_lbl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     controlPnl.add(finalMathsCalculation_lbl, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
@@ -15734,6 +15751,7 @@ Visit: %s (Author's site)
                     tagPicker_LBL = MyJLabel(NAB.tagPickerIcon)
                     tagPicker_LBL.setFocusable(True)
                     tagPicker_LBL.putClientProperty("%s.id" %(NAB.myModuleID), "tagPicker_LBL")
+                    tagPicker_LBL.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     tagPicker_LBL.addMouseListener(NAB.TagPickerMouseListener())
                     formula_pnl.add(tagPicker_LBL, GridC.getc(onFormulaCol, onFormulaRow).leftInset(2).topInset(5).bottomInset(5).rightInset(2))
                     onFormulaCol += 1
@@ -15753,10 +15771,6 @@ Visit: %s (Author's site)
                     NAB.formulaWarning_LBL.putClientProperty("%s.id" %(NAB.myModuleID), "formulaWarning_LBL")
                     NAB.formulaWarning_LBL.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     controlPnl.add(NAB.formulaWarning_LBL, GridC.getc(onCol, onRow).colspan(3).fillx().insets(topInset,colInsetFiller,bottomInset,colRightInset))
-
-                    # vs = Box.createVerticalStrut(18)
-                    # vs.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")                                    # noqa
-                    # controlPnl.add(vs, GridC.getc(onCol, onRow))
 
                     onCol += 3
                     onRow += 1
@@ -16106,46 +16120,27 @@ Visit: %s (Author's site)
                     filterLabel = MyJLabel(wrap_HTML_BIG_small("","FILTERS:", NAB.moneydanceContext.getUI().getColors().defaultTextForeground))
                     filterLabel.putClientProperty("%s.id" %(NAB.myModuleID), "filterLabel")
                     filterLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    controlPnl.add(filterLabel, GridC.getc(onCol, onRow).southEast().fillx().insets(topInset,colLeftInset+2,bottomInset,colRightInset))
-
+                    controlPnl.add(filterLabel, GridC.getc(onCol, onRow).southEast().fillx().insets(topInset,colInsetFiller,bottomInset,colRightInset))
                     onRow += 1
-                    # --------------------------------------------------------------------------------------------------
-                    # lblText = wrap_HTML_BIG_small("<< click here to SIMULATE >>", "", _bold=True, _bigColor=getColorBlue())
-                    lblText = "<< Simulate Row >>"
-                    NAB.simulate_JBTN = MyJButton(lblText)
-                    NAB.simulate_JBTN.setActionCommand("simulate")
-                    NAB.simulate_JBTN.putClientProperty("%s.id" %(NAB.myModuleID), "simulate_JBTN")
-                    NAB.simulate_JBTN.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
-                    NAB.simulate_JBTN.setToolTipText("Runs a simulation of current row, and populates the Account picklist below...")
-                    NAB.simulate_JBTN.putClientProperty("%s.collapsible" %(NAB.myModuleID), "false")
-                    NAB.simulate_JBTN.addActionListener(NAB.saveActionListener)
-                    NAB.setSimulateEnabled(False)
-
-                    # try:
-                    #     if NAB.simulate_JBTN.getIcon() is None:
-                    #         mdImages = NAB.moneydanceContext.getUI().getImages()
-                    #         # iconTintParallel = NAB.moneydanceContext.getUI().getColors().errorMessageForeground
-                    #         # iconSimulate = mdImages.getIconWithColor(GlobalVars.Strings.MD_ICON_GRAPHS_32_32, iconTintParallel)
-                    #         iconSimulate = mdImages.getIcon(GlobalVars.Strings.MD_ICON_GRAPHS_32_32)
-                    #         NAB.simulate_JBTN.setIcon(iconSimulate)
-                    #     NAB.simulate_JBTN.setHorizontalAlignment(JLabel.CENTER)
-                    #     NAB.simulate_JBTN.setHorizontalTextPosition(JLabel.LEFT)
-                    # except: pass
 
                     # --------------------------------------------------------------------------------------------------
 
                     onCol = 0
-                    topInset = 0
-                    bottomInset = 2
+
+                    onFiltersRow = 0
+                    onFiltersCol = 0
+                    filters_pnl = MyJPanel(GridBagLayout())
+                    filters_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
 
                     includeInactiveOptions = ["Active Only", "Include Inactive"]
                     NAB.includeInactive_COMBO = MyJComboBox(includeInactiveOptions)
                     NAB.includeInactive_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "includeInactive_COMBO")
                     NAB.includeInactive_COMBO.setName("includeInactive_COMBO")
+                    NAB.includeInactive_COMBO.setPrototypeDisplayValue(" "*60)
                     NAB.includeInactive_COMBO.setToolTipText("Select to only list Active items, or also include Inactive too")
                     NAB.includeInactive_COMBO.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(NAB.includeInactive_COMBO, GridC.getc(onCol, onRow).leftInset(colLeftInset).topInset(topInset+3).fillx())
-                    onCol += 1
+                    filters_pnl.add(NAB.includeInactive_COMBO, GridC.getc(onFiltersCol, onFiltersRow).leftInset(colLeftInset).fillx().west())
+                    onFiltersCol += 1
 
                     NAB.filterOutZeroBalAccts_INACTIVE_CB = MyJCheckBox("Filter Out Zeros Inactive", False)
                     NAB.filterOutZeroBalAccts_INACTIVE_CB.setActionCommand("filter_out_zeros_inactive")
@@ -16154,8 +16149,8 @@ Visit: %s (Author's site)
                     NAB.filterOutZeroBalAccts_INACTIVE_CB.setName("filterOutZeroBalAccts_INACTIVE_CB")
                     NAB.filterOutZeroBalAccts_INACTIVE_CB.setToolTipText("Applies an additional filter: hide inactive accounts with a zero balance")
                     NAB.filterOutZeroBalAccts_INACTIVE_CB.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(NAB.filterOutZeroBalAccts_INACTIVE_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).bottomInset(bottomInset).colspan(1).fillboth())
-                    onCol += 1
+                    filters_pnl.add(NAB.filterOutZeroBalAccts_INACTIVE_CB, GridC.getc(onFiltersCol, onFiltersRow).leftInset(colInsetFiller).fillx())
+                    onFiltersCol += 1
 
                     NAB.filterIncludeSelected_CB = MyJCheckBox("Filter Include Selected", False)
                     NAB.filterIncludeSelected_CB.setActionCommand("filter_include_selected")
@@ -16164,9 +16159,44 @@ Visit: %s (Author's site)
                     NAB.filterIncludeSelected_CB.setName("filterIncludeSelected_CB")
                     NAB.filterIncludeSelected_CB.setToolTipText("Applies an additional filter: when filtering, always include selected lines too")
                     NAB.filterIncludeSelected_CB.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(NAB.filterIncludeSelected_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).bottomInset(bottomInset).colspan(1).fillboth())
-                    onCol += 1
+                    filters_pnl.add(NAB.filterIncludeSelected_CB, GridC.getc(onFiltersCol, onFiltersRow).leftInset(colInsetFiller).fillx())
+                    onFiltersCol += 1
+                    onFiltersRow += 1
 
+                    # --------------------------------------------------------------------------------------------------
+
+                    onFiltersCol = 0
+
+                    NAB.filterOnlyAccountType_COMBO = MyJComboBox(AccountTypeHolder.generateListForCombo())
+                    NAB.filterOnlyAccountType_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "filterOnlyAccountType_COMBO")
+                    NAB.filterOnlyAccountType_COMBO.setName("filterOnlyAccountType_COMBO")
+                    NAB.filterOnlyAccountType_COMBO.setPrototypeDisplayValue(" "*60)
+                    NAB.filterOnlyAccountType_COMBO.setToolTipText("Applies an additional filter: Only show the selected account type")
+                    NAB.filterOnlyAccountType_COMBO.addActionListener(NAB.saveActionListener)
+                    filters_pnl.add(NAB.filterOnlyAccountType_COMBO, GridC.getc(onFiltersCol, onFiltersRow).leftInset(colLeftInset).fillx().west())
+                    onFiltersCol += 1
+
+                    NAB.filterOutZeroBalAccts_ACTIVE_CB = MyJCheckBox("Filter Out Zeros Active", False)
+                    NAB.filterOutZeroBalAccts_ACTIVE_CB.setActionCommand("filter_out_zeros_active")
+                    NAB.filterOutZeroBalAccts_ACTIVE_CB.putClientProperty("%s.id" %(NAB.myModuleID), "filterOutZeroBalAccts_ACTIVE_CB")
+                    NAB.filterOutZeroBalAccts_ACTIVE_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    NAB.filterOutZeroBalAccts_ACTIVE_CB.setName("filterOutZeroBalAccts_ACTIVE_CB")
+                    NAB.filterOutZeroBalAccts_ACTIVE_CB.setToolTipText("Applies an additional filter: hide active accounts with a zero balance")
+                    NAB.filterOutZeroBalAccts_ACTIVE_CB.addActionListener(NAB.saveActionListener)
+                    filters_pnl.add(NAB.filterOutZeroBalAccts_ACTIVE_CB, GridC.getc(onFiltersCol, onFiltersRow).leftInset(colInsetFiller).fillx())
+                    onFiltersCol += 1
+
+                    NAB.filterOnlyShowSelected_CB = MyJCheckBox("Only Show Selected", False)
+                    NAB.filterOnlyShowSelected_CB.setActionCommand("only_show_selected")
+                    NAB.filterOnlyShowSelected_CB.putClientProperty("%s.id" %(NAB.myModuleID), "filterOnlyShowSelected_CB")
+                    NAB.filterOnlyShowSelected_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    NAB.filterOnlyShowSelected_CB.setName("filterOnlyShowSelected_CB")
+                    NAB.filterOnlyShowSelected_CB.setToolTipText("Applies an additional filter: Only show all selected lines")
+                    NAB.filterOnlyShowSelected_CB.addActionListener(NAB.saveActionListener)
+                    filters_pnl.add(NAB.filterOnlyShowSelected_CB, GridC.getc(onFiltersCol, onFiltersRow).leftInset(colInsetFiller).fillx())
+                    onFiltersCol += 1
+
+                    # --------------------------------------------------------------------------------------------------
                     topInset = 0
                     bottomInset = 0
 
@@ -16189,48 +16219,26 @@ Visit: %s (Author's site)
                     icons_pnl.add(NAB.showWarnings_LBL, GridC.getc(onIconsCol, onIconsRow).leftInset(colLeftInset+2).east())
                     onIconsCol += 1
 
-                    controlPnl.add(icons_pnl, GridC.getc(onCol, onRow).insets(topInset,colLeftInset,bottomInset,colRightInset))
+                    filters_pnl.add(icons_pnl, GridC.getc(onFiltersCol, 0).insets(topInset,30,bottomInset,colRightInset))
 
-                    controlPnl.add(NAB.simulate_JBTN, GridC.getc(onCol, onRow+1).insets(topInset,colLeftInset,bottomInset,colRightInset))
+                    # --------------------------------------------------------------------------------------------------
+                    lblText = "<< Simulate Row >>"
+                    NAB.simulate_JBTN = MyJButton(lblText)
+                    NAB.simulate_JBTN.setActionCommand("simulate")
+                    NAB.simulate_JBTN.putClientProperty("%s.id" %(NAB.myModuleID), "simulate_JBTN")
+                    NAB.simulate_JBTN.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    NAB.simulate_JBTN.setToolTipText("Runs a simulation of current row, and populates the Account picklist below...")
+                    NAB.simulate_JBTN.putClientProperty("%s.collapsible" %(NAB.myModuleID), "false")
+                    NAB.simulate_JBTN.addActionListener(NAB.saveActionListener)
+                    NAB.setSimulateEnabled(False)
 
-                    onRow += 1
+                    filters_pnl.add(NAB.simulate_JBTN, GridC.getc(onFiltersCol, 1).insets(topInset,30,bottomInset,colRightInset))
+
                     # --------------------------------------------------------------------------------------------------
 
-                    onCol = 0
-                    topInset = 5
-
-                    NAB.filterOnlyAccountType_COMBO = MyJComboBox(AccountTypeHolder.generateListForCombo())
-                    NAB.filterOnlyAccountType_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "filterOnlyAccountType_COMBO")
-                    NAB.filterOnlyAccountType_COMBO.setName("filterOnlyAccountType_COMBO")
-                    NAB.filterOnlyAccountType_COMBO.setToolTipText("Applies an additional filter: Only show the selected account type")
-                    NAB.filterOnlyAccountType_COMBO.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(NAB.filterOnlyAccountType_COMBO, GridC.getc(onCol, onRow).leftInset(colLeftInset).topInset(topInset).bottomInset(bottomInset).colspan(1).fillboth())
-                    onCol += 1
-
-                    topInset = 0
-
-                    NAB.filterOutZeroBalAccts_ACTIVE_CB = MyJCheckBox("Filter Out Zeros Active", False)
-                    NAB.filterOutZeroBalAccts_ACTIVE_CB.setActionCommand("filter_out_zeros_active")
-                    NAB.filterOutZeroBalAccts_ACTIVE_CB.putClientProperty("%s.id" %(NAB.myModuleID), "filterOutZeroBalAccts_ACTIVE_CB")
-                    NAB.filterOutZeroBalAccts_ACTIVE_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
-                    NAB.filterOutZeroBalAccts_ACTIVE_CB.setName("filterOutZeroBalAccts_ACTIVE_CB")
-                    NAB.filterOutZeroBalAccts_ACTIVE_CB.setToolTipText("Applies an additional filter: hide active accounts with a zero balance")
-                    NAB.filterOutZeroBalAccts_ACTIVE_CB.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(NAB.filterOutZeroBalAccts_ACTIVE_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).bottomInset(bottomInset).colspan(1).fillboth())
-                    onCol += 1
-
-                    NAB.filterOnlyShowSelected_CB = MyJCheckBox("Only Show Selected", False)
-                    NAB.filterOnlyShowSelected_CB.setActionCommand("only_show_selected")
-                    NAB.filterOnlyShowSelected_CB.putClientProperty("%s.id" %(NAB.myModuleID), "filterOnlyShowSelected_CB")
-                    NAB.filterOnlyShowSelected_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
-                    NAB.filterOnlyShowSelected_CB.setName("filterOnlyShowSelected_CB")
-                    NAB.filterOnlyShowSelected_CB.setToolTipText("Applies an additional filter: Only show all selected lines")
-                    NAB.filterOnlyShowSelected_CB.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(NAB.filterOnlyShowSelected_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).bottomInset(bottomInset).colspan(1).fillboth())
-
-                    onCol += 2
-
+                    controlPnl.add(filters_pnl, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).bottomInset(bottomInset).colspan(4).west())
                     onRow += 1
+
                     # --------------------------------------------------------------------------------------------------
 
                     onCol = 0
@@ -16251,33 +16259,33 @@ Visit: %s (Author's site)
                     onRow += 1
                     # --------------------------------------------------------------------------------------------------
 
-                    scrollpane = MyJScrollPane(NAB.jlst, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
+                    ##-
+                    controlPnlScrollpane = MyJScrollPane(controlPnl, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
+                    controlPnlScrollpane.putClientProperty("%s.id" %(NAB.myModuleID), "controlPnlScrollpane")
+                    controlPnlScrollpane.setViewportBorder(EmptyBorder(5, colLeftInset, 5, colRightInset))
+                    controlPnlScrollpane.setOpaque(False)
+
+                    ##-
+                    scrollpane = MyJScrollPane(NAB.jlst, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
                     scrollpane.putClientProperty("%s.id" %(NAB.myModuleID), "scrollpane")
                     scrollpane.setViewportBorder(EmptyBorder(5, colLeftInset, 5, colRightInset))
                     scrollpane.setOpaque(False)
 
                     screenSize = Toolkit.getDefaultToolkit().getScreenSize()                                            # noqa
-                    desired_scrollPane_width = 800                                                                      # noqa
-                    desired_frame_height_max = min(650, int(round(screenSize.height * 0.9,0)))                          # noqa
-                    desired_frame_height_max = min(500, int(round(screenSize.height * 0.9,0)))                          # noqa
+                    desired_frame_height_max = min(500, int(round(screenSize.height * 0.9, 0)))                         # noqa
                     scrollPaneTop = scrollpane.getY()                                                                   # noqa
                     calcScrollPaneHeight = (desired_frame_height_max - scrollPaneTop - 70)                              # noqa
-
-                    scrollpane.setPreferredSize(Dimension(0, calcScrollPaneHeight))
-                    # scrollpane.setMinimumSize(Dimension(desired_scrollPane_width, calcScrollPaneHeight))
-                    # scrollpane.setMaximumSize(Dimension(int(round(screenSize.width * 0.9,0)), int(round((screenSize.height * 0.9) - scrollPaneTop - 70,0))))
+                    scrollpane.setPreferredSize(Dimension((controlPnlScrollpane.getPreferredSize().width + 15), calcScrollPaneHeight))
 
                     # -----------------------------------------------------------------------------------
                     mainPnl = MyJPanel(BorderLayout())
 
                     masterPnl = MyJPanel(BorderLayout())
                     masterPnl.putClientProperty("%s.id" %(NAB.myModuleID), "masterPnl")
-                    # masterPnl.setOpaque(True)
 
                     rootPane = JRootPane()
                     masterPnl.add(rootPane, BorderLayout.CENTER)
 
-                    # masterPnl.putClientProperty("root", rootPane)
                     NAB.createMenus()                              # Now moved away from JFrame.setJMenuBar() to here...
                     rootPane.setJMenuBar(NAB.mainMenuBar)
                     rootPane.getContentPane().setOpaque(True)                                                           # noqa
@@ -16286,7 +16294,7 @@ Visit: %s (Author's site)
 
                     # -----------------------------------------------------------------------------------
                     mainPnl.putClientProperty("%s.id" %(NAB.myModuleID), "mainPnl")
-                    mainPnl.add(controlPnl, BorderLayout.NORTH)
+                    mainPnl.add(controlPnlScrollpane, BorderLayout.NORTH)
                     mainPnl.add(scrollpane, BorderLayout.CENTER)
 
                     NAB.theFrame.getContentPane().setLayout(BorderLayout())
@@ -16298,12 +16306,9 @@ Visit: %s (Author's site)
                     shortcut = MoneydanceGUI.ACCELERATOR_MASK
 
                     # Add standard CMD-W keystrokes etc to close window
-                    # NAB.theFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut), "hide-window")
-                    # NAB.theFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "hide-window")
                     NAB.theFrame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut), "hide-window")
                     NAB.theFrame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "hide-window")
                     NAB.theFrame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "hide-window")
-                    # NAB.theFrame.getRootPane().getActionMap().put("close-window", NAB.CloseAction(NAB.theFrame))
                     NAB.theFrame.getRootPane().getActionMap().put("hide-window", NAB.HideAction(NAB.theFrame))
 
                     if NAB.moneydanceExtensionLoader:
@@ -16312,19 +16317,6 @@ Visit: %s (Author's site)
                             myPrint("DB", "Contents loaded from /%s_readme.txt" %(NAB.myModuleID))
                         except:
                             myPrint("B", "@@ Error loading contents from /%s_readme.txt" %(NAB.myModuleID))
-
-                    # NAB.theFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_I, shortcut), "display-help")
-                    # NAB.theFrame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_I, shortcut), "display-help")
-                    # NAB.theFrame.getRootPane().getActionMap().put("display-help", NAB.HelpAction(NAB.theFrame))
-
-                    # NAB.theFrame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_B, (shortcut | Event.SHIFT_MASK)), "backup-config")
-                    # NAB.theFrame.getRootPane().getActionMap().put("backup-config", NAB.BackupRestoreConfig(NAB.theFrame, backup=True))
-                    #
-                    # NAB.theFrame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_R, (shortcut | Event.SHIFT_MASK)), "restore-config")
-                    # NAB.theFrame.getRootPane().getActionMap().put("restore-config", NAB.BackupRestoreConfig(NAB.theFrame, restore=True))
-
-                    # NAB.theFrame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_I, (shortcut | Event.SHIFT_MASK)), "show-uuid")
-                    # NAB.theFrame.getRootPane().getActionMap().put("show-uuid", NAB.ShowRowUUID(NAB.theFrame))
 
                     NAB.theFrame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_L, (shortcut | Event.SHIFT_MASK)), "show-last-uuid")
                     NAB.theFrame.getRootPane().getActionMap().put("show-last-uuid", NAB.ShowRowUUID(NAB.theFrame, showLast=True))
@@ -16337,7 +16329,6 @@ Visit: %s (Author's site)
 
                     NAB.theFrame.addWindowListener(NAB.WindowListener(NAB.theFrame, NAB.myModuleID))
 
-                    # self.theFrame.setPreferredSize(Dimension(600, 800))
                     NAB.theFrame.setExtendedState(JFrame.NORMAL)
                     NAB.theFrame.setResizable(True)
 
@@ -16346,7 +16337,7 @@ Visit: %s (Author's site)
                     NAB.theFrame.pack()
                     NAB.theFrame.setLocationRelativeTo(None)
 
-                    NAB.jlst.requestFocusInWindow()           # Set initial focus on the account selector
+                    NAB.jlst.requestFocusInWindow()                          # Set initial focus on the account selector
 
                     NAB.theFrame.setVisible(False)
 
@@ -16376,7 +16367,7 @@ Visit: %s (Author's site)
             return result
 
         def getMoneydanceUI(self):
-            global debug    # global statement must be here as we can set debug here
+            global debug                                        # global statement must be here as we can set debug here
             saveDebug = debug
 
             if GlobalVars.specialDebug:
@@ -16721,7 +16712,6 @@ Visit: %s (Author's site)
                     myPrint("B", "@@ %s triggered - So I will deactivate myself...." %(appEvent))
 
                 myPrint("DB", "... calling .unloadMyself()")
-                # genericThreadRunner(False, NAB.unloadMyself)
                 genericSwingEDTRunner(False, False, NAB.unloadMyself)
 
                 myPrint("DB", "Back from calling .unloadMyself() via new thread to deactivate...")
@@ -16734,7 +16724,6 @@ Visit: %s (Author's site)
                     myPrint("B", "@@ %s triggered - So I will uninstall/remove myself...." %(appEvent))
 
                 myPrint("DB", "... calling .removeMyself()")
-                # genericThreadRunner(False, NAB.removeMyself)
                 genericSwingEDTRunner(False, False, NAB.removeMyself)
 
                 myPrint("DB", "Back from calling .removeMyself() via new thread to deactivate...")
@@ -17235,10 +17224,6 @@ Visit: %s (Author's site)
 
                     onRow = iAccountLoop + 1
 
-                    # if justIndex is not None and iAccountLoop not in mstrListUORChainAndFormulaRowIdxsRqdForCalcs: continue
-                    # if NAB.savedHideRowWhenXXXTable[iAccountLoop] == GlobalVars.HIDE_ROW_WHEN_ALWAYS: continue
-                    # if NAB.isRowFilteredOutByGroupID(iAccountLoop): continue
-
                     if iAccountLoop not in mstrListUORChainAndFormulaRowIdxsRqdForCalcs: continue
 
                     if debug: myPrint("DB", "HomePageView::calculateBalances() Finding selected accounts for row: %s" %(onRow))
@@ -17277,10 +17262,6 @@ Visit: %s (Author's site)
                     onRow = iAccountLoop + 1
 
                     parallelFullAccountsList = []
-
-                    # if justIndex is not None and iAccountLoop not in mstrListUORChainAndFormulaRowIdxsRqdForCalcs: continue
-                    # if NAB.savedHideRowWhenXXXTable[iAccountLoop] == GlobalVars.HIDE_ROW_WHEN_ALWAYS: continue
-                    # if NAB.isRowFilteredOutByGroupID(iAccountLoop): continue
 
                     if iAccountLoop not in mstrListUORChainAndFormulaRowIdxsRqdForCalcs: continue
 
@@ -18040,7 +18021,6 @@ Visit: %s (Author's site)
                     if not lFromSimulate:  NAB.clearLastResultsBalanceTable(obtainLockFirst=False)
                     observedUUIDKeys = {}
                     for i in range(0, len(_totalBalanceTable)):
-                        # if i not in mstrListUORChainAndFormulaRowIdxsRqdForCalcs: continue
                         onRow = i + 1
                         balanceObj = _totalBalanceTable[i]                                                              # type: CalculatedBalance
                         observedUUIDKeys[balanceObj.getUUID()] = True
@@ -18505,14 +18485,14 @@ Visit: %s (Author's site)
                                     if showWarn: lAnyShowWarningsEnabled = True
                                     if not showWarn: lAnyShowWarningsDisabled = True
 
-                                setWarningIcon = None
+                                warningIcon = None
                                 if len(NAB.warningMessagesTable) > 0:
                                     if debug or lTaxDateError:
-                                        setWarningIcon = NAB.warningIcon
+                                        warningIcon = NAB.warningIcon
                                     else:
                                         if not NAB.savedDisableWarningIcon and lAnyShowWarningsEnabled:
-                                            setWarningIcon = NAB.warningIcon
-                                _view.warningIconLbl.setIcon(setWarningIcon)
+                                            warningIcon = NAB.warningIcon
+                                _view.warningIconLbl.setIcon(warningIcon)
 
                                 if NAB.warningInParametersDetected and lAnyShowWarningsEnabled:
                                     warningTypeText = NAB.getWarningType(NAB.warningInParametersDetectedType)
@@ -18731,7 +18711,6 @@ Visit: %s (Author's site)
                 self.headerLabel = JLinkLabel(" ", "showConfig", JLabel.LEFT)
                 self.headerLabel.setDrawUnderline(False)
                 self.headerLabel.setFont(NAB.moneydanceContext.getUI().getFonts().header)                               # noqa
-                # self.headerLabel.setBorder(self.nameBorder)                                                           # noqa
 
                 self.balTypeLabel = JLinkLabel("", "showConfig", JLabel.RIGHT)
                 self.balTypeLabel.setFont(NAB.moneydanceContext.getUI().getFonts().defaultText)                         # noqa
@@ -18768,7 +18747,6 @@ Visit: %s (Author's site)
                 self.titlePnl.add(self.warningIconLbl, GridC.getc().xy(lblCol, 0).wx(0.1).center());    lblCol += 1
                 self.titlePnl.add(self.headerLabel, GridC.getc().xy(lblCol, 0).wx(9.0).fillx().west()); lblCol += 1
 
-                # self.headerPanel.add(self.headerLabel, GridC.getc().xy(0, 0).wx(1.0).fillx().west())
                 self.headerPanel.add(self.titlePnl, GridC.getc().xy(0, 0).wx(1.0).fillx().east())
                 self.headerPanel.add(self.balTypeLabel, GridC.getc().xy(1, 0))
 

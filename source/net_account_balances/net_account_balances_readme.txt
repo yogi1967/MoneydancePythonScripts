@@ -128,7 +128,7 @@ CHOICES/CONFIGURATION FOR A ROW:
             - Income / Expense categories:   Not affected by this option - refer separate 'I/E Date Range' section
             - Include Reminders:             Not affected by this option - refer separate 'Include Reminders' section
             - Security accounts when the 'Securities: Cost Basis' options are selected:
-                - refer separate 'Securities: Return Cost Basis / Unrealised Gains / Capital Gains options' section...
+                - refer separate 'Securities: Cost Basis / Unrealised Gains / Capital Gains options' section...
 
         - WARNING: tax dates when using 'asof' cannot be derived. The 'normal' txn date will be applied.
                    .. this exclusion also applies to all cost basis option(s)...
@@ -157,36 +157,36 @@ CHOICES/CONFIGURATION FOR A ROW:
         - WARNING: REFER 'PARALLEL BALANCES' BELOW CONCERNING CALCULATION SPEED
 
 - Securities: Return: Value / Cost Basis / Unrealised Gains / Capital Gains option(s):
-    - Rtn Value:             [DEFAULT] Returns the normal balance (i.e. this does not enable cost basis options)
+    - Value:            [DEFAULT] Returns the normal balance (i.e. this does not enable cost basis options)
 
-    - Rtn Cost Basis:        When selected, the cost basis (**as of the balance / asof date) for selected Security
-                             accounts will be returned (instead of the normal shareholding value).
+    - Cost Basis:       When selected, the cost basis (**as of the balance / asof date) for selected Security
+                        accounts will be returned (instead of the normal shareholding value).
 
-    - (CB Incl. cash):       The same as 'Rtn Cost Basis' but includes Investment account's cash balances...
-                             When selected then cash balances on (selected) investment accounts will be included too.
-                             .. both this option AND the investment account(s) need to be selected for cash
-                             .. if this option is not selected, then any selected investment accounts will generate zero
+    - (CB incl. cash):  The same as 'Cost Basis' but includes Investment account's cash balances...
+                        When selected then cash balances on (selected) investment accounts will be included too.
+                        .. both this option AND the investment account(s) need to be selected for cash
+                        .. if this option is not selected, then any selected investment accounts will generate zero
 
-                             > REMEMBER: Cash is NOT specific to any security, it's just cash in the investment account!
+                        > REMEMBER: Cash is NOT specific to any security, it's just cash in the investment account!
 
-                             > WARNING: Many would consider that cash should NEVER be included, as this is not specific
-                                        to any security. But MD often includes cash for any accounts where there are
-                                        securities with a share balance. NOTE: MD does not seem to include cash where an
-                                        investment account has no securities with a share balance.
+                        > WARNING: Many would consider that cash should NEVER be included, as this is not specific
+                                   to any security. But MD often includes cash for any accounts where there are
+                                   securities with a share balance. NOTE: MD does not seem to include cash where an
+                                   investment account has no securities with a share balance.
 
-    - Rtn Unrealised Gains:  When selected, the calculated unrealised gains (**asof the balance / asof date) for the
-                             selected Security accounts will be returned. This is calculated as value less cost basis.
+    - Unrealised Gains: When selected, the calculated unrealised gains (**asof the balance / asof date) for the
+                        selected Security accounts will be returned. This is calculated as value less cost basis.
 
-    - Rtn Capital Gains:     When selected, the calculated capital gains for the selected Security accounts will be
-                             returned. This gains calculation is 'simple' and will not identify short/long term gains
-                             (for example). NOTE: when this option is selected then an extra row will appear, that
-                             allows you to select the date range for the capital gains reporting.
+    - Capital Gains:    When selected, the calculated capital gains for the selected Security accounts will be
+                        returned. This gains calculation is 'simple' and will not identify short/long term gains
+                        (for example). NOTE: when this option is selected then an extra row will appear, that
+                        allows you to select the date range for the capital gains reporting.
 
-                             > WARNING: The date range cannot exceed the 'balance asof date'. Any transactions (gains)
-                                        after the asof date will be excluded from the calculation!
+                        > WARNING: The date range cannot exceed the 'balance asof date'. Any transactions (gains)
+                                   after the asof date will be excluded from the calculation!
 
-    - (C/Gains Short):       As above, but returns the 'short' capital gains value
-    - (C/Gains Long):        As above, but returns the 'long' capital gains value
+    - (C/Gains Short):  As above, but returns the 'short' capital gains value
+    - (C/Gains Long):   As above, but returns the 'long' capital gains value
 
     >> NOTES:
         - Calculated cost basis / unrealised / capital gains values will overwrite normal calculated balances
@@ -200,7 +200,7 @@ CHOICES/CONFIGURATION FOR A ROW:
 
         - WARNING: 'Use Tax Dates' will be ignored when returning any of the cost basis options!
 
-- Securities Capital Gains: This option only appears when return capital gains is selected.
+- Securities Capital Gains: This option only appears when 'capital gains' is selected.
 
 
 - INC/EXP Date Range: Income/Expense Categories need a date range to provide a balance.
