@@ -135,7 +135,7 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 #               Created own min, max, abs functions for protected eval that convert parameters to floats etc...
 #               Added formula warning label(red)...
 #               Truncate row name (with ...) when > max length on Summary Page widget...; Fix config GUI currency dropdown; further GUI tweaks...
-#               Fixed debug error - exclude ROOT account...
+#               Fixed debug error - exclude ROOT account...; Fixed max screen/frame sizings (especially on non-Mac platforms)...
 
 # todo - consider better formula handlers... e.g. com.infinitekind.util.StringUtils.parseFormula(String, char)
 # todo - option to show different dpc (e.g. full decimal precision)
@@ -13379,7 +13379,6 @@ Visit: %s (Author's site)
                 # ##########################################################################################################
                 # if event.getActionCommand() == "simulate":
                 if event.getSource() is NAB.simulate_JBTN:
-                    # myPrint("B", "@@ Frame size: %s" %(NAB.theFrame.getSize()));
                     event.getSource().grabFocus()
                     myPrint("DB", ".. SIMULATE triggered... Setting controls/labels, then calling necessary parallel operations/simulate actions...")
                     myPrint("DB", "...... NOTE: JList of selected accounts reports hasListSelectionChanged: %s" %(NAB.jlst.hasListSelectionChanged()))
@@ -14874,7 +14873,7 @@ Visit: %s (Author's site)
                     NAB.savePropertyChangeListener = NAB.MyPropertyChangeListener()
                     NAB.saveFocusListener = NAB.MyFocusListener()
 
-                    controlPnl = MyJPanel(GridBagLayout(), fixedWidth=1100)
+                    controlPnl = MyJPanel(GridBagLayout(), fixedWidth=1100)  # Constrain width so it doesn't go wild inside its scrollpane
                     controlPnl.putClientProperty("%s.id" %(NAB.myModuleID), "controlPnl")
 
                     colLeftInset = 3
@@ -14965,7 +14964,6 @@ Visit: %s (Author's site)
                     NAB.filterByGroupID_JTF.setToolTipText("Filter rows by 'GroupID' (free format text). Use ';' to separate multiple, '!' = NOT, '&' = AND. Refer CMD-I Help")
                     NAB.filterByGroupID_JTF.setPlaceholderText("Filter by GroupID....")
                     NAB.filterByGroupID_JTF.addFocusListener(NAB.saveFocusListener)
-                    # selectRow_pnl.add(NAB.filterByGroupID_JTF, GridC.getc(onSelectCol, onSelectRow).leftInset(colLeftInset).west().wx(1.0).fillx())
                     selectRow_pnl.add(NAB.filterByGroupID_JTF, GridC.getc(onSelectCol, onSelectRow).leftInset(colLeftInset).west().wx(0.5).fillx())
                     onSelectCol += 1
 
@@ -14976,7 +14974,6 @@ Visit: %s (Author's site)
                     selectRow_pnl.add(filterSelector_LBL, GridC.getc(onSelectCol, onSelectRow).leftInset(colInsetFiller).topInset(5).bottomInset(5).rightInset(colRightInset))
                     onSelectCol += 1
 
-                    # NAB.warning_label = MyJLabel("", JLabel.LEFT, fixedWidth=250, fixedHeight=20);
                     NAB.warning_label = MyJLabel("", JLabel.LEFT, fixedHeight=20)
                     NAB.warning_label.putClientProperty("%s.id" %(NAB.myModuleID), "warning_label")
                     NAB.warning_label.setMDHeaderBorder()
@@ -14986,12 +14983,12 @@ Visit: %s (Author's site)
                     warnLblScrollPane.setViewportBorder(EmptyBorder(0, 0, 0, 0))
                     warnLblScrollPane.setOpaque(False)
                     dim = NAB.warning_label.getPreferredSize()
-                    # dim.width += 5; dim.height += 5
                     dim.width = 250
                     dim.height += 5
                     warnLblScrollPane.setMinimumSize(dim)
                     warnLblScrollPane.setPreferredSize(dim)
                     warnLblScrollPane.setMaximumSize(dim)
+                    del dim
 
                     selectRow_pnl.add(warnLblScrollPane, GridC.getc(onSelectCol, onSelectRow).leftInset(colInsetFiller).topInset(5).bottomInset(5).rightInset(colRightInset).fillx())
                     onSelectCol += 1
@@ -15388,7 +15385,6 @@ Visit: %s (Author's site)
 
                     NAB.securitiesCapitalGains_DRC = MyDateRangeChooser(NAB.moneydanceContext.getUI(), MyDateRangeChooser.KEY_DR_YEAR_TO_DATE, excludeDRs)
                     NAB.securitiesCapitalGains_DRC.setName("securitiesCapitalGains_DRC")
-                    # NAB.securitiesCapitalGains_DRC.putClientProperty("%s.id" %(NAB.myModuleID), "securitiesCapitalGains_DRC")
 
                     drc = NAB.securitiesCapitalGains_DRC
                     for comp in drc.getAllSwingComponents():
@@ -16260,22 +16256,10 @@ Visit: %s (Author's site)
                     # --------------------------------------------------------------------------------------------------
 
                     ##-
-                    controlPnlScrollpane = MyJScrollPane(controlPnl, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
-                    controlPnlScrollpane.putClientProperty("%s.id" %(NAB.myModuleID), "controlPnlScrollpane")
-                    controlPnlScrollpane.setViewportBorder(EmptyBorder(5, colLeftInset, 5, colRightInset))
-                    controlPnlScrollpane.setOpaque(False)
-
-                    ##-
-                    scrollpane = MyJScrollPane(NAB.jlst, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
-                    scrollpane.putClientProperty("%s.id" %(NAB.myModuleID), "scrollpane")
-                    scrollpane.setViewportBorder(EmptyBorder(5, colLeftInset, 5, colRightInset))
-                    scrollpane.setOpaque(False)
-
-                    screenSize = Toolkit.getDefaultToolkit().getScreenSize()                                            # noqa
-                    desired_frame_height_max = min(500, int(round(screenSize.height * 0.9, 0)))                         # noqa
-                    scrollPaneTop = scrollpane.getY()                                                                   # noqa
-                    calcScrollPaneHeight = (desired_frame_height_max - scrollPaneTop - 70)                              # noqa
-                    scrollpane.setPreferredSize(Dimension((controlPnlScrollpane.getPreferredSize().width + 15), calcScrollPaneHeight))
+                    acctJListScrollpane = MyJScrollPane(NAB.jlst, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
+                    acctJListScrollpane.putClientProperty("%s.id" %(NAB.myModuleID), "acctJListScrollpane")
+                    acctJListScrollpane.setViewportBorder(EmptyBorder(5, colLeftInset, 5, colRightInset))
+                    acctJListScrollpane.setOpaque(False)
 
                     # -----------------------------------------------------------------------------------
                     mainPnl = MyJPanel(BorderLayout())
@@ -16290,12 +16274,18 @@ Visit: %s (Author's site)
                     rootPane.setJMenuBar(NAB.mainMenuBar)
                     rootPane.getContentPane().setOpaque(True)                                                           # noqa
                     rootPane.getContentPane().setBackground(Color(237,237,237))       # very light grey panel background
-                    rootPane.getContentPane().add(mainPnl)
 
                     # -----------------------------------------------------------------------------------
                     mainPnl.putClientProperty("%s.id" %(NAB.myModuleID), "mainPnl")
-                    mainPnl.add(controlPnlScrollpane, BorderLayout.NORTH)
-                    mainPnl.add(scrollpane, BorderLayout.CENTER)
+                    mainPnl.add(controlPnl, BorderLayout.NORTH)
+                    mainPnl.add(acctJListScrollpane, BorderLayout.CENTER)
+
+                    wholePnlScrollpane = MyJScrollPane(mainPnl, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
+                    wholePnlScrollpane.putClientProperty("%s.id" %(NAB.myModuleID), "wholePnlScrollpane")
+                    wholePnlScrollpane.setViewportBorder(EmptyBorder(5, colLeftInset, 5, colRightInset))
+                    wholePnlScrollpane.setOpaque(False)
+
+                    rootPane.getContentPane().add(wholePnlScrollpane)
 
                     NAB.theFrame.getContentPane().setLayout(BorderLayout())
                     NAB.theFrame.getContentPane().add(masterPnl, BorderLayout.CENTER)
@@ -16332,13 +16322,43 @@ Visit: %s (Author's site)
                     NAB.theFrame.setExtendedState(JFrame.NORMAL)
                     NAB.theFrame.setResizable(True)
 
-                    # No longer setting up menu here....
+                    # No longer setting up menu here (thanks to the extra root pane trick)....
+
+                    def _dumpScreenSizes(_frame, txt, wholeScrollpane, botScrollpane):
+                        if debug:
+                            from java.awt import GraphicsEnvironment
+                            # for mode in GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDisplayModes():
+                            #     myPrint("B", "... mode:                       %s x %s (%s): refresh rate: %s" %(mode.getWidth(), mode.getHeight(), mode.getBitDepth(), mode.getRefreshRate()))
+                            myPrint("B", "-------------------------------------: %s" %(txt))
+                            myPrint("B", "displayMode:                    %s" %(GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDisplayMode()))
+                            myPrint("B", "screenSize:                     %s" %(Toolkit.getDefaultToolkit().getScreenSize()))
+                            myPrint("B", "frame prefSize:                 %s (actual: %s)" %(_frame.getPreferredSize(), _frame.getSize()))
+                            myPrint("B", "wholePnlScrollpane prefSize:    %s (actual: %s)" %(wholeScrollpane.getPreferredSize(), wholeScrollpane.getSize()))
+                            myPrint("B", "acctJListScrollpane spPrefSize: %s (actual: %s)" %(botScrollpane.getPreferredSize(), botScrollpane.getSize()))
+                            myPrint("B", "acctListScrollpaneTop:          %s" %(botScrollpane.getY()))
+                            myPrint("B", "-------------------------------------")
+
+                    _dumpScreenSizes(NAB.theFrame, "PRE-ANYTHING", wholePnlScrollpane, acctJListScrollpane)
+
+                    screenSize = Toolkit.getDefaultToolkit().getScreenSize()
+                    frameOuterHeightMax = int(screenSize.height * 0.97)
+                    dimFrame = NAB.theFrame.getPreferredSize()
+                    dimFrame.height = frameOuterHeightMax
+                    NAB.theFrame.setPreferredSize(dimFrame)
+
+                    _dumpScreenSizes(NAB.theFrame, "PRE-PACK", wholePnlScrollpane, acctJListScrollpane)
 
                     NAB.theFrame.pack()
+                    _dumpScreenSizes(NAB.theFrame, "POST-PACK", wholePnlScrollpane, acctJListScrollpane)
+
+                    # With the scrollbar on a pnl within another scrollbar, the account picklist virticle scrollbar appears to the right on the pnl above's content.. Tweak to fix that...
+                    dimFr = NAB.theFrame.getSize()
+                    dimFr.width += acctJListScrollpane.getVerticalScrollBar().getMaximumSize().width
+                    NAB.theFrame.setSize(dimFr)
+                    _dumpScreenSizes(NAB.theFrame, "POST-PACK-POST-ADJUSTMENTS", wholePnlScrollpane, acctJListScrollpane)
+
                     NAB.theFrame.setLocationRelativeTo(None)
-
                     NAB.jlst.requestFocusInWindow()                          # Set initial focus on the account selector
-
                     NAB.theFrame.setVisible(False)
 
                     if (not Platform.isOSX()):
