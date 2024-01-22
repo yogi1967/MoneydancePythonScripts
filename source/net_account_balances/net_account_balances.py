@@ -135,7 +135,8 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 #               Created own min, max, abs functions for protected eval that convert parameters to floats etc...
 #               Added formula warning label(red)...
 #               Truncate row name (with ...) when > max length on Summary Page widget...; Fix config GUI currency dropdown; further GUI tweaks...
-#               Fixed debug error - exclude ROOT account...; Fixed max screen/frame sizings (especially on non-Mac platforms)...
+#               Fixed debug error - exclude ROOT account...; Fixed max screen/frame sizing (especially on non-Mac platforms)...
+#               Further tweaks to scrollpanes/scrollbars (move whole page scrollbar to left, expand view / frame on right (more) when on windows)
 
 # todo - consider better formula handlers... e.g. com.infinitekind.util.StringUtils.parseFormula(String, char)
 # todo - option to show different dpc (e.g. full decimal precision)
@@ -5645,11 +5646,11 @@ Visit: %s (Author's site)
             self.setForeground(GlobalVars.CONTEXT.getUI().getColors().defaultTextForeground)
 
         # Avoid width resizes changing the GUI back and forth....
-        def getPreferredSize(self):
-            dim = super(self.__class__, self).getPreferredSize()
-            self.maxWidth = Math.max(self.maxWidth, dim.width)
-            dim.width = self.maxWidth
-            return dim
+        # def getPreferredSize(self):
+        #     dim = super(self.__class__, self).getPreferredSize()
+        #     self.maxWidth = Math.max(self.maxWidth, dim.width)
+        #     dim.width = self.maxWidth
+        #     return dim
 
     class SpecialJLinkLabel(JLinkLabel):
         def __init__(self, *args, **kwargs):
@@ -16338,6 +16339,19 @@ Visit: %s (Author's site)
                             myPrint("B", "acctListScrollpaneTop:          %s" %(botScrollpane.getY()))
                             myPrint("B", "-------------------------------------")
 
+                    # Shift the vertical scrollbar to the left..... perhaps ;->
+                    from javax.swing import ScrollPaneLayout
+                    from java.awt import ComponentOrientation
+                    class _MyScrollPaneLayout(ScrollPaneLayout):
+                        def layoutContainer(self, _scrollPane):
+                            if isinstance(_scrollPane, JScrollPane): pass
+                            _scrollPane.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+                            super(self.__class__, self).layoutContainer(_scrollPane)
+                            _scrollPane.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+
+                    # acctJListScrollpane.setLayout(_MyScrollPaneLayout());
+                    wholePnlScrollpane.setLayout(_MyScrollPaneLayout())
+
                     _dumpScreenSizes(NAB.theFrame, "PRE-ANYTHING", wholePnlScrollpane, acctJListScrollpane)
 
                     screenSize = Toolkit.getDefaultToolkit().getScreenSize()
@@ -16351,10 +16365,11 @@ Visit: %s (Author's site)
                     NAB.theFrame.pack()
                     _dumpScreenSizes(NAB.theFrame, "POST-PACK", wholePnlScrollpane, acctJListScrollpane)
 
-                    # With the scrollbar on a pnl within another scrollbar, the account picklist virticle scrollbar appears to the right on the pnl above's content.. Tweak to fix that...
+                    # With the scrollbar on a pnl within another scrollbar, the account picklist vertical scrollbar appears to the right on the pnl above's content.. Tweak to fix that...
                     dimFr = NAB.theFrame.getSize()
-                    dimFr.width += acctJListScrollpane.getVerticalScrollBar().getMaximumSize().width
+                    dimFr.width += (acctJListScrollpane.getVerticalScrollBar().getSize().width * (3 if Platform.isWindows() else 1))
                     NAB.theFrame.setSize(dimFr)
+
                     _dumpScreenSizes(NAB.theFrame, "POST-PACK-POST-ADJUSTMENTS", wholePnlScrollpane, acctJListScrollpane)
 
                     NAB.theFrame.setLocationRelativeTo(None)
