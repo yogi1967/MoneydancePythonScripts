@@ -3,7 +3,7 @@
 
 # client_skylar_lowest_balances.py build: 1001 - November 2023 - Stuart Beesley - StuWareSoftSystems
 #
-# "Bespoke for 'Skylar De'Font. Shows lowest future balances on Summary / Home page widget"
+# "Bespoke for Skylar De'Font. Shows lowest future balances on Summary / Home page widget"
 ########################################################################################################################
 # MIT License
 #
