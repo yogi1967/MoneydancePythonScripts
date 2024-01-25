@@ -3268,8 +3268,9 @@ Visit: %s (Author's site)
         Params asof:None or zero = asof the most recent (future)txn date that affected the shareholding/costbasis balance.
         preparedTxns is typically used by itself to recall the class to get the current cost basis
         obtainCurrentBalanceToo is used to request that the class calls itself to also get the current/today balance too
-        # (v2: LOT control fixes, v3: added isCostBasisValid(), v4: don't incl. fees on misc inc/exp in cbasis with lots),
-        # .. fixes for  capital gains to work, v5: added in short/long term support..."""
+        # (v2: LOT control fixes, v3: added isCostBasisValid(), v4: don't incl. fees on misc inc/exp in cbasis with lots,
+        # ...fixes for  capital gains to work, v5: added in short/long term support, v6: added unRealizedSaleTxn parameter
+        support)"""
 
         ################################################################################################################
         # This is used to calculate the cost of a security using either the average cost or lot-based method.
@@ -3290,9 +3291,15 @@ Visit: %s (Author's site)
 
         COST_DEBUG = False
 
-        def __init__(self, secAccount, asOfDate=None, preparedTxns=None, obtainCurrentBalanceToo=False):
-            # type: (Account, int, TxnSet, bool) -> None
+        def __init__(self, secAccount, asOfDate=None, preparedTxns=None, obtainCurrentBalanceToo=False, unRealizedSaleTxn=None):
+            # type: (Account, int, TxnSet, bool, SplitTxn) -> None
+
             if self.COST_DEBUG: myPrint("B", "** MyCostCalculation() initialising..... running asof: %s, for account: '%s' (%s) **"%(asOfDate, secAccount, "AvgCost" if self.getUsesAverageCost() else "LotControl"))
+
+            if unRealizedSaleTxn is not None:
+                assert (isinstance(unRealizedSaleTxn, SplitTxn))
+                if self.COST_DEBUG: myPrint("B", "... unrealized (sale txn) gain calculation requested for:", unRealizedSaleTxn)
+
             todayInt = DateUtil.getStrippedDateInt()
             if (asOfDate is None or asOfDate < 19000000): asOfDate = None
             self.asOfDate = asOfDate
@@ -3314,6 +3321,7 @@ Visit: %s (Author's site)
                 # Check isCostBasisValid() here for speed....
                 if InvestUtil.isCostBasisValid(self.getSecAccount()):
                     self.txns = secAccount.getBook().getTransactionSet().getTransactionsForAccount(secAccount)          # type: TxnSet
+                    if unRealizedSaleTxn is not None: self.txns.addTxn(unRealizedSaleTxn)
                     self.txns.sortWithComparator(TxnUtil.DATE_THEN_AMOUNT_COMPARATOR.reversed())                        # Newest first by index
                 else:
                     self.costBasisInvalid = True
@@ -3463,7 +3471,6 @@ Visit: %s (Author's site)
 
                     # allocate as many shares as possible from this buy transaction
                     # but first, un-apply any splits so that we're talking about the same number shares
-                    # unallottedSellShares = self.secCurr.unadjustValueForSplitsInt(sell.getDate(), -sell.getUnallottedSharesAdded(), buy.getDate())
                     unallottedSellShares = self.secCurr.unadjustValueForSplitsInt(buy.getDate(), -sell.getUnallottedSharesAdded(), sell.getDate())  # todo - MDFIX
                     sharesFromBuy = Math.min(unallottedSellShares, buy.getUnallottedSharesAdded())
                     sharesFromBuyAdjusted = self.secCurr.adjustValueForSplitsInt(buy.getDate(), sharesFromBuy, sell.getDate())
@@ -3506,7 +3513,6 @@ Visit: %s (Author's site)
                         if (lotMatchedBoughtPos is not None):
                             lotMatchedBoughtShares = lotMatchedBuyTable.get(lotMatchedBuyID)
 
-                            # lotMatchedBoughtSharesAdjusted = self.secCurr.adjustValueForSplitsInt(lotMatchedBoughtPos.getDate(), lotMatchedBoughtShares, sellPosition.getDate())
                             lotMatchedBoughtSharesAdjusted = self.secCurr.unadjustValueForSplitsInt(lotMatchedBoughtPos.getDate(), lotMatchedBoughtShares, sellPosition.getDate())  # todo - MDFIX
 
                             if self.COST_DEBUG: myPrint("B", "#### lotMatchedBoughtPos.getDate(): %s, lotMatchedBoughtShares: %s, sellPosition.getDate(): %s, lotMatchedBoughtSharesAdjusted: %s"
@@ -3686,7 +3692,7 @@ Visit: %s (Author's site)
         def getGainInfo(self, saleTxn):
             # type: (AbstractTxn) -> CapitalGainResult                                                                  # todo - MDFIX
             """Returns the overall capital gain information specific to the given sell transaction.
-               The sell transaction must have the security as it's 'account' which means the transaction
+               The sell transaction must have the security as its 'account' which means the transaction
                must be the SplitTxn that is assigned to the security account.  If the transaction is
                invalid or null then a zero/error capital gains is returned.
                Returns a CapitalGainResult object with the details of the cost and gains for this transaction"""
@@ -3849,7 +3855,6 @@ Visit: %s (Author's site)
                     txnShares = -fields.shares
                     runningAvgPrice = float(fields.price)
                     if (previousPosition is not None and previousPosition.getSharesOwnedAsOfAsOf() != 0):
-                        # runningAvgPrice = float(txnRunningCost) / float(previousPosition.getSharesOwnedAsOfAsOf())
                         priorSharesOwnedAdjusted = self.callingClass.secCurr.unadjustValueForSplitsInt(previousPosition.getDate(), previousPosition.getSharesOwnedAsOfAsOf(), self.callingClass.getAsOfDate())
                         runningAvgPrice = float(txnRunningCost) / float(priorSharesOwnedAdjusted)                       # todo - MDFIX
                     sellCost = Math.round(float(txnShares) * runningAvgPrice)
