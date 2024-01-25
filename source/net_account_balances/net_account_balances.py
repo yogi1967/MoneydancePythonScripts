@@ -4531,7 +4531,7 @@ Visit: %s (Author's site)
         if _screenSize.height < 1000:
             _splitPane.setDividerLocation(0.80)
         else:
-            _splitPane.setDividerLocation(_mainPnl.getPreferredSize().height)
+            _splitPane.setDividerLocation(_mainPnl.getPreferredSize().height - 25)
 
     def dumpScreenSizes(_nab, _frame, _msgTxt, *args):
         if not debug: return
@@ -4542,6 +4542,7 @@ Visit: %s (Author's site)
         myPrint("B", "screenSize:                    %s" %(Toolkit.getDefaultToolkit().getScreenSize()))
         myPrint("B", "frame prefSize:                %s (actual: %s)" %(_frame.getPreferredSize(), _frame.getSize()))
         for _comp in args:
+            if _comp is None: continue
             if isinstance(_comp, JSplitPane):
                 myPrint("B", ">> Found:                          ", _comp)
                 myPrint("B", ">> ... getDividerLocation():       ", _comp.getDividerLocation())
@@ -13993,16 +13994,13 @@ Visit: %s (Author's site)
                     if not splitPane:
                         myPrint("B", "@@@ LOGIC ERROR: Could not find JSplitPane... Ignoring (but report to developer)..")
                     else:
+                        topC = splitPane.getTopComponent()
+                        topP = huntComponent(topC, JPanel)
+                        botC = splitPane.getBottomComponent()
+                        botP = huntComponent(botC, JList)
                         splitPane.resetToPreferredSizes()
-                        if not NAB.savedHideControlPanel: splitPane.setDividerLocation(0.80)
-                        if debug:
-                            topC = splitPane.getTopComponent()
-                            topP = huntComponent(topC, JPanel)
-                            botC = splitPane.getBottomComponent()
-                            botP = huntComponent(botC, JList)
-                            dumpScreenSizes(NAB, NAB.theFrame, "hideControlPnl: (after setting) %s" %(NAB.savedHideControlPanel), splitPane, topC, topP, botC, botP)
-
-
+                        if not NAB.savedHideControlPanel: setJSplitPaneDivider(splitPane, topP)
+                        if debug: dumpScreenSizes(NAB, NAB.theFrame, "hideControlPnl: (after setting) %s" %(NAB.savedHideControlPanel), splitPane, topC, topP, botC, botP)
 
                 # ######################################################################################################
                 if event.getActionCommand() == "deactivate_extension":
@@ -14963,20 +14961,18 @@ Visit: %s (Author's site)
                     selectRow_pnl.add(NAB.debug_LBL, GridC.getc(onSelectCol, onSelectRow).wx(0.1).west())
                     onSelectCol += 1
 
-                    rowSelected_COMBOLabel = MyJLabel("Select Row:")
+                    rowSelected_COMBOLabel = MyJLabel(wrap_HTML_BIG_small("Select Row:", "", _bigColor=getColorBlue(), _bold=True, _underline=True))
                     rowSelected_COMBOLabel.putClientProperty("%s.id" %(NAB.myModuleID), "rowSelected_COMBOLabel")
+                    rowSelected_COMBOLabel.setIcon(NAB.selectorIcon)
+                    rowSelected_COMBOLabel.setHorizontalTextPosition(SwingConstants.LEFT)
+                    rowSelected_COMBOLabel.setVerticalTextPosition(SwingConstants.CENTER)
+                    rowSelected_COMBOLabel.addMouseListener(NAB.RowScrollerMouseListener())
                     selectRow_pnl.add(rowSelected_COMBOLabel, GridC.getc(onSelectCol, onSelectRow).wx(0.1).east())
-                    onSelectCol += 1
-
-                    rowScroller_LBL = MyJLabel(NAB.selectorIcon)
-                    rowScroller_LBL.setFocusable(True)
-                    rowScroller_LBL.putClientProperty("%s.id" %(NAB.myModuleID), "rowScroller_LBL")
-                    rowScroller_LBL.addMouseListener(NAB.RowScrollerMouseListener())
-                    selectRow_pnl.add(rowScroller_LBL, GridC.getc(onSelectCol, onSelectRow).leftInset(4).topInset(5).bottomInset(5).rightInset(2).west())
                     onSelectCol += 1
 
                     NAB.rowSelected_COMBO = MyJComboBox([None])
                     NAB.rowSelected_COMBO.setName("rowSelected_COMBO")
+                    # NAB.rowSelected_COMBO.setPrototypeDisplayValue("123")
                     NAB.rowSelected_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "rowSelected_COMBO")
                     NAB.rowSelected_COMBO.setToolTipText("Select the row you would like to configure")
                     NAB.rowSelected_COMBO.addActionListener(NAB.saveActionListener)
