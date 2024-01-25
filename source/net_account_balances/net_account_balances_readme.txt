@@ -54,8 +54,14 @@ These types of calculations are quite tricky to perform using the 'old' UOR math
 
 LET'S GET STARTED:
 
-FIRST: If the configuration area is too large on your screen, and you cannot see the 'Account Selection List' then:
->> Click 'Hide Controls' (top right) <<
+The GUI config screen utilises a split screen to show you the main settings (top) and the accounts picklist (bottom).
+There is a draggable divider that you can drag/move up down if required. When the screen resolution is not large enough,
+the divider move auto-move upwards so that bottom section can be seen. If this occurs, then the top section becomes
+scrollable (like the bottom section). The screen size and divider locations do not save and will reset every MD session.
+
+FIRST: If the configuration area is too large on your screen, and you cannot see enough of the 'Account Selection List'
+then click 'Hide Controls' (top right). This will shrink the top section further (still scrollable). You can un-click
+'hide controls' at any time. If you don't like the divider location, just drag/move it manually.
 
 Let's start with a row that is <NOT CONFIGURED>. Give it a name - like Credit Card Debt.
 Now select all your credit cards from the account selection list. Click each one. Hit Save All Settings.

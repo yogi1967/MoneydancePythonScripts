@@ -137,9 +137,12 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 #               Truncate row name (with ...) when > max length on Summary Page widget...; Fix config GUI currency dropdown; further GUI tweaks...
 #               Fixed debug error - exclude ROOT account...; Fixed max screen/frame sizing (especially on non-Mac platforms)...
 #               Further tweaks to scrollpanes/scrollbars (move whole page scrollbar to left, expand view / frame on right (more) when on windows)
+#               Fix formula warning label reset accidentally wiping the date range label!
+#               Finally fix the GUI scrolling issue, with JSplitPane....
 
 # todo - consider better formula handlers... e.g. com.infinitekind.util.StringUtils.parseFormula(String, char)
 # todo - option to show different dpc (e.g. full decimal precision)
+# todo - consider moving the GUI account filters and picklist to a new tab in a JTabbedPane...?
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -472,6 +475,7 @@ else:
     import threading
     from com.moneydance.util import BasePropertyChangeReporter
     from com.moneydance.awt import GridC, JLinkListener, JLinkLabel, AwtUtil, QuickSearchField, JRateField
+
     # from com.moneydance.awt import CollapsibleRefresher
     from com.moneydance.apps.md.controller import Util
     # from com.moneydance.apps.md.view.gui import MDURLUtil
@@ -492,7 +496,7 @@ else:
 
     from java.io import BufferedInputStream
     from java.nio.file import Files, StandardCopyOption
-    from javax.swing import SwingConstants, JRootPane, JPopupMenu, DefaultCellEditor
+    from javax.swing import SwingConstants, JRootPane, JPopupMenu, DefaultCellEditor, JSplitPane
     from javax.swing import JList, ListSelectionModel, DefaultComboBoxModel, DefaultListSelectionModel, JSeparator
     from javax.swing import DefaultListCellRenderer, BorderFactory, Timer as SwingTimer
     from javax.swing.event import DocumentListener, ListSelectionListener
@@ -500,12 +504,11 @@ else:
 
     from javax.swing.table import DefaultTableModel
 
+    from java.awt.geom import Path2D
+    from java.awt.font import TextAttribute
     from java.awt.event import HierarchyListener, ItemListener, MouseAdapter, ItemEvent
     from java.awt.event import FocusAdapter, MouseListener, ActionListener, KeyAdapter, FocusListener
-    from java.awt import FontMetrics, Event
-    from java.awt import RenderingHints, BasicStroke, Graphics2D, Rectangle
-    from java.awt.font import TextAttribute
-    from java.awt.geom import Path2D
+    from java.awt import FontMetrics, Event, RenderingHints, BasicStroke, Graphics2D, Rectangle, GraphicsEnvironment
     from java.beans import PropertyChangeListener
     from java.lang import StringBuilder
     from java.lang import Runtime                                                                                       # noqa
@@ -3420,8 +3423,9 @@ Visit: %s (Author's site)
         Params asof:None or zero = asof the most recent (future)txn date that affected the shareholding/costbasis balance.
         preparedTxns is typically used by itself to recall the class to get the current cost basis
         obtainCurrentBalanceToo is used to request that the class calls itself to also get the current/today balance too
-        # (v2: LOT control fixes, v3: added isCostBasisValid(), v4: don't incl. fees on misc inc/exp in cbasis with lots),
-        # .. fixes for  capital gains to work, v5: added in short/long term support..."""
+        # (v2: LOT control fixes, v3: added isCostBasisValid(), v4: don't incl. fees on misc inc/exp in cbasis with lots,
+        # ...fixes for  capital gains to work, v5: added in short/long term support, v6: added unRealizedSaleTxn parameter
+        support)"""
 
         ################################################################################################################
         # This is used to calculate the cost of a security using either the average cost or lot-based method.
@@ -3442,9 +3446,15 @@ Visit: %s (Author's site)
 
         COST_DEBUG = False
 
-        def __init__(self, secAccount, asOfDate=None, preparedTxns=None, obtainCurrentBalanceToo=False):
-            # type: (Account, int, TxnSet, bool) -> None
+        def __init__(self, secAccount, asOfDate=None, preparedTxns=None, obtainCurrentBalanceToo=False, unRealizedSaleTxn=None):
+            # type: (Account, int, TxnSet, bool, SplitTxn) -> None
+
             if self.COST_DEBUG: myPrint("B", "** MyCostCalculation() initialising..... running asof: %s, for account: '%s' (%s) **"%(asOfDate, secAccount, "AvgCost" if self.getUsesAverageCost() else "LotControl"))
+
+            if unRealizedSaleTxn is not None:
+                assert (isinstance(unRealizedSaleTxn, SplitTxn))
+                if self.COST_DEBUG: myPrint("B", "... unrealized (sale txn) gain calculation requested for:", unRealizedSaleTxn)
+
             todayInt = DateUtil.getStrippedDateInt()
             if (asOfDate is None or asOfDate < 19000000): asOfDate = None
             self.asOfDate = asOfDate
@@ -3466,6 +3476,7 @@ Visit: %s (Author's site)
                 # Check isCostBasisValid() here for speed....
                 if InvestUtil.isCostBasisValid(self.getSecAccount()):
                     self.txns = secAccount.getBook().getTransactionSet().getTransactionsForAccount(secAccount)          # type: TxnSet
+                    if unRealizedSaleTxn is not None: self.txns.addTxn(unRealizedSaleTxn)
                     self.txns.sortWithComparator(TxnUtil.DATE_THEN_AMOUNT_COMPARATOR.reversed())                        # Newest first by index
                 else:
                     self.costBasisInvalid = True
@@ -3836,7 +3847,7 @@ Visit: %s (Author's site)
         def getGainInfo(self, saleTxn):
             # type: (AbstractTxn) -> CapitalGainResult                                                                  # todo - MDFIX
             """Returns the overall capital gain information specific to the given sell transaction.
-               The sell transaction must have the security as it's 'account' which means the transaction
+               The sell transaction must have the security as its 'account' which means the transaction
                must be the SplitTxn that is assigned to the security account.  If the transaction is
                invalid or null then a zero/error capital gains is returned.
                Returns a CapitalGainResult object with the details of the cost and gains for this transaction"""
@@ -4321,7 +4332,6 @@ Visit: %s (Author's site)
                     return _s.isSyncing()
         return False
 
-
     def padTruncateWithDots(theText, theLength, padChar=u" ", stripSpaces=True, padString=True):
         if not isinstance(theText, basestring): theText = safeStr(theText)
         if theLength < 1: return ""
@@ -4506,6 +4516,45 @@ Visit: %s (Author's site)
         sb.append(" ")
         sb.append(ct.getSuffix())
         return sb.toString().strip()
+
+    def huntComponent(swingComponent, targetComponent):
+        result = None
+        for _c in swingComponent.getComponents():
+            if isinstance(_c, targetComponent): return _c
+            result = huntComponent(_c, targetComponent)
+            if result: return result
+        return result
+
+    def setJSplitPaneDivider(_splitPane, _mainPnl):
+        _screenSize = Toolkit.getDefaultToolkit().getScreenSize()
+        # You should only change JSplitScreen divider location AFTER pack or the screen is visible...
+        if _screenSize.height < 1000:
+            _splitPane.setDividerLocation(0.80)
+        else:
+            _splitPane.setDividerLocation(_mainPnl.getPreferredSize().height)
+
+    def dumpScreenSizes(_nab, _frame, _msgTxt, *args):
+        if not debug: return
+        # for mode in GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDisplayModes():
+        #     myPrint("B", "... mode:                       %s x %s (%s): refresh rate: %s" %(mode.getWidth(), mode.getHeight(), mode.getBitDepth(), mode.getRefreshRate()))
+        myPrint("B", "-------------------------------------: %s" %(_msgTxt))
+        myPrint("B", "displayMode:                   %s" %(GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDisplayMode()))
+        myPrint("B", "screenSize:                    %s" %(Toolkit.getDefaultToolkit().getScreenSize()))
+        myPrint("B", "frame prefSize:                %s (actual: %s)" %(_frame.getPreferredSize(), _frame.getSize()))
+        for _comp in args:
+            if isinstance(_comp, JSplitPane):
+                myPrint("B", ">> Found:                          ", _comp)
+                myPrint("B", ">> ... getDividerLocation():       ", _comp.getDividerLocation())
+                myPrint("B", ">> ... getLastDividerLocation():   ", _comp.getLastDividerLocation())
+                myPrint("B", ">> ... getDividerSize():           ", _comp.getDividerSize())
+                myPrint("B", ">> ... getMinimumDividerLocation():", _comp.getMinimumDividerLocation())
+                myPrint("B", ">> ... getMaximumDividerLocation():", _comp.getMaximumDividerLocation())
+                myPrint("B", ">> ... getResizeWeight():          ", _comp.getResizeWeight())
+                myPrint("B", ">> ... isContinuousLayout():       ", _comp.isContinuousLayout())
+
+            _name = _comp.getClientProperty("%s.id" %(_nab.myModuleID))
+            myPrint("B", "%s prefSize: %s (actual: %s) type: %s" %(pad(_name, 20), _comp.getPreferredSize(), _comp.getSize(), type(_comp)))
+        myPrint("B", "-------------------------------------")
 
     def isAccountActive(acct, balType, checkParents=True, sudoAccount=None):                                            # noqa
         if checkParents:
@@ -11589,10 +11638,10 @@ Visit: %s (Author's site)
 
         def setFormulaWarningLabel(self):
             NAB = NetAccountBalancesExtension.getNAB()
-            myPrint("DB", "about to set formula warning rang label..")
-            NAB.incExpDateRangeLabel.setText("")
-            NAB.incExpDateRangeLabel.setHorizontalAlignment(JLabel.LEFT)
-            NAB.incExpDateRangeLabel.repaint()
+            myPrint("DB", "about to set formula warning label..")
+            NAB.formulaWarning_LBL.setText("")
+            NAB.formulaWarning_LBL.setHorizontalAlignment(JLabel.LEFT)
+            NAB.formulaWarning_LBL.repaint()
 
         def setCapGainsDateRangeLabel(self, _rowIdx):
             NAB = NetAccountBalancesExtension.getNAB()
@@ -13940,6 +13989,21 @@ Visit: %s (Author's site)
                     hideUnideCollapsiblePanels(NAB.theFrame, not NAB.savedHideControlPanel)
                     myPrint("DB", "User has changed 'Hide Control Panel' to: %s" %(NAB.savedHideControlPanel))
 
+                    splitPane = huntComponent(NAB.theFrame, JSplitPane)
+                    if not splitPane:
+                        myPrint("B", "@@@ LOGIC ERROR: Could not find JSplitPane... Ignoring (but report to developer)..")
+                    else:
+                        splitPane.resetToPreferredSizes()
+                        if not NAB.savedHideControlPanel: splitPane.setDividerLocation(0.80)
+                        if debug:
+                            topC = splitPane.getTopComponent()
+                            topP = huntComponent(topC, JPanel)
+                            botC = splitPane.getBottomComponent()
+                            botP = huntComponent(botC, JList)
+                            dumpScreenSizes(NAB, NAB.theFrame, "hideControlPnl: (after setting) %s" %(NAB.savedHideControlPanel), splitPane, topC, topP, botC, botP)
+
+
+
                 # ######################################################################################################
                 if event.getActionCommand() == "deactivate_extension":
                     myPrint("DB", "User has clicked deactivate - sending 'close' request via .showURL().......")
@@ -14864,6 +14928,7 @@ Visit: %s (Author's site)
                                 self.removeListSelectionListener(listener)
 
                     NAB.jlst = MyJList()
+                    NAB.jlst.putClientProperty("%s.id" %(NAB.myModuleID), "jlst")
                     NAB.jlst.setBackground(NAB.moneydanceContext.getUI().getColors().listBackground)
                     NAB.jlst.setCellRenderer(NAB.getNewJListCellRenderer())
                     NAB.jlst.setFixedCellHeight(NAB.jlst.getFixedCellHeight() + 30)
@@ -16257,14 +16322,31 @@ Visit: %s (Author's site)
                     # --------------------------------------------------------------------------------------------------
 
                     ##-
+
+                    ctrlPnlScrollpane = MyJScrollPane(controlPnl, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
+                    ctrlPnlScrollpane.putClientProperty("%s.id" %(NAB.myModuleID), "ctrlPnlScrollpane")
+                    ctrlPnlScrollpane.setViewportBorder(EmptyBorder(5, colLeftInset, 5, colRightInset))
+                    ctrlPnlScrollpane.setOpaque(False)
+                    ctrlPnlScrollpane.setMinimumSize(Dimension(0, 160))                   # JSplitPane will respect this (just enough to show when hide controls selected)
+
+                    # NAB.jlst.setVisibleRowCount(7);
                     acctJListScrollpane = MyJScrollPane(NAB.jlst, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
+                    # acctJListScrollpane.putClientProperty("JScrollPane.style", "overlay")        # 'legacy' or 'overlay'
+                    # acctJListScrollpane.putClientProperty("JScrollPane.thumbStyle", "dark")      # 'dark' or 'light'
                     acctJListScrollpane.putClientProperty("%s.id" %(NAB.myModuleID), "acctJListScrollpane")
                     acctJListScrollpane.setViewportBorder(EmptyBorder(5, colLeftInset, 5, colRightInset))
                     acctJListScrollpane.setOpaque(False)
+                    ctrlPnlScrollpane.setMinimumSize(Dimension(0, 200))                   # JSplitPane will respect this (just enough to show 1/2 rows)
+
+                    splitPane = JSplitPane(JSplitPane.VERTICAL_SPLIT)
+                    splitPane.putClientProperty("%s.id" %(NAB.myModuleID), "splitPane")
+                    splitPane.setTopComponent(ctrlPnlScrollpane)
+                    splitPane.setBottomComponent(acctJListScrollpane)
+                    splitPane.setOneTouchExpandable(False)
+                    splitPane.putClientProperty("JSplitPane.style", "thick")     # can be 'thin', 'thick, 'paneSplitter'
+                    splitPane.setContinuousLayout(True)
 
                     # -----------------------------------------------------------------------------------
-                    mainPnl = MyJPanel(BorderLayout())
-
                     masterPnl = MyJPanel(BorderLayout())
                     masterPnl.putClientProperty("%s.id" %(NAB.myModuleID), "masterPnl")
 
@@ -16277,16 +16359,8 @@ Visit: %s (Author's site)
                     rootPane.getContentPane().setBackground(Color(237,237,237))       # very light grey panel background
 
                     # -----------------------------------------------------------------------------------
-                    mainPnl.putClientProperty("%s.id" %(NAB.myModuleID), "mainPnl")
-                    mainPnl.add(controlPnl, BorderLayout.NORTH)
-                    mainPnl.add(acctJListScrollpane, BorderLayout.CENTER)
-
-                    wholePnlScrollpane = MyJScrollPane(mainPnl, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
-                    wholePnlScrollpane.putClientProperty("%s.id" %(NAB.myModuleID), "wholePnlScrollpane")
-                    wholePnlScrollpane.setViewportBorder(EmptyBorder(5, colLeftInset, 5, colRightInset))
-                    wholePnlScrollpane.setOpaque(False)
-
-                    rootPane.getContentPane().add(wholePnlScrollpane)
+                    rootPane.getContentPane().setLayout(BorderLayout())
+                    rootPane.getContentPane().add(splitPane, BorderLayout.CENTER)
 
                     NAB.theFrame.getContentPane().setLayout(BorderLayout())
                     NAB.theFrame.getContentPane().add(masterPnl, BorderLayout.CENTER)
@@ -16325,52 +16399,18 @@ Visit: %s (Author's site)
 
                     # No longer setting up menu here (thanks to the extra root pane trick)....
 
-                    def _dumpScreenSizes(_frame, txt, wholeScrollpane, botScrollpane):
-                        if debug:
-                            from java.awt import GraphicsEnvironment
-                            # for mode in GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDisplayModes():
-                            #     myPrint("B", "... mode:                       %s x %s (%s): refresh rate: %s" %(mode.getWidth(), mode.getHeight(), mode.getBitDepth(), mode.getRefreshRate()))
-                            myPrint("B", "-------------------------------------: %s" %(txt))
-                            myPrint("B", "displayMode:                    %s" %(GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDisplayMode()))
-                            myPrint("B", "screenSize:                     %s" %(Toolkit.getDefaultToolkit().getScreenSize()))
-                            myPrint("B", "frame prefSize:                 %s (actual: %s)" %(_frame.getPreferredSize(), _frame.getSize()))
-                            myPrint("B", "wholePnlScrollpane prefSize:    %s (actual: %s)" %(wholeScrollpane.getPreferredSize(), wholeScrollpane.getSize()))
-                            myPrint("B", "acctJListScrollpane spPrefSize: %s (actual: %s)" %(botScrollpane.getPreferredSize(), botScrollpane.getSize()))
-                            myPrint("B", "acctListScrollpaneTop:          %s" %(botScrollpane.getY()))
-                            myPrint("B", "-------------------------------------")
-
-                    # Shift the vertical scrollbar to the left..... perhaps ;->
-                    from javax.swing import ScrollPaneLayout
-                    from java.awt import ComponentOrientation
-                    class _MyScrollPaneLayout(ScrollPaneLayout):
-                        def layoutContainer(self, _scrollPane):
-                            if isinstance(_scrollPane, JScrollPane): pass
-                            _scrollPane.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
-                            super(self.__class__, self).layoutContainer(_scrollPane)
-                            _scrollPane.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
-
-                    # acctJListScrollpane.setLayout(_MyScrollPaneLayout());
-                    wholePnlScrollpane.setLayout(_MyScrollPaneLayout())
-
-                    _dumpScreenSizes(NAB.theFrame, "PRE-ANYTHING", wholePnlScrollpane, acctJListScrollpane)
-
                     screenSize = Toolkit.getDefaultToolkit().getScreenSize()
-                    frameOuterHeightMax = int(screenSize.height * 0.97)
+                    frameOuterHeightMax = int(screenSize.height * 0.95)
                     dimFrame = NAB.theFrame.getPreferredSize()
                     dimFrame.height = frameOuterHeightMax
-                    NAB.theFrame.setPreferredSize(dimFrame)
+                    # NAB.theFrame.setPreferredSize(dimFrame)
+                    splitPane.setPreferredSize(dimFrame)
 
-                    _dumpScreenSizes(NAB.theFrame, "PRE-PACK", wholePnlScrollpane, acctJListScrollpane)
-
+                    dumpScreenSizes(NAB, NAB.theFrame, "PRE-PACK", splitPane, ctrlPnlScrollpane, controlPnl, acctJListScrollpane, NAB.jlst)
                     NAB.theFrame.pack()
-                    _dumpScreenSizes(NAB.theFrame, "POST-PACK", wholePnlScrollpane, acctJListScrollpane)
+                    setJSplitPaneDivider(splitPane, controlPnl)
 
-                    # With the scrollbar on a pnl within another scrollbar, the account picklist vertical scrollbar appears to the right on the pnl above's content.. Tweak to fix that...
-                    dimFr = NAB.theFrame.getSize()
-                    dimFr.width += (acctJListScrollpane.getVerticalScrollBar().getSize().width * (3 if Platform.isWindows() else 1))
-                    NAB.theFrame.setSize(dimFr)
-
-                    _dumpScreenSizes(NAB.theFrame, "POST-PACK-POST-ADJUSTMENTS", wholePnlScrollpane, acctJListScrollpane)
+                    dumpScreenSizes(NAB, NAB.theFrame, "POST-PACK", splitPane, ctrlPnlScrollpane, controlPnl, acctJListScrollpane, NAB.jlst)
 
                     NAB.theFrame.setLocationRelativeTo(None)
                     NAB.jlst.requestFocusInWindow()                          # Set initial focus on the account selector
