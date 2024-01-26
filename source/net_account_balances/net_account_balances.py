@@ -4,7 +4,7 @@
 from __future__ import division    # Has to occur at the beginning of file... Changes division to always produce a float
 assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes that division of integers yields a float! Do you have this statement: 'from __future__ import division'?"
 
-# net_account_balances.py build: 1048 - Jan 2024 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 1047 - Jan 2024 - Stuart Beesley - StuWareSoftSystems
 # Display Name in MD changed to 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
 
 # Thanks and credit to Dan T Davis and Derek Kent(23) for their suggestions and extensive testing...
@@ -138,8 +138,7 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 #               Fixed debug error - exclude ROOT account...; Fixed max screen/frame sizing (especially on non-Mac platforms)...
 #               Further tweaks to scrollpanes/scrollbars (move whole page scrollbar to left, expand view / frame on right (more) when on windows)
 #               Fix formula warning label reset accidentally wiping the date range label!
-#               Finally fix the GUI scrolling issue, with JSplitPane....
-# build: 1048 - ??? NEW RELEASE - AWAITING CHANGES...
+#               Finally fix the GUI scrolling issue, with JSplitPane....; Final label height fix
 
 # todo - consider better formula handlers... e.g. com.infinitekind.util.StringUtils.parseFormula(String, char)
 # todo - option to show different dpc (e.g. full decimal precision)
@@ -151,7 +150,7 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 
 # SET THESE LINES
 myModuleID = u"net_account_balances"
-version_build = "1048"
+version_build = "1047"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -14962,7 +14961,7 @@ Visit: %s (Author's site)
                     selectRow_pnl.add(NAB.debug_LBL, GridC.getc(onSelectCol, onSelectRow).wx(0.1).west())
                     onSelectCol += 1
 
-                    rowSelected_COMBOLabel = MyJLabel(wrap_HTML_BIG_small("Select Row:", "", _bigColor=getColorBlue(), _bold=True, _underline=True))
+                    rowSelected_COMBOLabel = MyJLabel(wrap_HTML_BIG_small("Select Row:", "", _bigColor=getColorBlue(), _bold=True, _underline=True), fixedHeight=20)
                     rowSelected_COMBOLabel.putClientProperty("%s.id" %(NAB.myModuleID), "rowSelected_COMBOLabel")
                     rowSelected_COMBOLabel.setIcon(NAB.selectorIcon)
                     rowSelected_COMBOLabel.setHorizontalTextPosition(SwingConstants.LEFT)
