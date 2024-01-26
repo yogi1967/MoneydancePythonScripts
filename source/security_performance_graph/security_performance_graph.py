@@ -45,7 +45,7 @@
 # build: 1008 - Cleanup references to MD Objects; Change CurrencyNumberFormat to hold a WeakReference() to CurrencyType...
 # build: 1009 - Common code - FileFilter fix...
 # build: 1010 - Fixed call to .setReportParameters(None) for 5064+ build
-# build: 1011 - ??? NEW RELEASE - AWAITING CHANGES...
+# build: 1011 - Prevent popup jtable column reordering...
 
 # todo - hunt down why something retains a reference to MD object..?
 
@@ -5086,6 +5086,7 @@ Visit: %s (Author's site)
 
             self.validateLoadSavedColumnWidths()
             self.getColumnModel().addColumnModelListener(MyTableColumnModelListener())
+            self.getTableHeader().setReorderingAllowed(False)
 
         def validateLoadSavedColumnWidths(self):
             tcm = self.getColumnModel()
