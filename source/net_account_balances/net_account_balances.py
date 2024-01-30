@@ -139,7 +139,7 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 #               Further tweaks to scrollpanes/scrollbars (move whole page scrollbar to left, expand view / frame on right (more) when on windows)
 #               Fix formula warning label reset accidentally wiping the date range label!
 #               Finally fix the GUI scrolling issue, with JSplitPane....; Final label height fix
-# build: 1048 - ??? NEW RELEASE - AWAITING CHANGES...
+# build: 1048 - Tweak MyJLabel() to allow dynamic resizing (e.g. on Summary Page)...
 
 # todo - consider better formula handlers... e.g. com.infinitekind.util.StringUtils.parseFormula(String, char)
 # todo - option to show different dpc (e.g. full decimal precision)
@@ -5150,8 +5150,9 @@ Visit: %s (Author's site)
 
         def __init__(self, *args, **kwargs):
             self.maxWidth = -1
-            self.fixedWidth = kwargs.pop("fixedWidth", None)
-            self.fixedHeight = kwargs.pop("fixedHeight", None)
+            self.fixedWidth = kwargs.pop("fixedWidth", None)                                                            # type: int
+            self.fixedHeight = kwargs.pop("fixedHeight", None)                                                          # type: int
+            self.allowDynamicSizing = kwargs.pop("allowDynamicSizing", False)                                           # type: bool
             self.hasMDHeaderBorder = False
             super(self.__class__, self).__init__(*args, **kwargs)
 
@@ -5165,22 +5166,25 @@ Visit: %s (Author's site)
             self.setBorder(BorderFactory.createLineBorder(GlobalVars.CONTEXT.getUI().getColors().headerBorder))
 
         def getMaximumSize(self):
-            if self.fixedWidth is not None or self.fixedHeight is not None: return self.getPreferredSize()
+            if not self.allowDynamicSizing:
+                if self.fixedWidth is not None or self.fixedHeight is not None: return self.getPreferredSize()
             return super(self.__class__, self).getMaximumSize()
 
         def getMinimumSize(self):
-            if self.fixedWidth is not None or self.fixedHeight is not None: return self.getPreferredSize()
+            if not self.allowDynamicSizing:
+                if self.fixedWidth is not None or self.fixedHeight is not None: return self.getPreferredSize()
             return super(self.__class__, self).getMinimumSize()
 
         # Avoid the field auto-resizing when using GridC layout (e.g. when blinking or updates change the field width)...
         def getPreferredSize(self):
             dim = super(self.__class__, self).getPreferredSize()
-            if self.fixedWidth is not None or self.fixedHeight is not None:
-                if self.fixedWidth is not None: dim.width = self.fixedWidth
-                if self.fixedHeight is not None: dim.height = self.fixedHeight
-            else:
-                self.maxWidth = Math.max(self.maxWidth, dim.width)
-                dim.width = self.maxWidth
+            if not self.allowDynamicSizing:
+                if self.fixedWidth is not None or self.fixedHeight is not None:
+                    if self.fixedWidth is not None: dim.width = self.fixedWidth
+                    if self.fixedHeight is not None: dim.height = self.fixedHeight
+                else:
+                    self.maxWidth = Math.max(self.maxWidth, dim.width)
+                    dim.width = self.maxWidth
             return dim
 
     class MyJComboBox(JComboBox, MouseListener):
@@ -5706,6 +5710,7 @@ Visit: %s (Author's site)
     class SpecialJLinkLabel(JLinkLabel):
         def __init__(self, *args, **kwargs):
             tdfsc = kwargs.pop("tdfsc", None)                                                                           # type: TextDisplayForSwingConfig
+            self.allowDynamicSizing = kwargs.pop("allowDynamicSizing", False)                                           # type: bool
             self.maxWidth = -1
             self.maxHeight = -1
             super(self.__class__, self).__init__(*args)
@@ -5723,10 +5728,11 @@ Visit: %s (Author's site)
 
         def getPreferredSize(self):
             dim = super(self.__class__, self).getPreferredSize()
-            self.maxWidth = Math.max(self.maxWidth, dim.width)
-            dim.width = self.maxWidth
-            self.maxHeight = Math.max(self.maxHeight, dim.height)
-            dim.height = self.maxHeight
+            if not self.allowDynamicSizing:
+                self.maxWidth = Math.max(self.maxWidth, dim.width)
+                dim.width = self.maxWidth
+                self.maxHeight = Math.max(self.maxHeight, dim.height)
+                dim.height = self.maxHeight
             return dim
 
         def paintComponent(self, g2d):
@@ -6578,6 +6584,8 @@ Visit: %s (Author's site)
 
         def loadFromParameters(self, drSettings, defaultKey):
             # type: ([bool, str, int, int, int], str) -> bool
+
+            # todo - the original 'setOption(defaultKey)' was recent;ly moved to only run when the settings don't contain this date config key...
             if not self.setSelectedOptionKey(defaultKey): raise Exception("ERROR: Default i/e date range option/key ('%s') not found?!" %(defaultKey))
 
             # drOptionEnabled = drSettings[MyDateRangeChooser.DRC_DR_ENABLED_IDX]
@@ -7032,7 +7040,10 @@ Visit: %s (Author's site)
 
         def loadFromParameters(self, settings, defaultKey):
             # type: ([bool, str, int, int], str) -> bool
+
+            # todo - the original 'setOption(defaultKey)' was recent;ly moved to only run when the settings don't contain this date config key...
             if not self.setSelectedOptionKey(defaultKey): raise Exception("ERROR: Default asof option/key ('%s') not found?!" %(defaultKey))
+
             foundSetting = False
             # asOfOptionSelected = settings[AsOfDateChooser.ASOF_DRC_ENABLED_IDX]
             asOfOptionKey = settings[AsOfDateChooser.ASOF_DRC_KEY_IDX]
@@ -18459,7 +18470,7 @@ Visit: %s (Author's site)
                                                                       altFG,
                                                                       insertVars=insertVars)
 
-                                    nameLabel = SpecialJLinkLabel(tdfsc.getSwingComponentText(), "showConfig?%s" %(str(onRow)), tdfsc.getJustification(), tdfsc=tdfsc)
+                                    nameLabel = SpecialJLinkLabel(tdfsc.getSwingComponentText(), "showConfig?%s" %(str(onRow)), tdfsc.getJustification(), tdfsc=tdfsc, allowDynamicSizing=True)
 
                                     # NOTE: Leave "  " (two spaces) to avoid the row height collapsing.....
                                     if balanceOrAverageLong is None:
@@ -18608,7 +18619,7 @@ Visit: %s (Author's site)
                                             combinedTxt += "<BR>"
                                             _countTxtAdded = 0
                                     rowText = wrap_HTML_BIG_small("", combinedTxt, altFG, stripSmallChars=False)
-                                    nameLabel = MyJLabel(rowText, JLabel.LEFT)
+                                    nameLabel = MyJLabel(rowText, JLabel.LEFT, allowDynamicSizing=True)
                                     nameLabel.setBorder(_view.nameBorder)
                                     _view.listPanel.add(nameLabel, GridC.getc().xy(0, self.widgetOnPnlRow).wx(1.0).fillboth().west().pady(2))
                                     self.widgetOnPnlRow += 1
@@ -18657,7 +18668,7 @@ Visit: %s (Author's site)
                             self.widgetOnPnlRow = 0
 
                             rowText = "%s ERROR DETECTED! (review console)" %(GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME)
-                            nameLabel = MyJLabel(rowText, JLabel.LEFT)
+                            nameLabel = MyJLabel(rowText, JLabel.LEFT, allowDynamicSizing=True)
                             nameLabel.setForeground(md.getUI().getColors().errorMessageForeground)
                             nameLabel.setBorder(_view.nameBorder)
                             _view.listPanel.add(nameLabel, GridC.getc().xy(0, self.widgetOnPnlRow).wx(1.0).fillboth().west().pady(2))
