@@ -139,7 +139,7 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 #               Further tweaks to scrollpanes/scrollbars (move whole page scrollbar to left, expand view / frame on right (more) when on windows)
 #               Fix formula warning label reset accidentally wiping the date range label!
 #               Finally fix the GUI scrolling issue, with JSplitPane....; Final label height fix
-# build: 1048 - Tweak MyJLabel() to allow dynamic resizing (e.g. on Summary Page)...
+# build: 1048 - Tweak MyJLabel() to allow dynamic resizing (e.g. on Summary Page)...; tweak install routines; tweak JLabel getPreferredSize()
 
 # todo - consider better formula handlers... e.g. com.infinitekind.util.StringUtils.parseFormula(String, char)
 # todo - option to show different dpc (e.g. full decimal precision)
@@ -5178,7 +5178,9 @@ Visit: %s (Author's site)
         # Avoid the field auto-resizing when using GridC layout (e.g. when blinking or updates change the field width)...
         def getPreferredSize(self):
             dim = super(self.__class__, self).getPreferredSize()
-            if not self.allowDynamicSizing:
+            if self.allowDynamicSizing:
+                dim.width = Math.min(200, dim.width)
+            else:
                 if self.fixedWidth is not None or self.fixedHeight is not None:
                     if self.fixedWidth is not None: dim.width = self.fixedWidth
                     if self.fixedHeight is not None: dim.height = self.fixedHeight
@@ -5728,7 +5730,9 @@ Visit: %s (Author's site)
 
         def getPreferredSize(self):
             dim = super(self.__class__, self).getPreferredSize()
-            if not self.allowDynamicSizing:
+            if self.allowDynamicSizing:
+                dim.width = Math.min(200, dim.width)
+            else:
                 self.maxWidth = Math.max(self.maxWidth, dim.width)
                 dim.width = self.maxWidth
                 self.maxHeight = Math.max(self.maxHeight, dim.height)
@@ -10121,8 +10125,8 @@ Visit: %s (Author's site)
 
             if widgetID in righties:
 
-                if righties[-1] != widgetID:
-                    myPrint("DB", ".. Widget: '%s' already configured in '%s' (not last)... Will not change Layout further"  %(widgetID, prefs.GUI_VIEW_RIGHT))
+                if righties[-1] != widgetID or len(righties) == 1:
+                    myPrint("DB", ".. Widget: '%s' already configured in '%s' (not last or is only widget)... Will not change Layout further"  %(widgetID, prefs.GUI_VIEW_RIGHT))
                 else:
                     myPrint("DB", ".. Widget: '%s'... Will remove from last position in '%s' (Summary Page bottom right)"  %(widgetID, prefs.GUI_VIEW_RIGHT))
                     righties.remove(widgetID)

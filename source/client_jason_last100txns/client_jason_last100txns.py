@@ -4,7 +4,7 @@
 from __future__ import division    # Has to occur at the beginning of file... Changes division to always produce a float
 assert isinstance(0/1, float), "LOGIC ERROR: This extension assumes that division of integers yields a float! Do you have this statement: 'from __future__ import division'?"
 
-# client_jason_last100txns.py build: 1000 - January 2024 - Stuart Beesley - StuWareSoftSystems
+# client_jason_last100txns.py build: 1001 - January 2024 - Stuart Beesley - StuWareSoftSystems
 
 # "Bespoke for Jason Barrett. Shows last 100 transactions report on the Summary / Home page widget"
 ########################################################################################################################
@@ -37,6 +37,7 @@ assert isinstance(0/1, float), "LOGIC ERROR: This extension assumes that divisio
 # Build: 2 - Various client tweaks...
 # Build: 3 - Various client tweaks...
 # Build: 1000 - Initial release...
+# Build: 1001 - GUI tweaks...
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -429,8 +430,6 @@ else:
     GlobalVars.extn_param_maxTxns_L100T = None
     GlobalVars.extn_param_maxDaysLookBack_L100T = None
     GlobalVars.extn_param_includeFutureDatedTxns_L100T = None
-    GlobalVars.extn_param_unconstrainWidth_L100T = None
-    GlobalVars.extn_param_unconstrainHeight_L100T = None
 
     GlobalVars.extn_newParams = [paramKey for paramKey in dir(GlobalVars) if (paramKey.lower().startswith("extn_param_".lower()))]
 
@@ -3618,32 +3617,31 @@ Visit: %s (Author's site)
 
             self.addMouseListener(JTableMouseListener())
 
-            # dtm = JTableMenu(self)
-            # popupMenu = JPopupMenu()
-            # for menuOptionLbl, actionCmd in [
-            #                                 ["Edit Reminder",                                "edit_reminder"],
-            #                                 ["Run Auto Commit Reminders NOW",                "run_auto_commit_reminders_now"],
-            #                                 ["Edit last Acknowledged date",                  "edit_last_acknowledged_date"],
-            #                                 ["Record next occurrence",                       "record_next_occurrence"],
-            #                                 ["Show Reminder's raw details",                  "show_reminders_raw_details"],
-            #                                 ["Delete Reminder",                              "delete_reminder"],
-            #                                 ["Record all next occurrence(s) for same day",   "record_all_next_occurrences_for_same_day"],
-            #                                 ["Record all next occurrence(s) for same month", "record_all_next_occurrences_for_same_month"],
-            #                                 ["Skip next occurrence of ALL reminders",        "skip_next_occurrence_of_all_reminders"]
-            #                                 ]:
-            #     menuItem = JMenuItem(menuOptionLbl)
-            #     menuItem.setActionCommand(actionCmd)
-            #     menuItem.addActionListener(dtm)
-            #     popupMenu.add(menuItem)
-            #
-            # self.setComponentPopupMenu(popupMenu)
+            self.setMinimumSize(Dimension(100,100))
+            self.setOpaque(False)
+            self.setShowGrid(False)
+            self.setRowHeight(self.getRowHeight() + 5)
+            self.getTableHeader().setOpaque(False)
+            self.setIntercellSpacing(Dimension(0, 0))
+
 
         def validateLoadSavedColumns(self):
             L100T = self.l100t
 
             myDefaultWidths = copy.copy(self.storeTxnClass.DEFAULT_WIDTHS)
             # maxWidths = copy.copy(self.storeTxnClass.MAX_WIDTHS)
-            myPrint("DB", "..validateLoadSavedColumns:: Default column widths: %s" %(myDefaultWidths))
+
+            if debug:
+                myPrint("B", "..validateLoadSavedColumns:: Default column widths: %s" %(myDefaultWidths))
+                myPrint("B", "..table preferred size:                     %s (actual: %s)" %(self.getPreferredSize(), self.getSize()))
+                myPrint("B", "..table getPreferredScrollableViewportSize: %s" %(self.getPreferredScrollableViewportSize()))
+                myPrint("B", "..sum of saved widths:                      %s" %(sum(L100T.saved_columnWidths_L100T)))
+                myPrint("B", "..summary screen columns:                   %s" %(getNumberSummaryScreenColumns()))
+
+            if getNumberSummaryScreenColumns() > 1 and sum(L100T.saved_columnWidths_L100T) > self.storeTxnClass.MAX_WIDTH_TWO_COLUMNS:
+                myPrint("DB", ".. detected that total column(s) widths (of: %s) > allowable (of: %s) for summary screen column count (of: %s).. invalidating saved column widths!"
+                        %(sum(L100T.saved_columnWidths_L100T), self.storeTxnClass.MAX_WIDTH_TWO_COLUMNS, getNumberSummaryScreenColumns()))
+                L100T.saved_columnWidths_L100T = []
 
             validCount = 0
             lInvalidate = True
@@ -3968,7 +3966,9 @@ Visit: %s (Author's site)
         # Avoid the dreaded issue when Blinking changes the width...
         def getPreferredSize(self):
             dim = super(self.__class__, self).getPreferredSize()
-            if not self.allowDynamicSizing:
+            if self.allowDynamicSizing:
+                dim.width = Math.min(200, dim.width)
+            else:
                 self.maxWidth = Math.max(self.maxWidth, dim.width)
                 dim.width = self.maxWidth
             return dim
@@ -4183,6 +4183,15 @@ Visit: %s (Author's site)
             L100T.resetColumnsIcon = mdImages.getIconWithColor(GlobalVars.Strings.MD_GLYPH_REFRESH, None)
             # L100T.resetColumnsIcon = loadScaleColorImageToIcon(L100T.moneydanceExtensionLoader, GlobalVars.Strings.MD_GLYPH_REFRESH, None, getColorBlue());
 
+    def getNumberSummaryScreenColumns():
+        L100T = Last100Transactions.getL100T()
+        prefs = L100T.moneydanceContext.getPreferences()
+        lefties = prefs.getVectorSetting(prefs.GUI_VIEW_LEFT, StreamVector())
+        righties = prefs.getVectorSetting(prefs.GUI_VIEW_RIGHT, StreamVector())
+        countLefties = lefties.size()
+        countRighties = righties.size()
+        if countLefties > 0  and countRighties > 0: return 2
+        return 1
     ####################################################################################################################
 
     myPrint("B", "HomePageView widget / extension is now running...")
@@ -4246,8 +4255,6 @@ Visit: %s (Author's site)
             self.saved_maxTxns_L100T = None
             self.saved_maxDaysLookBack_L100T = None
             self.saved_includeFutureDatedTxns_L100T = None
-            self.saved_unconstrainWidth_L100T = None
-            self.saved_unconstrainHeight_L100T = None
 
             self.shouldDisableWidgetTitle = False
             self.shouldDisplayVisualUnderDots = True
@@ -4384,8 +4391,8 @@ Visit: %s (Author's site)
                 myPrint("DB", ".. Preferences ThemeID is set to: '%s' (no change)" %(newThemeID))
             self.themeID = newThemeID
 
-            myPrint("B", "Preferences have been updated, resetting column widths....")
-            self.saved_columnWidths_L100T = self.columnWidthsDefault()
+            # myPrint("B", "Preferences have been updated, resetting column widths....")
+            # self.saved_columnWidths_L100T = self.columnWidthsDefault()
 
         class SaveSettingsRunnable(Runnable):
             def __init__(self, lFromHomeScreen=False):
@@ -4413,8 +4420,6 @@ Visit: %s (Author's site)
             GlobalVars.extn_param_maxTxns_L100T = L100T.saved_maxTxns_L100T
             GlobalVars.extn_param_maxDaysLookBack_L100T = L100T.saved_maxDaysLookBack_L100T
             GlobalVars.extn_param_includeFutureDatedTxns_L100T = L100T.saved_includeFutureDatedTxns_L100T
-            GlobalVars.extn_param_unconstrainWidth_L100T = L100T.saved_unconstrainWidth_L100T
-            GlobalVars.extn_param_unconstrainHeight_L100T = L100T.saved_unconstrainHeight_L100T
 
             if GlobalVars.parametersLoadedFromFile is None: GlobalVars.parametersLoadedFromFile = {}
 
@@ -4494,8 +4499,8 @@ Visit: %s (Author's site)
 
             if widgetID in righties:
 
-                if righties[-1] != widgetID:
-                    myPrint("DB", ".. Widget: '%s' already configured in '%s' (not last)... Will not change Layout further"  %(widgetID, prefs.GUI_VIEW_RIGHT))
+                if righties[-1] != widgetID or len(righties) == 1:
+                    myPrint("DB", ".. Widget: '%s' already configured in '%s' (not last or is only widget)... Will not change Layout further"  %(widgetID, prefs.GUI_VIEW_RIGHT))
                 else:
                     myPrint("DB", ".. Widget: '%s'... Will remove from last position in '%s' (Summary Page bottom right)"  %(widgetID, prefs.GUI_VIEW_RIGHT))
                     righties.remove(widgetID)
@@ -4532,8 +4537,6 @@ Visit: %s (Author's site)
         def maxTxnsDefault(self):                   return 100
         def maxDaysLookBackDefault(self):           return -1                                  # set to -1 for all dates
         def includeFutureDatedTxnsDefault(self):    return True
-        def unconstrainWidthDefault(self):          return False
-        def unconstrainHeightDefault(self):         return False
 
         # noinspection PyUnusedLocal
         def validateParameters(self):
@@ -4563,13 +4566,6 @@ Visit: %s (Author's site)
                 myPrint("B", "@@ Invalid parameters 'saved_includeFutureDatedTxns_L100T' - resetting....")
                 self.saved_includeFutureDatedTxns_L100T = self.includeFutureDatedTxnsDefault()
 
-            if not isinstance(self.saved_unconstrainWidth_L100T, bool):
-                myPrint("B", "@@ Invalid parameters 'saved_unconstrainWidth_L100T' - resetting....")
-                self.saved_unconstrainWidth_L100T = self.unconstrainWidthDefault()
-
-            if not isinstance(self.saved_unconstrainHeight_L100T, bool):
-                myPrint("B", "@@ Invalid parameters 'saved_unconstrainHeight_L100T' - resetting....")
-                self.saved_unconstrainHeight_L100T = self.unconstrainHeightDefault()
 
 
         def resetParameters(self):
@@ -4584,8 +4580,6 @@ Visit: %s (Author's site)
             self.saved_maxTxns_L100T = self.maxTxnsDefault()
             self.saved_maxDaysLookBack_L100T = self.maxDaysLookBackDefault()
             self.saved_includeFutureDatedTxns_L100T = self.includeFutureDatedTxnsDefault()
-            self.saved_unconstrainWidth_L100T = self.unconstrainWidthDefault()
-            self.saved_unconstrainHeight_L100T = self.unconstrainHeightDefault()
 
         def setDisableListeners(self, components, disabled):
             wasDisabled = None
@@ -4630,8 +4624,6 @@ Visit: %s (Author's site)
             myPrint("B", "saved_maxTxns_L100T...............:", L100T.saved_maxTxns_L100T)
             myPrint("B", "saved_maxDaysLookBack_L100T.......:", L100T.saved_maxDaysLookBack_L100T)
             myPrint("B", "saved_includeFutureDatedTxns_L100T:", L100T.saved_includeFutureDatedTxns_L100T)
-            myPrint("B", "saved_unconstrainWidth_L100T......:", L100T.saved_unconstrainWidth_L100T)
-            myPrint("B", "saved_unconstrainHeight_L100T.....:", L100T.saved_unconstrainHeight_L100T)
 
         class WindowListener(WindowAdapter):
 
@@ -4849,16 +4841,6 @@ Visit: %s (Author's site)
                     myPrint("B", "include future txns set to: %s" %(L100T.saved_includeFutureDatedTxns_L100T))
 
                 # ######################################################################################################
-                if event.getActionCommand() == "unconstrain_width":
-                    L100T.saved_unconstrainWidth_L100T = event.getSource().isSelected()
-                    myPrint("B", "unconstrain width set to: %s" %(L100T.saved_unconstrainWidth_L100T))
-
-                # ######################################################################################################
-                if event.getActionCommand() == "unconstrain_height":
-                    L100T.saved_unconstrainHeight_L100T = event.getSource().isSelected()
-                    myPrint("B", "unconstrain height set to: %s" %(L100T.saved_unconstrainHeight_L100T))
-
-                # ######################################################################################################
                 if event.getActionCommand() == "save_settings":
                     myPrint("DB", ".. saving settings...")
                     event.getSource().grabFocus()
@@ -4892,8 +4874,6 @@ Visit: %s (Author's site)
                 GlobalVars.extn_param_maxTxns_L100T = L100T.maxTxnsDefault()
                 GlobalVars.extn_param_maxDaysLookBack_L100T = L100T.maxDaysLookBackDefault()
                 GlobalVars.extn_param_includeFutureDatedTxns_L100T = L100T.includeFutureDatedTxnsDefault()
-                GlobalVars.extn_param_unconstrainWidth_L100T = L100T.unconstrainWidthDefault()
-                GlobalVars.extn_param_unconstrainHeight_L100T = L100T.unconstrainHeightDefault()
 
             with self.NAB_LOCK:
                 if not self.parametersLoaded or lForceReload:
@@ -4917,8 +4897,6 @@ Visit: %s (Author's site)
                         self.saved_maxTxns_L100T = GlobalVars.extn_param_maxTxns_L100T
                         self.saved_maxDaysLookBack_L100T = GlobalVars.extn_param_maxDaysLookBack_L100T
                         self.saved_includeFutureDatedTxns_L100T = GlobalVars.extn_param_includeFutureDatedTxns_L100T
-                        self.saved_unconstrainWidth_L100T = GlobalVars.extn_param_unconstrainWidth_L100T
-                        self.saved_unconstrainHeight_L100T = GlobalVars.extn_param_unconstrainHeight_L100T
 
                         self.validateParameters()
                         self.configSaved = True
@@ -5053,14 +5031,6 @@ Visit: %s (Author's site)
                     includeFuture.setToolTipText("Maximum days to lookback from today use -1 for no limit...")
                     includeFuture.setSelected(L100T.saved_includeFutureDatedTxns_L100T)
 
-                    # unconstrainWidth = MyJCheckBox(MDAction.makeNonKeyedAction(mdGUI, "", "unconstrain_width", L100T.saveActionListener))
-                    # unconstrainWidth.setToolTipText("Unconstrain width to allow width to horizontally fill screen...")
-                    # unconstrainWidth.setSelected(L100T.saved_unconstrainWidth_L100T)
-                    #
-                    # unconstrainHeight = MyJCheckBox(MDAction.makeNonKeyedAction(mdGUI, "", "unconstrain_height", L100T.saveActionListener))
-                    # unconstrainHeight.setToolTipText("Unconstrain width to allow height to horizontally fill screen...")
-                    # unconstrainHeight.setSelected(L100T.saved_unconstrainHeight_L100T)
-
                     debug_JCB = MyJCheckBox(MDAction.makeNonKeyedAction(mdGUI, "Debug", "debug", L100T.saveActionListener))
                     debug_JCB.setSelected(debug)
 
@@ -5079,12 +5049,6 @@ Visit: %s (Author's site)
 
                     saveAbort_JPNL.add(MyJLabel("Include future dated:"), GridC.getc(x, y).label());  x+=1
                     saveAbort_JPNL.add(includeFuture,                     GridC.getc(x, y).field());  y+=1; x=0
-
-                    # saveAbort_JPNL.add(MyJLabel("Unconstrain width:"),    GridC.getc(x, y).label());  x+=1
-                    # saveAbort_JPNL.add(unconstrainWidth,                  GridC.getc(x, y).field());  y+=1; x=0
-                    #
-                    # saveAbort_JPNL.add(MyJLabel("Unconstrain height:"),   GridC.getc(x, y).label());  x+=1
-                    # saveAbort_JPNL.add(unconstrainHeight,                 GridC.getc(x, y).field());  y+=1; x=0
 
                     saveAbort_JPNL.add(debug_JCB,                         GridC.getc(x, y));  x+=1
                     saveAbort_JPNL.add(resetColumns_JBTN,                 GridC.getc(x, y));  x+=1
@@ -5585,6 +5549,7 @@ Visit: %s (Author's site)
             FORMATS         = ["txn", "date",  "str",          "str",      "val_long"]
             DEFAULT_WIDTHS  = [0,      100,    210,            150,         110]
             MAX_WIDTHS      = [0,      140,    600,            500,         150]
+            MAX_WIDTH_TWO_COLUMNS = 700
 
             def __init__(self, base, dec):
                 self.base = base
@@ -5817,13 +5782,6 @@ Visit: %s (Author's site)
                                 p = JPanel(BorderLayout())
                                 p.setBorder(EmptyBorder(8, 10, 8, 10))
                                 tablePanel = JPanel(BorderLayout())
-
-                                theJTable.setMinimumSize(Dimension(100,100))
-                                theJTable.setOpaque(False)
-                                theJTable.setShowGrid(False)
-                                theJTable.setRowHeight(theJTable.getRowHeight() + 5)
-                                theJTable.getTableHeader().setOpaque(False)
-                                theJTable.setIntercellSpacing(Dimension(0, 0))
 
                                 tablePanel.add(theJTable, BorderLayout.CENTER)
                                 tablePanel.add(theJTable.getTableHeader(), BorderLayout.NORTH)

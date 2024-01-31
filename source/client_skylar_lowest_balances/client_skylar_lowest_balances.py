@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# client_skylar_lowest_balances.py build: 1001 - November 2023 - Stuart Beesley - StuWareSoftSystems
+# client_skylar_lowest_balances.py build: 1002 - January 2024 - Stuart Beesley - StuWareSoftSystems
 #
 # "Bespoke for Skylar De'Font. Shows lowest future balances on Summary / Home page widget"
 ########################################################################################################################
@@ -33,6 +33,7 @@
 # Build: 1 - Initial beta release. Based code copied from net_account_balances.
 # Build: 1000 - Initial release...
 # Build: 1001 - Exclude inactive accounts from AccountSelectList()...
+# Build: 1002 - GUI tweaks; tweak install routines
 
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -41,7 +42,7 @@
 
 # SET THESE LINES
 myModuleID = u"client_skylar_lowest_balances"
-version_build = "1001"
+version_build = "1002"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -3343,6 +3344,7 @@ Visit: %s (Author's site)
 
         def __init__(self, *args, **kwargs):
             self.maxWidth = -1
+            self.allowDynamicSizing = kwargs.pop("allowDynamicSizing", False)                                           # type: bool
             self.hasMDHeaderBorder = False
             super(self.__class__, self).__init__(*args, **kwargs)
 
@@ -3359,8 +3361,11 @@ Visit: %s (Author's site)
         # Avoid the dreaded issue when Blinking changes the width...
         def getPreferredSize(self):
             dim = super(self.__class__, self).getPreferredSize()
-            self.maxWidth = Math.max(self.maxWidth, dim.width)
-            dim.width = self.maxWidth
+            if self.allowDynamicSizing:
+                dim.width = Math.min(200, dim.width)
+            else:
+                self.maxWidth = Math.max(self.maxWidth, dim.width)
+                dim.width = self.maxWidth
             return dim
 
     class MyJCheckBox(JCheckBox):
@@ -3926,8 +3931,8 @@ Visit: %s (Author's site)
 
             if widgetID in righties:
 
-                if righties[-1] != widgetID:
-                    myPrint("DB", ".. Widget: '%s' already configured in '%s' (not last)... Will not change Layout further"  %(widgetID, prefs.GUI_VIEW_RIGHT))
+                if righties[-1] != widgetID or len(righties) == 1:
+                    myPrint("DB", ".. Widget: '%s' already configured in '%s' (not last or is only widget)... Will not change Layout further"  %(widgetID, prefs.GUI_VIEW_RIGHT))
                 else:
                     myPrint("DB", ".. Widget: '%s'... Will remove from last position in '%s' (Summary Page bottom right)"  %(widgetID, prefs.GUI_VIEW_RIGHT))
                     righties.remove(widgetID)
@@ -4703,6 +4708,7 @@ Visit: %s (Author's site)
             tdfsc = kwargs.pop("tdfsc", None)                                                                           # type: TextDisplayForSwingConfig
             self.maxWidth = -1
             self.maxHeight = -1
+            self.allowDynamicSizing = kwargs.pop("allowDynamicSizing", False)                                           # type: bool
             super(self.__class__, self).__init__(*args)
             self.LBE = LowestBalancesExtension.getLBE()
             self.md = self.LBE.moneydanceContext
@@ -4718,10 +4724,13 @@ Visit: %s (Author's site)
 
         def getPreferredSize(self):
             dim = super(self.__class__, self).getPreferredSize()
-            self.maxWidth = Math.max(self.maxWidth, dim.width)
-            dim.width = self.maxWidth
-            self.maxHeight = Math.max(self.maxHeight, dim.height)
-            dim.height = self.maxHeight
+            if self.allowDynamicSizing:
+                dim.width = Math.min(200, dim.width)
+            else:
+                self.maxWidth = Math.max(self.maxWidth, dim.width)
+                dim.width = self.maxWidth
+                self.maxHeight = Math.max(self.maxHeight, dim.height)
+                dim.height = self.maxHeight
             return dim
 
         def paintComponent(self, g2d):
@@ -5457,7 +5466,7 @@ Visit: %s (Author's site)
 
                                     # tdfsc = TextDisplayForSwingConfig(balanceObj.getRowName(), balanceObj.getExtraRowTxt() + showCurrText + uuidTxt, altFG)
                                     tdfsc = TextDisplayForSwingConfig(balanceObj.getRowName(), balanceObj.getExtraRowTxt() + showCurrText + uuidTxt, GlobalVars.CONTEXT.getUI().getColors().defaultTextForeground)
-                                    nameLabel = SpecialJLinkLabel(tdfsc.getSwingComponentText(), "showConfig?%s" %(str(onRow)), tdfsc.getJustification(), tdfsc=tdfsc)
+                                    nameLabel = SpecialJLinkLabel(tdfsc.getSwingComponentText(), "showConfig?%s" %(str(onRow)), tdfsc.getJustification(), tdfsc=tdfsc, allowDynamicSizing=True)
 
                                     # NOTE: Leave "  " to avoid the row height collapsing.....
                                     if lowestBalance is None:
@@ -5523,7 +5532,7 @@ Visit: %s (Author's site)
                                             combinedTxt += "<BR>"
                                             _countTxtAdded = 0
                                     rowText = wrap_HTML_BIG_small("", combinedTxt, altFG, stripSmallChars=False)
-                                    nameLabel = MyJLabel(rowText, JLabel.LEFT)
+                                    nameLabel = MyJLabel(rowText, JLabel.LEFT, allowDynamicSizing=True)
                                     nameLabel.setBorder(_view.nameBorder)
                                     _view.listPanel.add(nameLabel, GridC.getc().xy(0, self.widgetOnPnlRow).wx(1.0).fillboth().west().pady(2))
                                     self.widgetOnPnlRow += 1
@@ -5572,7 +5581,7 @@ Visit: %s (Author's site)
                             self.widgetOnPnlRow = 0
 
                             rowText = "%s ERROR DETECTED! (review console)" %(GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME)
-                            nameLabel = MyJLabel(rowText, JLabel.LEFT)
+                            nameLabel = MyJLabel(rowText, JLabel.LEFT, allowDynamicSizing=True)
                             nameLabel.setForeground(md.getUI().getColors().errorMessageForeground)
                             nameLabel.setBorder(_view.nameBorder)
                             _view.listPanel.add(nameLabel, GridC.getc().xy(0, self.widgetOnPnlRow).wx(1.0).fillboth().west().pady(2))
