@@ -3854,7 +3854,7 @@ Visit: %s (Author's site)
                Returns a CapitalGainResult object with the details of the cost and gains for this transaction"""
 
             if saleTxn is None:
-                myPrint("B", "you must supply a sale txn; returning Invalid/Zeros" %(saleTxn))
+                myPrint("B", "you must supply a sale txn; returning Invalid/Zeros")
                 return CapitalGainResult("sale_txn_not_specified")
             for pos in self.getPositions():                                                                             # type: MyCostCalculation.Position
                 if (pos.getTxn() is not None and pos.getTxn() is saleTxn):
