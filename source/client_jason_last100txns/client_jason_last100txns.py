@@ -4,7 +4,7 @@
 from __future__ import division    # Has to occur at the beginning of file... Changes division to always produce a float
 assert isinstance(0/1, float), "LOGIC ERROR: This extension assumes that division of integers yields a float! Do you have this statement: 'from __future__ import division'?"
 
-# client_jason_last100txns.py build: 1001 - January 2024 - Stuart Beesley - StuWareSoftSystems
+# client_jason_last100txns.py build: 1002 - February 2024 - Stuart Beesley - StuWareSoftSystems
 
 # "Bespoke for Jason Barrett. Shows last 100 transactions report on the Summary / Home page widget"
 ########################################################################################################################
@@ -37,7 +37,7 @@ assert isinstance(0/1, float), "LOGIC ERROR: This extension assumes that divisio
 # Build: 2 - Various client tweaks...
 # Build: 3 - Various client tweaks...
 # Build: 1000 - Initial release...
-# Build: 1001 - GUI tweaks...
+# Build: 1002 - GUI tweaks...
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -5549,7 +5549,7 @@ Visit: %s (Author's site)
             FORMATS         = ["txn", "date",  "str",          "str",      "val_long"]
             DEFAULT_WIDTHS  = [0,      100,    210,            150,         110]
             MAX_WIDTHS      = [0,      140,    600,            500,         150]
-            MAX_WIDTH_TWO_COLUMNS = 700
+            MAX_WIDTH_TWO_COLUMNS = 850
 
             def __init__(self, base, dec):
                 self.base = base
