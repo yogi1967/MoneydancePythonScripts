@@ -140,6 +140,7 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 #               Fix formula warning label reset accidentally wiping the date range label!
 #               Finally fix the GUI scrolling issue, with JSplitPane....; Final label height fix
 # build: 1048 - Tweak MyJLabel() to allow dynamic resizing (e.g. on Summary Page)...; tweak install routines; tweak JLabel getPreferredSize()
+#               Switch code to upgraded CostCalculation core code for post MD2023.3(5064)...
 
 # todo - consider better formula handlers... e.g. com.infinitekind.util.StringUtils.parseFormula(String, char)
 # todo - option to show different dpc (e.g. full decimal precision)
@@ -487,7 +488,6 @@ else:
     from com.moneydance.apps.md.controller import FeatureModule, PreferencesListener, UserPreferences
     # from com.moneydance.apps.md.controller.time import DateRangeOption
     from com.infinitekind.moneydance.model import AccountListener, AbstractTxn, CurrencyListener, DateRange, TxnSet
-    # from com.infinitekind.moneydance.model import CostCalculation
     from com.infinitekind.moneydance.model import CapitalGainResult, InvestFields, InvestTxnType
 
     # from com.infinitekind.moneydance.model import TxnIterator
@@ -3123,6 +3123,11 @@ Visit: %s (Author's site)
                 return fm
         return None
 
+    GlobalVars.MD_COSTCALCULATION_UPGRADED_POST_BUILD = 5064                                                            # POST MD2023.3(5064)
+    def isCostCalculationUpgradedBuild(): return (float(MD_REF.getBuild()) > GlobalVars.MD_COSTCALCULATION_UPGRADED_POST_BUILD)                                           # 2023.0(5000)
+    if isCostCalculationUpgradedBuild():
+        from com.infinitekind.moneydance.model import CostCalculation
+
     GlobalVars.MD_KOTLIN_COMPILED_BUILD = 5000                                                                          # 2023.0
     def isKotlinCompiledBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_KOTLIN_COMPILED_BUILD)                                           # 2023.0(5000)
 
@@ -3420,13 +3425,13 @@ Visit: %s (Author's site)
     # Copied from: com.infinitekind.moneydance.model.CostCalculation (quite inaccessible before build 5008, also buggy)
     ####################################################################################################################
     class MyCostCalculation:
-        """CostBasis calculation engine (v5). Copies/enhances/fixes MD CostCalculation() (asof build 5064).
+        """CostBasis calculation engine (v7). Copies/enhances/fixes MD CostCalculation() (asof build 5064).
         Params asof:None or zero = asof the most recent (future)txn date that affected the shareholding/costbasis balance.
         preparedTxns is typically used by itself to recall the class to get the current cost basis
         obtainCurrentBalanceToo is used to request that the class calls itself to also get the current/today balance too
         # (v2: LOT control fixes, v3: added isCostBasisValid(), v4: don't incl. fees on misc inc/exp in cbasis with lots,
         # ...fixes for  capital gains to work, v5: added in short/long term support, v6: added unRealizedSaleTxn parameter
-        support)"""
+        support, v7: added SharesOwnedAsOf class to match MD's upgraded CostCalculation class)"""
 
         ################################################################################################################
         # This is used to calculate the cost of a security using either the average cost or lot-based method.
@@ -3582,7 +3587,7 @@ Visit: %s (Author's site)
             # type: () -> (int, int)
             """Returns a tuple containing the (long) shares owned, (long) cost basis upto/asof the date requested"""
             asofPos = self.getPositionForAsOf()
-            return asofPos.getSharesOwnedAsOfAsOf(), asofPos.getRunningCost()
+            return MyCostCalculation.SharesOwnedAsOf(self.getSecAccount(), self.getAsOfDate(), asofPos.getSharesOwnedAsOfAsOf(), asofPos.getRunningCost())
 
         def addTxn(self, txn):
             # type: (AbstractTxn) -> None
@@ -3931,6 +3936,17 @@ Visit: %s (Author's site)
             if self.COST_DEBUG: myPrint("B", "... calculated gain for '%s' from position " %(self.getSecAccount()), pos, "\nprevious position:", pos.getPreviousPos(), "\n-->", result)
 
             return result
+
+        class SharesOwnedAsOf:
+            def __init__(self, secAccount, asOfDate, sharesOwnedAsOf, costBasisAsOf):
+                self.secAccount = secAccount
+                self.asOfDate = asOfDate
+                self.sharesOwnedAsOf = sharesOwnedAsOf
+                self.costBasisAsOf = costBasisAsOf
+            def getSecAccount(self): return self.secAccount
+            def getAsOfDate(self): return self.asOfDate
+            def getSharesOwnedAsOf(self): return self.sharesOwnedAsOf
+            def getCostBasisAsOf(self): return self.costBasisAsOf
 
         class HoldCapitalGainTotal:
             def __init__(self, callingClass,
@@ -7940,13 +7956,25 @@ Visit: %s (Author's site)
                 else:
                     assert isSecurityAcct(acct), ("ERROR: Acct: '%s' is not a security account (type: '%s')?!'" %(acct, acct.getAccountType()))
 
+                    # CostCalculation.DEBUG_COST = True;
                     # MyCostCalculation.COST_DEBUG = True;
 
-                    costCalculationBal = MyCostCalculation(acct, asOfDate, None, True)
-                    costCalculationCurrBal = costCalculationBal.getCurrentBalanceCostCalculation()
+                    if isCostCalculationUpgradedBuild():
+                        costCalculationBal = CostCalculation(acct, asOfDate, None, True)
+                        costCalculationCurrBal = costCalculationBal.getCurrentBalanceCostCalculation()
+                    else:
+                        costCalculationBal = MyCostCalculation(acct, asOfDate, None, True)
+                        costCalculationCurrBal = costCalculationBal.getCurrentBalanceCostCalculation()
 
-                    asofSharesBal, asofCostBasisBal = costCalculationBal.getSharesAndCostBasisForAsOf()
-                    asofSharesCurBal, asofCostBasisCurBal = costCalculationCurrBal.getSharesAndCostBasisForAsOf()
+                    sharesAndCostBasisForAsOf = costCalculationBal.getSharesAndCostBasisForAsOf()
+                    asofSharesBal = sharesAndCostBasisForAsOf.getSharesOwnedAsOf()
+                    asofCostBasisBal = sharesAndCostBasisForAsOf.getCostBasisAsOf()
+
+                    sharesAndCostBasisForAsOf = costCalculationCurrBal.getSharesAndCostBasisForAsOf()
+                    asofSharesCurBal = sharesAndCostBasisForAsOf.getSharesOwnedAsOf()
+                    asofCostBasisCurBal = sharesAndCostBasisForAsOf.getCostBasisAsOf()
+
+                    del sharesAndCostBasisForAsOf
 
                     # for pos in costCalculationBal.getPositions():
                     #     if pos.isSellTxn(): myPrint("B", pos.toString())
