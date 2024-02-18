@@ -145,6 +145,7 @@
 #               Tweak cell renderer(s) in SG2020 and Extract Reminders to fix cell padding and highlighted colors...
 #               Introduced MyCostCalculation...
 #               Added Date Entered, Sync Date, reconciled date, reconciled asof dates into EAR and EIT extracts...
+#               Tweaked MyCostCalculation::getSharesAndCostBasisForAsOf()
 
 # todo - EAR: Switch to 'proper' usage of DateRangeChooser() (rather than my own 'copy')
 
@@ -3387,13 +3388,13 @@ Visit: %s (Author's site)
     # Copied from: com.infinitekind.moneydance.model.CostCalculation (quite inaccessible before build 5008, also buggy)
     ####################################################################################################################
     class MyCostCalculation:
-        """CostBasis calculation engine (v5). Copies/enhances/fixes MD CostCalculation() (asof build 5064).
+        """CostBasis calculation engine (v7). Copies/enhances/fixes MD CostCalculation() (asof build 5064).
         Params asof:None or zero = asof the most recent (future)txn date that affected the shareholding/costbasis balance.
         preparedTxns is typically used by itself to recall the class to get the current cost basis
         obtainCurrentBalanceToo is used to request that the class calls itself to also get the current/today balance too
         # (v2: LOT control fixes, v3: added isCostBasisValid(), v4: don't incl. fees on misc inc/exp in cbasis with lots,
         # ...fixes for  capital gains to work, v5: added in short/long term support, v6: added unRealizedSaleTxn parameter
-        support)"""
+        support, v7: added SharesOwnedAsOf class to match MD's upgraded CostCalculation class)"""
 
         ################################################################################################################
         # This is used to calculate the cost of a security using either the average cost or lot-based method.
@@ -3549,7 +3550,7 @@ Visit: %s (Author's site)
             # type: () -> (int, int)
             """Returns a tuple containing the (long) shares owned, (long) cost basis upto/asof the date requested"""
             asofPos = self.getPositionForAsOf()
-            return asofPos.getSharesOwnedAsOfAsOf(), asofPos.getRunningCost()
+            return MyCostCalculation.SharesOwnedAsOf(self.getSecAccount(), self.getAsOfDate(), asofPos.getSharesOwnedAsOfAsOf(), asofPos.getRunningCost())
 
         def addTxn(self, txn):
             # type: (AbstractTxn) -> None
@@ -3821,7 +3822,7 @@ Visit: %s (Author's site)
                Returns a CapitalGainResult object with the details of the cost and gains for this transaction"""
 
             if saleTxn is None:
-                myPrint("B", "you must supply a sale txn; returning Invalid/Zeros" %(saleTxn))
+                myPrint("B", "you must supply a sale txn; returning Invalid/Zeros")
                 return CapitalGainResult("sale_txn_not_specified")
             for pos in self.getPositions():                                                                             # type: MyCostCalculation.Position
                 if (pos.getTxn() is not None and pos.getTxn() is saleTxn):
@@ -3898,6 +3899,17 @@ Visit: %s (Author's site)
             if self.COST_DEBUG: myPrint("B", "... calculated gain for '%s' from position " %(self.getSecAccount()), pos, "\nprevious position:", pos.getPreviousPos(), "\n-->", result)
 
             return result
+
+        class SharesOwnedAsOf:
+            def __init__(self, secAccount, asOfDate, sharesOwnedAsOf, costBasisAsOf):
+                self.secAccount = secAccount
+                self.asOfDate = asOfDate
+                self.sharesOwnedAsOf = sharesOwnedAsOf
+                self.costBasisAsOf = costBasisAsOf
+            def getSecAccount(self): return self.secAccount
+            def getAsOfDate(self): return self.asOfDate
+            def getSharesOwnedAsOf(self): return self.sharesOwnedAsOf
+            def getCostBasisAsOf(self): return self.costBasisAsOf
 
         class HoldCapitalGainTotal:
             def __init__(self, callingClass,
@@ -12582,17 +12594,13 @@ Visit: %s (Author's site)
                                             effectiveDateInt = None if (asOfDate == todayInt) else asOfDate
 
                                         costCalculationBal = MyCostCalculation(securityAcct, asOfDate, None, False)  # True replicates InvestUtil.getCostBasis(securityAcct) - i.e. Balance (not Current Balance)
-                                        # costCalculationBal = MyCostCalculation(securityAcct, asOfDate, None, True)  # True replicates InvestUtil.getCostBasis(securityAcct) - i.e. Balance (not Current Balance)
-                                        # costCalculationCurrBal = costCalculationBal.getCurrentBalanceCostCalculation()
 
-                                        asofSharesBal, asofCostBasisBal = costCalculationBal.getSharesAndCostBasisForAsOf()
-                                        # asofSharesCurBal, asofCostBasisCurBal = costCalculationCurrBal.getSharesAndCostBasisForAsOf()
+                                        sharesAndCostBasisForAsOf = costCalculationBal.getSharesAndCostBasisForAsOf()
+                                        # asofSharesBal = sharesAndCostBasisForAsOf.getSharesOwnedAsOf()
+                                        asofCostBasisBal = sharesAndCostBasisForAsOf.getCostBasisAsOf()
 
                                         costBasisBal = asofCostBasisBal
-                                        # costBasisCurBal = asofSharesCurBal
-
                                         costBasisBalBase = convertValue(costBasisBal, investAcctCurr, GlobalVars.baseCurrency, effectiveDateInt)
-                                        # costBasisCurrBalBase = convertValue(costBasisCurBal, investAcctCurr, GlobalVars.baseCurrency, effectiveDateInt)
 
                                         _row[GlobalVars.dataKeys["_ACCTCOSTBASIS"][_COLUMN]] = investAcctCurr.getDoubleValue(costBasisBal)
                                         _row[GlobalVars.dataKeys["_BASECOSTBASIS"][_COLUMN]] = GlobalVars.baseCurrency.getDoubleValue(costBasisBalBase)
