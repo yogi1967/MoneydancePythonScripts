@@ -160,7 +160,7 @@
 # build: 1063 - Common code - FileFilter fix...; Tweak OFX_view_CUSIP_settings() to deal with blank CUSIP schemes...
 #               tweaked: force_change_all_accounts_categories_currencies(); added: validateAndFixBaseCurrency. Tweaked base currency validation/repair code.
 #               Tweaked diag/fix currencies/securities and diag/fix base currency routines; tweak menu for fix base currency
-# build: 1064 - ??? NEW RELEASE - AWAITING CHANGES...
+# build: 1064 - Tweak buildDiagText() - 'OS Platform:' add space before version text....
 
 # todo - undo the patch to DetectMobileAppTxnFiles() for Sonoma.. Perhaps put into a Thread()?
 
@@ -6012,7 +6012,7 @@ Visit: %s (Author's site)
             username = u"???"
         textArray.append(u"Username:                            %s" %username)
 
-        textArray.append(u"OS Platform:                         %s" %System.getProperty(u"os.name") + u"OS Version: %s" %(System.getProperty(u"os.version")))
+        textArray.append(u"OS Platform:                         %s" %System.getProperty(u"os.name") + u" %s" %(System.getProperty(u"os.version")))
 
         textArray.append(u"Home Directory:                      %s" %(get_home_dir()))
         if System.getProperty(u"user.dir"): textArray.append(u"  user.dir:                          %s" %System.getProperty(u"user.dir"))
