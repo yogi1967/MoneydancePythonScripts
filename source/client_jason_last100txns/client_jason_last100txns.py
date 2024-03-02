@@ -45,7 +45,7 @@ assert isinstance(0/1, float), "LOGIC ERROR: This extension assumes that divisio
 
 # SET THESE LINES
 myModuleID = u"client_jason_last100txns"
-version_build = "1000"
+version_build = "1002"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
