@@ -161,6 +161,7 @@
 #               tweaked: force_change_all_accounts_categories_currencies(); added: validateAndFixBaseCurrency. Tweaked base currency validation/repair code.
 #               Tweaked diag/fix currencies/securities and diag/fix base currency routines; tweak menu for fix base currency
 # build: 1064 - Tweak buildDiagText() - 'OS Platform:' add space before version text....
+#               Take advantage of of context menu scriptinfo abilities (since MD2024(5100))...
 
 # todo - undo the patch to DetectMobileAppTxnFiles() for Sonoma.. Perhaps put into a Thread()?
 
@@ -3347,6 +3348,16 @@ Visit: %s (Author's site)
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################
+
+    GlobalVars.MD_COSTCALCULATION_UPGRADED_BUILD = 5100                                                                 # MD2024(5100)
+    def isCostCalculationUpgradedBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_COSTCALCULATION_UPGRADED_BUILD)                                           # 2023.0(5000)
+    if isCostCalculationUpgradedBuild():
+        from com.infinitekind.moneydance.model import CostCalculation
+
+    GlobalVars.MD_CONTEXT_MENU_ENABLED_BUILD = 5100                                                                     # MD2024(5100)
+    def isContextMenuEnabledBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_CONTEXT_MENU_ENABLED_BUILD)                                           # 2023.0(5000)
+    if isContextMenuEnabledBuild():
+        from  com.moneydance.apps.md.controller import MDActionContext                                                  # noqa
 
     def isSyncTaskSyncing(checkMainTask=False, checkAttachmentsTask=False):
         if ((not checkMainTask and not checkAttachmentsTask) or (checkMainTask and checkAttachmentsTask)):
