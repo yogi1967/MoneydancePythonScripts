@@ -3060,7 +3060,7 @@ Visit: %s (Author's site)
     if "moneydance_action_context" not in globals(): moneydance_action_context = None
     if "moneydance_action_event" not in globals(): moneydance_action_event = None
     if "moneydance_script_fixed_parameter" not in globals(): moneydance_script_fixed_parameter = None
-    if isinstance(moneydance_action_context, MDActionContext):
+    if isContextMenuEnabledBuild() and isinstance(moneydance_action_context, MDActionContext):
         if debug:
             myPrint("B", "Right-Click context menu detected:", moneydance_action_context)
             myPrint("B", "... fixed script parameter: '%s'" %(moneydance_script_fixed_parameter))
