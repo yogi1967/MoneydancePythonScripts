@@ -141,6 +141,7 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 #               Finally fix the GUI scrolling issue, with JSplitPane....; Final label height fix
 # build: 1048 - Tweak MyJLabel() to allow dynamic resizing (e.g. on Summary Page)...; tweak install routines; tweak JLabel getPreferredSize()
 #               Switch code to upgraded CostCalculation core code for 2024(5100) onwards...
+#               NOTE: New FeatureModule::getActionsForContext() method and MDActionContext
 
 # todo - consider better formula handlers... e.g. com.infinitekind.util.StringUtils.parseFormula(String, char)
 # todo - option to show different dpc (e.g. full decimal precision)
@@ -3127,6 +3128,11 @@ Visit: %s (Author's site)
     def isCostCalculationUpgradedBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_COSTCALCULATION_UPGRADED_BUILD)                                           # 2023.0(5000)
     if isCostCalculationUpgradedBuild():
         from com.infinitekind.moneydance.model import CostCalculation
+
+    GlobalVars.MD_CONTEXT_MENU_ENABLED_BUILD = 5100                                                                     # MD2024(5100)
+    def isContextMenuEnabledBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_CONTEXT_MENU_ENABLED_BUILD)                                           # 2023.0(5000)
+    # if isContextMenuEnabledBuild():
+    #     from  com.moneydance.apps.md.controller import MDActionContext                                                  # noqa
 
     GlobalVars.MD_KOTLIN_COMPILED_BUILD = 5000                                                                          # 2023.0
     def isKotlinCompiledBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_KOTLIN_COMPILED_BUILD)                                           # 2023.0(5000)
