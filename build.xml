@@ -60,7 +60,7 @@ http://jakarta.apache.org/ant/index.html
 
   <target name="build_all_python"
           description="build all python extensions"
-          depends="init,toolbox,extract_data,list_future_reminders,net_account_balances,extension_tester,accounts_categories_mega_search_window,security_performance_graph,stutilities,useful_scripts,client_mark_extract_data,client_skylar_lowest_balances,client_jason_last100txns"/>
+          depends="init,toolbox,extract_data,list_future_reminders,net_account_balances,extension_tester,accounts_categories_mega_search_window,security_performance_graph,stutilities,useful_scripts,client_mark_extract_data,client_skylar_lowest_balances,client_jason_last100txns,test_context_menu"/>
 
   <target name="push_all_python"
           description="push all python extensions to the IK Open site"
@@ -709,6 +709,18 @@ http://jakarta.apache.org/ant/index.html
   <target name="client_jason_last100txns" depends="init" description="Build BESPOKE 'Last 100 transactions' (for Jason Barrett) Python(Jython2.7) Extension (by Stuart Beesley StuWareSoftSystems)">
     <build-python-mxt
             feature="client_jason_last100txns"
+            is-stuwaresoftsystems-extension="is_stuwaresoftsystems_extension_true"
+            precompile-python="precompile_python_true"
+            create-zip-bundle-too="create_zip_bundle_too_true"
+            include-py-files-in-zip="include_py_files_in_zip_false"
+            include-dict-files-in-zip="include_dict_files_in_zip_false"
+            bundle-own-java-too="bundle_own_java_too_false"
+    />
+  </target>
+
+  <target name="test_context_menu" depends="init" description="test_context_menu">
+    <build-python-mxt
+            feature="test_context_menu"
             is-stuwaresoftsystems-extension="is_stuwaresoftsystems_extension_true"
             precompile-python="precompile_python_true"
             create-zip-bundle-too="create_zip_bundle_too_true"
