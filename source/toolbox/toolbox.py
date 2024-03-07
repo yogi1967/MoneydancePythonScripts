@@ -162,6 +162,7 @@
 #               Tweaked diag/fix currencies/securities and diag/fix base currency routines; tweak menu for fix base currency
 # build: 1064 - Tweak buildDiagText() - 'OS Platform:' add space before version text....
 #               Take advantage of of context menu scriptinfo abilities (since MD2024(5100))...
+#               Switch to new debug controls in AppDebug class...
 
 # todo - undo the patch to DetectMobileAppTxnFiles() for Sonoma.. Perhaps put into a Thread()?
 
@@ -3357,7 +3358,12 @@ Visit: %s (Author's site)
     GlobalVars.MD_CONTEXT_MENU_ENABLED_BUILD = 5100                                                                     # MD2024(5100)
     def isContextMenuEnabledBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_CONTEXT_MENU_ENABLED_BUILD)                                           # 2023.0(5000)
     if isContextMenuEnabledBuild():
-        from  com.moneydance.apps.md.controller import MDActionContext                                                  # noqa
+        from com.moneydance.apps.md.controller import MDActionContext                                                   # noqa
+
+    GlobalVars.MD_APPDEBUG_ENABLED_BUILD = 5100                                                                         # MD2024(5100)
+    def isAppDebugEnabledBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_APPDEBUG_ENABLED_BUILD)                                           # 2023.0(5000)
+    if isAppDebugEnabledBuild():
+        from com.infinitekind.util import AppDebug                                                                      # noqa
 
     def isSyncTaskSyncing(checkMainTask=False, checkAttachmentsTask=False):
         if ((not checkMainTask and not checkAttachmentsTask) or (checkMainTask and checkAttachmentsTask)):
@@ -3588,13 +3594,20 @@ Visit: %s (Author's site)
 
         @staticmethod
         def changeState(newState):
-            SyncerDebug.saveState = Syncer.DEBUG
-            Syncer.DEBUG = newState
+            if isAppDebugEnabledBuild():
+                SyncerDebug.saveState = AppDebug.getDEBUG_SYNC()
+                AppDebug.setDEBUG_SYNC(newState)
+            else:
+                SyncerDebug.saveState = Syncer.DEBUG
+                Syncer.DEBUG = newState
 
         @staticmethod
         def resetState():
             if SyncerDebug.saveState is None: return
-            Syncer.DEBUG = SyncerDebug.saveState
+            if isAppDebugEnabledBuild():
+                AppDebug.setDEBUG_SYNC(SyncerDebug.saveState)
+            else:
+                Syncer.DEBUG = SyncerDebug.saveState
 
     class MainDebug:
         saveState = None
@@ -3603,13 +3616,20 @@ Visit: %s (Author's site)
 
         @staticmethod
         def changeState(newState):
-            MainDebug.saveState = MD_REF.DEBUG
-            MD_REF.DEBUG = newState
+            if isAppDebugEnabledBuild():
+                MainDebug.saveState = AppDebug.getDEBUG()
+                AppDebug.setDEBUG(newState)
+            else:
+                MainDebug.saveState = MD_REF.DEBUG
+                MD_REF.DEBUG = newState
 
         @staticmethod
         def resetState():
             if MainDebug.saveState is None: return
-            MD_REF.DEBUG = MainDebug.saveState
+            if isAppDebugEnabledBuild():
+                AppDebug.setDEBUG(MainDebug.saveState)
+            else:
+                MD_REF.DEBUG = MainDebug.saveState
 
     def logToolboxUpdates(methodName, comments, book=None, onlyLogGenericEntry=False, lOnlyRtnCommonPath=False, lOnlyRtnDatasetPath=False):
         """
@@ -5990,7 +6010,7 @@ Visit: %s (Author's site)
         else:
             textArray.append(u"MD Execution Mode:                   %s" %(MD_REF.getExecutionMode()))
 
-        textArray.append(u"MD Debug Mode:                       %s" %(MD_REF.DEBUG))
+        textArray.append(u"MD Debug Mode:                       %s" %(MD_REF.DEBUG if not isAppDebugEnabledBuild() else AppDebug.getDEBUG()))
         textArray.append(u"Beta Features:                       %s" %(MD_REF.BETA_FEATURES))
         textArray.append(u"Architecture:                        %s%s" %(System.getProperty(u"os.arch"),
                                                                         u" (Intel 32-bit)" if isIntelX86_32bit() else u""))
@@ -26360,7 +26380,7 @@ after saving the file, restart Moneydance
         myPopupInformationBox(jif,txt,theTitle=_THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
 
     def advanced_options_DEBUG(lForceON=False, lForceOFF=False):
-        md_debug = MD_REF.DEBUG
+        md_debug = MD_REF.DEBUG if (not isAppDebugEnabledBuild()) else AppDebug.getDEBUG()
         moneydance_debug_props_key = "moneydance.debug"
         props_debug = Boolean.getBoolean(moneydance_debug_props_key)
 
@@ -26381,15 +26401,19 @@ after saving the file, restart Moneydance
                                    "Syncer.DEBUG                           currently set to: %s\n"
                                    "CustomURLStreamHandlerFactory.DEBUG    currently set to: %s\n"
                                    "PlaidConnection.DEBUG                  currently set to: %s\n"
+                                   "DEBUG_UNDO_CHANGES                     currently set to: %s\n"                     
+                                   "DEBUG_OBSOLETE                         currently set to: %s\n"
                                    %(md_debug,
                                      moneydance_debug_props_key,
                                      props_debug,
                                      OFXConnection.DEBUG_MESSAGES,
                                      MoneybotURLStreamHandlerFactory.DEBUG,
                                      OnlineTxnMerger.DEBUG,
-                                     Syncer.DEBUG,
+                                     Syncer.DEBUG if (not isAppDebugEnabledBuild()) else AppDebug.getDEBUG_SYNC(),
                                      CustomURLStreamHandlerFactory.DEBUG,
-                                     "n/a" if (not isMDPlusEnabledBuild()) else PlaidConnection.DEBUG),
+                                     "n/a" if (not isMDPlusEnabledBuild()) else PlaidConnection.DEBUG,
+                                     "n/a" if (not isAppDebugEnabledBuild()) else AppDebug.getDEBUG_UNDO_CHANGES(),
+                                     "n/a" if (not isAppDebugEnabledBuild()) else AppDebug.getDEBUG_OBSOLETE()),
                                    theTitle="TOGGLE MONEYDANCE INTERNAL DEBUG(s)",
                                    lCancelButton=True,OKButtonText="SET ALL to %s" %toggleText)
             if not ask.go():
@@ -26406,12 +26430,19 @@ after saving the file, restart Moneydance
             newDebugSetting = True
             System.setProperty(moneydance_debug_props_key, Boolean.toString(newDebugSetting))
 
-        MD_REF.DEBUG = newDebugSetting
+        if isAppDebugEnabledBuild():
+            if newDebugSetting:
+                AppDebug.enableAllFlags()
+            else:
+                AppDebug.disableAllFlags()
+        else:
+            MD_REF.DEBUG = newDebugSetting
+            Syncer.DEBUG = newDebugSetting
+
         OFXConnection.DEBUG_MESSAGES = newDebugSetting
         MoneybotURLStreamHandlerFactory.DEBUG = newDebugSetting
-        OnlineTxnMerger.DEBUG = newDebugSetting
-        Syncer.DEBUG = newDebugSetting
         CustomURLStreamHandlerFactory.DEBUG = newDebugSetting
+        OnlineTxnMerger.DEBUG = newDebugSetting
         if isMDPlusEnabledBuild(): PlaidConnection.DEBUG = newDebugSetting
 
         txt = "All Moneydance internal debug modes turned %s" %(toggleText)
