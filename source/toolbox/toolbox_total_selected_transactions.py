@@ -52,13 +52,11 @@
 # build: 1015 - Fix for when Bank Register selected in Investment Account (rather than main Investment Register)
 # build: 1016 - Renamed buddy app to: toolbox_zap_mdplus_ofx_qif_default_memo_fields
 # build: 1017 - Common code - FileFilter fix...
-# build: 1018 - Take advantage of of context menu scriptinfo abilities - since MD2024(5100)...
+# build: 1018 - Take advantage of of context menu scriptinfo abilities & also MoneydanceGUI.getSelectedTxns() - since MD2024(5100)...
 
 # Looks for an Account register that has focus and then totals the selected transactions. If any found, displays on screen
 # NOTE: 1st Aug 2021 - As a result of creating this extension, IK stated this would be core functionality in preview build 3070+
 # But.... it's nowhere near as good as this one....!
-
-# todo - does not seem to work in Loan accounts ("no txns selected, or no register in focus") - to be fixed....
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -3402,8 +3400,14 @@ Visit: %s (Author's site)
             storeSum = [None]
 
             if MD_ACTION_CONTEXT:
-                myPrint("DB", "Using MenuContext %s transactions...:" %(len(MD_ACTION_CONTEXT.getTransactions())))
+                if debug: myPrint("B", "Using MenuContext - %s transactions...:" %(len(MD_ACTION_CONTEXT.getTransactions())))
                 analyseTxns(MD_ACTION_CONTEXT.getTransactions(), None)
+
+            elif isContextMenuEnabledBuild():
+                _txns = MD_REF.getUI().getSelectedTxns()
+                if _txns is None: _txns = []
+                if debug: myPrint("B", "Using new MoneydanceGUI::getSelectedTxns() - %s transactions...:" %(len(_txns)))
+                analyseTxns(_txns, None)
 
             else:
 

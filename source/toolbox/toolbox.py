@@ -161,7 +161,7 @@
 #               tweaked: force_change_all_accounts_categories_currencies(); added: validateAndFixBaseCurrency. Tweaked base currency validation/repair code.
 #               Tweaked diag/fix currencies/securities and diag/fix base currency routines; tweak menu for fix base currency
 # build: 1064 - Tweak buildDiagText() - 'OS Platform:' add space before version text....
-#               Take advantage of of context menu scriptinfo abilities (since MD2024(5100))...
+#               Take advantage of of context menu scriptinfo abilities (since MD2024(5100))... - e.g. set selected transactions...
 #               Switch to new debug controls in AppDebug class...
 
 # todo - undo the patch to DetectMobileAppTxnFiles() for Sonoma.. Perhaps put into a Thread()?
@@ -26403,6 +26403,7 @@ after saving the file, restart Moneydance
                                    "PlaidConnection.DEBUG                  currently set to: %s\n"
                                    "DEBUG_UNDO_CHANGES                     currently set to: %s\n"                     
                                    "DEBUG_OBSOLETE                         currently set to: %s\n"
+                                   "DEBUG_PRINTING                         currently set to: %s\n"
                                    %(md_debug,
                                      moneydance_debug_props_key,
                                      props_debug,
@@ -26413,7 +26414,8 @@ after saving the file, restart Moneydance
                                      CustomURLStreamHandlerFactory.DEBUG,
                                      "n/a" if (not isMDPlusEnabledBuild()) else PlaidConnection.DEBUG,
                                      "n/a" if (not isAppDebugEnabledBuild()) else AppDebug.getDEBUG_UNDO_CHANGES(),
-                                     "n/a" if (not isAppDebugEnabledBuild()) else AppDebug.getDEBUG_OBSOLETE()),
+                                     "n/a" if (not isAppDebugEnabledBuild()) else AppDebug.getDEBUG_OBSOLETE(),
+                                     "n/a" if (not isAppDebugEnabledBuild()) else AppDebug.getDEBUG_PRINTING()),        # noqa - 5100 onwards
                                    theTitle="TOGGLE MONEYDANCE INTERNAL DEBUG(s)",
                                    lCancelButton=True,OKButtonText="SET ALL to %s" %toggleText)
             if not ask.go():
