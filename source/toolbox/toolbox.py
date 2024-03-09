@@ -3363,7 +3363,7 @@ Visit: %s (Author's site)
     GlobalVars.MD_APPDEBUG_ENABLED_BUILD = 5100                                                                         # MD2024(5100)
     def isAppDebugEnabledBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_APPDEBUG_ENABLED_BUILD)                                           # 2023.0(5000)
     if isAppDebugEnabledBuild():
-        from com.infinitekind.util import AppDebug                                                                      # noqa
+        from com.infinitekind.util import AppDebug, MsgType                                                             # noqa
 
     def isSyncTaskSyncing(checkMainTask=False, checkAttachmentsTask=False):
         if ((not checkMainTask and not checkAttachmentsTask) or (checkMainTask and checkAttachmentsTask)):
@@ -3595,8 +3595,8 @@ Visit: %s (Author's site)
         @staticmethod
         def changeState(newState):
             if isAppDebugEnabledBuild():
-                SyncerDebug.saveState = AppDebug.getDEBUG_SYNC()
-                AppDebug.setDEBUG_SYNC(newState)
+                SyncerDebug.saveState = MsgType.SYNC.isEnabled()
+                MsgType.SYNC.setEnabled(newState)
             else:
                 SyncerDebug.saveState = Syncer.DEBUG
                 Syncer.DEBUG = newState
@@ -3605,7 +3605,7 @@ Visit: %s (Author's site)
         def resetState():
             if SyncerDebug.saveState is None: return
             if isAppDebugEnabledBuild():
-                AppDebug.setDEBUG_SYNC(SyncerDebug.saveState)
+                MsgType.SYNC.setEnabled(SyncerDebug.saveState)
             else:
                 Syncer.DEBUG = SyncerDebug.saveState
 
@@ -3617,8 +3617,8 @@ Visit: %s (Author's site)
         @staticmethod
         def changeState(newState):
             if isAppDebugEnabledBuild():
-                MainDebug.saveState = AppDebug.getDEBUG()
-                AppDebug.setDEBUG(newState)
+                MainDebug.saveState = MsgType.GENERAL.isEnabled()
+                MsgType.GENERAL.setEnabled(newState)
             else:
                 MainDebug.saveState = MD_REF.DEBUG
                 MD_REF.DEBUG = newState
@@ -3627,7 +3627,7 @@ Visit: %s (Author's site)
         def resetState():
             if MainDebug.saveState is None: return
             if isAppDebugEnabledBuild():
-                AppDebug.setDEBUG(MainDebug.saveState)
+                MsgType.GENERAL.setEnabled(MainDebug.saveState)
             else:
                 MD_REF.DEBUG = MainDebug.saveState
 
@@ -6010,7 +6010,7 @@ Visit: %s (Author's site)
         else:
             textArray.append(u"MD Execution Mode:                   %s" %(MD_REF.getExecutionMode()))
 
-        textArray.append(u"MD Debug Mode:                       %s" %(MD_REF.DEBUG if not isAppDebugEnabledBuild() else AppDebug.getDEBUG()))
+        textArray.append(u"MD Debug Mode:                       %s" %(MD_REF.DEBUG if not isAppDebugEnabledBuild() else MsgType.GENERAL.isEnabled()))
         textArray.append(u"Beta Features:                       %s" %(MD_REF.BETA_FEATURES))
         textArray.append(u"Architecture:                        %s%s" %(System.getProperty(u"os.arch"),
                                                                         u" (Intel 32-bit)" if isIntelX86_32bit() else u""))
@@ -26380,10 +26380,9 @@ after saving the file, restart Moneydance
         myPopupInformationBox(jif,txt,theTitle=_THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
 
     def advanced_options_DEBUG(lForceON=False, lForceOFF=False):
-        md_debug = MD_REF.DEBUG if (not isAppDebugEnabledBuild()) else AppDebug.getDEBUG()
+        md_debug = MD_REF.DEBUG if (not isAppDebugEnabledBuild()) else MsgType.GENERAL.isEnabled()
         moneydance_debug_props_key = "moneydance.debug"
         props_debug = Boolean.getBoolean(moneydance_debug_props_key)
-
 
         if lForceON:
             toggleText = "ON"
@@ -26410,12 +26409,12 @@ after saving the file, restart Moneydance
                                      OFXConnection.DEBUG_MESSAGES,
                                      MoneybotURLStreamHandlerFactory.DEBUG,
                                      OnlineTxnMerger.DEBUG,
-                                     Syncer.DEBUG if (not isAppDebugEnabledBuild()) else AppDebug.getDEBUG_SYNC(),
+                                     Syncer.DEBUG if (not isAppDebugEnabledBuild()) else MsgType.SYNC.isEnabled(),
                                      CustomURLStreamHandlerFactory.DEBUG,
                                      "n/a" if (not isMDPlusEnabledBuild()) else PlaidConnection.DEBUG,
-                                     "n/a" if (not isAppDebugEnabledBuild()) else AppDebug.getDEBUG_UNDO_CHANGES(),
-                                     "n/a" if (not isAppDebugEnabledBuild()) else AppDebug.getDEBUG_OBSOLETE(),
-                                     "n/a" if (not isAppDebugEnabledBuild()) else AppDebug.getDEBUG_PRINTING()),        # noqa - 5100 onwards
+                                     "n/a" if (not isAppDebugEnabledBuild()) else MsgType.UNDO.isEnabled(),
+                                     "n/a" if (not isAppDebugEnabledBuild()) else MsgType.OBSOLETE.isEnabled(),
+                                     "n/a" if (not isAppDebugEnabledBuild()) else MsgType.PRINTING.isEnabled()),        # noqa - 5100 onwards
                                    theTitle="TOGGLE MONEYDANCE INTERNAL DEBUG(s)",
                                    lCancelButton=True,OKButtonText="SET ALL to %s" %toggleText)
             if not ask.go():

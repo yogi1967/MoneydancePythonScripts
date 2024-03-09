@@ -53,6 +53,7 @@
 # build: 1016 - Renamed buddy app to: toolbox_zap_mdplus_ofx_qif_default_memo_fields
 # build: 1017 - Common code - FileFilter fix...
 # build: 1018 - Take advantage of of context menu scriptinfo abilities & also MoneydanceGUI.getSelectedTxns() - since MD2024(5100)...
+#               Fix buys/sells detection...
 
 # Looks for an Account register that has focus and then totals the selected transactions. If any found, displays on screen
 # NOTE: 1st Aug 2021 - As a result of creating this extension, IK stated this would be core functionality in preview build 3070+
@@ -3273,7 +3274,7 @@ Visit: %s (Author's site)
                             if fields.negateSecurity: mult = -1.0
 
                             if fields.hasShares:
-                                if shares > 0.0:
+                                if not fields.negateSecurity:
                                     buys += 1
                                 else:
                                     sells += 1
@@ -3308,8 +3309,8 @@ Visit: %s (Author's site)
                         acctType = pad("Account:", 11)
                         # noinspection PyUnresolvedReferences
                         if (not lMultiAccountTypes
-                                and primaryAccount.getAccountType() == Account.AccountType.INCOME
-                                or primaryAccount.getAccountType() == Account.AccountType.EXPENSE):
+                                and (primaryAccount.getAccountType() == Account.AccountType.INCOME
+                                or primaryAccount.getAccountType() == Account.AccountType.EXPENSE)):
                             acctType = pad("Category:", 11)
 
                         if lMultiCurrency:
