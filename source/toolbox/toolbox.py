@@ -7,7 +7,7 @@
 # Moneydance Support Tool
 # ######################################################################################################################
 
-# toolbox.py build: 1064 - November 2020 thru 2023 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
+# toolbox.py build: 1064 - November 2020 thru 2024 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
 # Further thanks to Kevin(N), Dan T Davis, and dwg for their testing, input and OFX Bank help/input.....
 # Credit of course to Moneydance(Sean) and IK retain all copyright over Moneydance internal code
@@ -163,6 +163,7 @@
 # build: 1064 - Tweak buildDiagText() - 'OS Platform:' add space before version text....
 #               Take advantage of of context menu scriptinfo abilities (since MD2024(5100))... - e.g. set selected transactions...
 #               Switch to new debug controls in AppDebug class...
+#               From MD2024(5100) onwards, disable remove_inactive_from_sidebar()
 
 # todo - undo the patch to DetectMobileAppTxnFiles() for Sonoma.. Perhaps put into a Thread()?
 
@@ -3364,6 +3365,9 @@ Visit: %s (Author's site)
     def isAppDebugEnabledBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_APPDEBUG_ENABLED_BUILD)                                           # 2023.0(5000)
     if isAppDebugEnabledBuild():
         from com.infinitekind.util import AppDebug                                                                      # noqa
+
+    GlobalVars.MD_ENHANCED_SIDEBAR_BUILD = 5100                                                                         # MD2024(5100)
+    def isEnhancedSidebarBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_ENHANCED_SIDEBAR_BUILD)                                           # 2023.0(5000)
 
     def isSyncTaskSyncing(checkMainTask=False, checkAttachmentsTask=False):
         if ((not checkMainTask and not checkAttachmentsTask) or (checkMainTask and checkAttachmentsTask)):
@@ -28538,7 +28542,7 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                     user_advanced_delete_int_ext_files = MenuJRadioButton("DELETE Files from Menu>File>Open list [and OPTIONALLY also from DISK]", False, updateMenu=True)
                     user_advanced_delete_int_ext_files.setToolTipText("This allows you to delete internal/external filenames from the list of File>Open files settings>> AND OPTIONALLY ASKS IF YOU WANT TO DELETE THE FILES TOO..... UPDATES CONFIG.DICT/CAN DELETE FILES")
 
-                    user_remove_inactive_from_sidebar = MenuJRadioButton("Remove inactive accounts/categories from SideBar (only when sidebar visible)", False, updateMenu=True, secondaryEnabled=(MD_REF.getPreferences().getBoolSetting("gui.source_list_visible", True)))
+                    user_remove_inactive_from_sidebar = MenuJRadioButton("Remove inactive accounts/categories from SideBar (only when sidebar visible)", False, updateMenu=True, secondaryEnabled=(MD_REF.getPreferences().getBoolSetting("gui.source_list_visible", True) and not isEnhancedSidebarBuild()))
                     user_remove_inactive_from_sidebar.setToolTipText("This remove inactive accounts/categories from SideBar. THIS CHANGES CONFIG!")
 
                     user_change_moneydance_fonts = MenuJRadioButton("Set/Change Default Moneydance FONTS (MD 2021.1(3030) onwards)", False, updateMenu=True, secondaryEnabled=(float(MD_REF.getBuild()) >= 3030))
@@ -28595,8 +28599,8 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                     while True:
                         if MD_REF.getCurrentAccountBook() is None: return
 
-                        user_view_MD_custom_theme_file.setEnabled(os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath()))                             # noqa
-                        user_delete_custom_theme_file.setEnabled(ToolboxMode.isUpdateMode() and os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath()))   # noqa
+                        user_view_MD_custom_theme_file.setEnabled(os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath()))                                  # noqa
+                        user_delete_custom_theme_file.setEnabled(ToolboxMode.isUpdateMode() and os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath()))    # noqa
                         bg.clearSelection()
 
                         options = ["EXIT", "PROCEED"]
