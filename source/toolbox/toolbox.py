@@ -23211,7 +23211,7 @@ after saving the file, restart Moneydance
             ConsoleWindow.showConsoleWindow(MD_REF.getUI())
         except: myPrint("B", "%s: FAILED to open the Console Window... ignoring the error...." %(_THIS_METHOD_NAME))
 
-        if float(MD_REF.getBuild()) >= 4057:    # MoneyBot can be a bit quirky on ealrier builds....
+        if float(MD_REF.getBuild()) >= 4057:    # MoneyBot can be a bit quirky on earlier builds....
             try:
                 myPrint("B", "%s: Opening a Moneybot Window (as it might be useful)" %(_THIS_METHOD_NAME))
                 MoneyBotWindow.showBotView(MD_REF.getUI())
