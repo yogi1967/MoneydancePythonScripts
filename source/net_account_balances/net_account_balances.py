@@ -6611,7 +6611,7 @@ Visit: %s (Author's site)
         def loadFromParameters(self, drSettings, defaultKey):
             # type: ([bool, str, int, int, int], str) -> bool
 
-            # todo - the original 'setOption(defaultKey)' was recent;ly moved to only run when the settings don't contain this date config key...
+            # todo - the original 'setOption(defaultKey)' was recently moved to only run when the settings don't contain this date config key...
             if not self.setSelectedOptionKey(defaultKey): raise Exception("ERROR: Default i/e date range option/key ('%s') not found?!" %(defaultKey))
 
             # drOptionEnabled = drSettings[MyDateRangeChooser.DRC_DR_ENABLED_IDX]
@@ -7067,7 +7067,7 @@ Visit: %s (Author's site)
         def loadFromParameters(self, settings, defaultKey):
             # type: ([bool, str, int, int], str) -> bool
 
-            # todo - the original 'setOption(defaultKey)' was recent;ly moved to only run when the settings don't contain this date config key...
+            # todo - the original 'setOption(defaultKey)' was recently moved to only run when the settings don't contain this date config key...
             if not self.setSelectedOptionKey(defaultKey): raise Exception("ERROR: Default asof option/key ('%s') not found?!" %(defaultKey))
 
             foundSetting = False
