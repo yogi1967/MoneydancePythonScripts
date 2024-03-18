@@ -142,6 +142,8 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 # build: 1048 - Tweak MyJLabel() to allow dynamic resizing (e.g. on Summary Page)...; tweak install routines; tweak JLabel getPreferredSize()
 #               Switch code to upgraded CostCalculation core code for 2024(5100) onwards...
 #               NOTE: New FeatureModule::getActionsForContext() method and MDActionContext
+#               Rename 'skipback' periods to 'offset' periods to match the upgraded MD DateRangeChooser, also add new / extra DateRangeOptions.
+#               ... note: I considered switching to the MD upgraded DRC, but still wouldn't work with older versions... So keeping my own...
 
 # todo - consider better formula handlers... e.g. com.infinitekind.util.StringUtils.parseFormula(String, char)
 # todo - option to show different dpc (e.g. full decimal precision)
@@ -485,9 +487,7 @@ else:
     from com.moneydance.apps.md.view import HomePageView
     # from com.moneydance.apps.md.view.gui import SearchFieldBorder
     from com.moneydance.apps.md.view.gui import MoneydanceGUI, MoneydanceLAF, ConsoleWindow, MainFrame
-    # from com.moneydance.apps.md.view.gui import DateRangeChooser
     from com.moneydance.apps.md.controller import FeatureModule, PreferencesListener, UserPreferences
-    # from com.moneydance.apps.md.controller.time import DateRangeOption
     from com.infinitekind.moneydance.model import AccountListener, AbstractTxn, CurrencyListener, DateRange, TxnSet
     from com.infinitekind.moneydance.model import CapitalGainResult, InvestFields, InvestTxnType
 
@@ -634,7 +634,7 @@ else:
     GlobalVars.COSTBASIS_DR_KEY_IDX = 3
     GlobalVars.COSTBASIS_DR_START_KEY_IDX = 4
     GlobalVars.COSTBASIS_DR_END_KEY_IDX = 5
-    GlobalVars.COSTBASIS_DR_SKIPBACKPERIODS_IDX = 6
+    GlobalVars.COSTBASIS_DR_OFFSETPERIODS_IDX = 6
 
     GlobalVars.ROW_SEPARATOR_NEVER      = 0
     GlobalVars.ROW_SEPARATOR_ABOVE      = 1
@@ -3128,6 +3128,12 @@ Visit: %s (Author's site)
     def isCostCalculationUpgradedBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_COSTCALCULATION_UPGRADED_BUILD)                                           # 2023.0(5000)
     if isCostCalculationUpgradedBuild():
         from com.infinitekind.moneydance.model import CostCalculation
+
+    GlobalVars.MD_DATERANGECHOOSER_UPGRADED_BUILD = 5100                                                                # MD2024(5100)
+    def isDateRangeChooserUpgradedBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_DATERANGECHOOSER_UPGRADED_BUILD)                                           # 2023.0(5000)
+    # if isDateRangeChooserUpgradedBuild():
+    #     from com.moneydance.apps.md.view.gui import DateRangeChooser
+    #     from com.moneydance.apps.md.controller.time import DateRangeOption
 
     GlobalVars.MD_CONTEXT_MENU_ENABLED_BUILD = 5100                                                                     # MD2024(5100)
     def isContextMenuEnabledBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_CONTEXT_MENU_ENABLED_BUILD)                                           # 2023.0(5000)
@@ -6171,7 +6177,7 @@ Visit: %s (Author's site)
     #     return  readFromString(_paramStr)
 
     class MyJTextFieldAsInt(JTextField, FocusListener):
-        PROP_SKIPBACK_PERIODS_CHANGED = "skipBackPeriodsChanged"
+        PROP_OFFSET_PERIODS_CHANGED = "offsetPeriodsChanged"
 
         def __init__(self, cols, decimal):
             super(self.__class__, self).__init__(cols)
@@ -6179,7 +6185,7 @@ Visit: %s (Author's site)
             self.fieldStringWidthChars = 3
             self.fieldStringWidth = 20
             self.defaultValue = 0
-            self._skipBackPeriods = self.defaultValue
+            self._offsetPeriods = self.defaultValue
             self.allowBlank = True
             self.dec = decimal
             self.allowNegative = True
@@ -6189,7 +6195,7 @@ Visit: %s (Author's site)
             self.addFocusListener(self)
             self.addKeyListener(MyKeyAdapter())
             self.setFocusable(True)
-            self.setValueInt(self._skipBackPeriods)
+            self.setValueInt(self._offsetPeriods)
 
         def focusGained(self, evt):
             myPrint("DB", "In MyJTextFieldAsInt:focusGained()...")
@@ -6231,10 +6237,10 @@ Visit: %s (Author's site)
             self.setCaretPosition(0)
             self.internalSetValueInt(val)
 
-        def internalSetValueInt(self, newSkipBackPeriods):
-            oldSkipBackPeriods = self._skipBackPeriods
-            self._skipBackPeriods = newSkipBackPeriods
-            self.firePropertyChange(self.PROP_SKIPBACK_PERIODS_CHANGED, oldSkipBackPeriods, newSkipBackPeriods)
+        def internalSetValueInt(self, newOffsetPeriods):
+            oldOffsetPeriods = self._offsetPeriods
+            self._offsetPeriods = newOffsetPeriods
+            self.firePropertyChange(self.PROP_OFFSET_PERIODS_CHANGED, oldOffsetPeriods, newOffsetPeriods)
 
         def getValueInt(self):
             sVal = super(self.__class__, self).getText()
@@ -6276,7 +6282,7 @@ Visit: %s (Author's site)
         DRC_DR_KEY_IDX = 1
         DRC_DR_START_KEY_IDX = 2
         DRC_DR_END_KEY_IDX = 3
-        DRC_DR_SKIPBACKPERIODS_IDX = 4
+        DRC_DR_OFFSETPERIODS_IDX = 4
 
         PROP_DATE_RANGE_CHANGED = "dateRangeChanged"
         DR_TODAY = "last_1_day"
@@ -6294,11 +6300,19 @@ Visit: %s (Author's site)
                             ["this_quarter",                 "This quarter",                  30],
                             ["this_month",                   "This month",                    21],
                             ["last_year",                    "Last year",                     42],
+                            ["dr_last_two_years",            "Last 2 years",                  43],
+                            ["dr_last_three_years",          "Last 3 years",                  44],
+                            ["dr_last_five_years",           "Last 5 years",                  45],
                             ["last_fiscal_year",             "Last Fiscal Year",              63],
+                            ["dr_last_two_fiscal_years",     "Last 2 Fiscal Years",           64],
+                            ["dr_last_three_fiscal_years",   "Last 3 Fiscal Years",           65],
+                            ["dr_last_five_fiscal_years",    "Last 5 Fiscal Years",           66],
                             ["last_fiscal_quarter",          "Last Fiscal Quarter",           62],
                             ["last_quarter",                 "Last quarter",                  32],
                             ["last_month",                   "Last month",                    23],
                             ["last_12_months",               "Last 12 months",                24],
+                            ["dr_last_18_months",            "Last 18 months",                25],
+                            ["dr_last_24_months",            "Last 24 months",                26],
                             ["all_dates",                    "All dates",                      0],
                             ["custom_date",                  "Custom dates",                  99],
                             ["this_week",                    "This week",                     10],
@@ -6329,96 +6343,112 @@ Visit: %s (Author's site)
             def toString(self):         return self.__str__()
 
             @staticmethod
-            def internalCalculateDateRangeFromKey(forOptionKey, realTodayInt, calculatedTodayInt, skipBackPeriods):
+            def internalCalculateDateRangeFromKey(forOptionKey, realTodayInt, calculatedTodayInt, offsetPeriods):
                 # type: (str, int, int, int) -> DateRange
 
-                if forOptionKey ==  "custom_date":           rtnVal = (realTodayInt, realTodayInt)
-                elif forOptionKey == "all_dates":            rtnVal = (19600101, DateRange().getEndDateInt())
-                elif forOptionKey == "year_to_date":         rtnVal = (DateUtil.firstDayInYear(calculatedTodayInt), calculatedTodayInt)
-                elif forOptionKey == "quarter_to_date":      rtnVal = (DateUtil.firstDayInQuarter(calculatedTodayInt), calculatedTodayInt)
-                elif forOptionKey == "month_to_date":        rtnVal = (DateUtil.firstDayInMonth(calculatedTodayInt), calculatedTodayInt)
-                elif forOptionKey == "this_year":            rtnVal = (DateUtil.firstDayInYear(calculatedTodayInt), DateUtil.lastDayInYear(calculatedTodayInt))
-                elif forOptionKey == "this_fiscal_year":     rtnVal = (DateUtil.firstDayInFiscalYear(calculatedTodayInt), DateUtil.lastDayInFiscalYear(calculatedTodayInt))
-                elif forOptionKey == "fiscal_year_to_date":  rtnVal = (DateUtil.firstDayInFiscalYear(calculatedTodayInt), calculatedTodayInt)
-                elif forOptionKey == "last_fiscal_year":     rtnVal = (DateUtil.decrementYear(DateUtil.firstDayInFiscalYear(calculatedTodayInt)), DateUtil.decrementYear(DateUtil.lastDayInFiscalYear(calculatedTodayInt)))
-                elif forOptionKey == "last_fiscal_quarter":  rtnVal = (DateUtil.firstDayInFiscalQuarter(DateUtil.incrementDate(calculatedTodayInt, 0, -3, 0)), DateUtil.lastDayInFiscalQuarter(DateUtil.incrementDate(calculatedTodayInt, 0, -3, 0)))
-                elif forOptionKey == "this_quarter":         rtnVal = (Util.firstDayInQuarter(calculatedTodayInt), Util.lastDayInQuarter(calculatedTodayInt))
-                elif forOptionKey == "this_month":           rtnVal = (Util.firstDayInMonth(calculatedTodayInt), Util.lastDayInMonth(calculatedTodayInt))
-                elif forOptionKey == "this_week":            rtnVal = (Util.firstDayInWeek(calculatedTodayInt), Util.lastDayInWeek(calculatedTodayInt))
-                elif forOptionKey == "last_year":            rtnVal = (Util.firstDayInYear(Util.decrementYear(calculatedTodayInt)), Util.lastDayInYear(Util.decrementYear(calculatedTodayInt)))
-                elif forOptionKey == "last_quarter":         rtnVal = (DateUtil.firstDayInQuarter(DateUtil.incrementDate(calculatedTodayInt, 0, -3, 0)), DateUtil.lastDayInQuarter(DateUtil.incrementDate(calculatedTodayInt, 0, -3, 0)))
-                elif forOptionKey == "last_month":           rtnVal = (Util.incrementDate(Util.firstDayInMonth(calculatedTodayInt), 0, -1, 0), Util.incrementDate(Util.firstDayInMonth(calculatedTodayInt), 0, 0, -1))
-                elif forOptionKey == "last_week":            rtnVal = (Util.incrementDate(Util.firstDayInWeek(calculatedTodayInt), 0, 0, -7), Util.incrementDate(Util.firstDayInWeek(calculatedTodayInt), 0, 0, -1))
-                elif forOptionKey == "last_12_months":       rtnVal = (Util.incrementDate(Util.firstDayInMonth(realTodayInt), 0, -12 * (skipBackPeriods + 1), 0), Util.incrementDate(Util.firstDayInMonth(realTodayInt), 0, -12 * (skipBackPeriods), -1))
-                elif forOptionKey == "last_1_day":           rtnVal = (Util.incrementDate(realTodayInt, 0, 0, -1), realTodayInt)
-                elif forOptionKey == "last_30_days":         rtnVal = (Util.incrementDate(realTodayInt, 0, 0, (-29  * (skipBackPeriods + 1)) -skipBackPeriods), Util.incrementDate(realTodayInt, 0, 0, (-29  * (skipBackPeriods)) -skipBackPeriods))
-                elif forOptionKey == "last_60_days":         rtnVal = (Util.incrementDate(realTodayInt, 0, 0, (-59  * (skipBackPeriods + 1)) -skipBackPeriods), Util.incrementDate(realTodayInt, 0, 0, (-59  * (skipBackPeriods)) -skipBackPeriods))
-                elif forOptionKey == "last_90_days":         rtnVal = (Util.incrementDate(realTodayInt, 0, 0, (-89  * (skipBackPeriods + 1)) -skipBackPeriods), Util.incrementDate(realTodayInt, 0, 0, (-89  * (skipBackPeriods)) -skipBackPeriods))
-                elif forOptionKey == "last_120_days":        rtnVal = (Util.incrementDate(realTodayInt, 0, 0, (-119 * (skipBackPeriods + 1)) -skipBackPeriods), Util.incrementDate(realTodayInt, 0, 0, (-119 * (skipBackPeriods)) -skipBackPeriods))
-                elif forOptionKey == "last_180_days":        rtnVal = (Util.incrementDate(realTodayInt, 0, 0, (-179 * (skipBackPeriods + 1)) -skipBackPeriods), Util.incrementDate(realTodayInt, 0, 0, (-179 * (skipBackPeriods)) -skipBackPeriods))
-                elif forOptionKey == "last_365_days":        rtnVal = (Util.incrementDate(realTodayInt, 0, 0, (-364 * (skipBackPeriods + 1)) -skipBackPeriods), Util.incrementDate(realTodayInt, 0, 0, (-364 * (skipBackPeriods)) -skipBackPeriods))
-                elif forOptionKey == "next_month":           rtnVal = (Util.firstDayInMonth(Util.incrementDate(calculatedTodayInt, 0, 1, 0)), Util.lastDayInMonth(Util.incrementDate(calculatedTodayInt, 0, 1, 0)))
-                elif forOptionKey == "yesterday":            rtnVal = (DateUtil.incrementDate(calculatedTodayInt, 0, 0, -1), DateUtil.incrementDate(calculatedTodayInt, 0, 0, -1))
-                elif forOptionKey == "today":                rtnVal = (DateUtil.incrementDate(calculatedTodayInt, 0, 0, -0), DateUtil.incrementDate(calculatedTodayInt, 0, 0, -0))
+                if forOptionKey ==  "custom_date":                  rtnVal = (realTodayInt, realTodayInt)
+                elif forOptionKey == "all_dates":                   rtnVal = (19600101, DateRange().getEndDateInt())
+                elif forOptionKey == "year_to_date":                rtnVal = (DateUtil.firstDayInYear(calculatedTodayInt), calculatedTodayInt)
+                elif forOptionKey == "quarter_to_date":             rtnVal = (DateUtil.firstDayInQuarter(calculatedTodayInt), calculatedTodayInt)
+                elif forOptionKey == "month_to_date":               rtnVal = (DateUtil.firstDayInMonth(calculatedTodayInt), calculatedTodayInt)
+                elif forOptionKey == "this_year":                   rtnVal = (DateUtil.firstDayInYear(calculatedTodayInt), DateUtil.lastDayInYear(calculatedTodayInt))
+                elif forOptionKey == "this_fiscal_year":            rtnVal = (DateUtil.firstDayInFiscalYear(calculatedTodayInt), DateUtil.lastDayInFiscalYear(calculatedTodayInt))
+                elif forOptionKey == "fiscal_year_to_date":         rtnVal = (DateUtil.firstDayInFiscalYear(calculatedTodayInt), calculatedTodayInt)
+                elif forOptionKey == "last_fiscal_year":            rtnVal = (DateUtil.decrementYear(DateUtil.firstDayInFiscalYear(calculatedTodayInt)), DateUtil.decrementYear(DateUtil.lastDayInFiscalYear(calculatedTodayInt)))
+                elif forOptionKey == "dr_last_two_fiscal_years":    rtnVal = (DateUtil.incrementDate(DateUtil.firstDayInFiscalYear(calculatedTodayInt), -2, 0, 0), DateUtil.decrementYear(DateUtil.lastDayInFiscalYear(calculatedTodayInt)))
+                elif forOptionKey == "dr_last_three_fiscal_years":  rtnVal = (DateUtil.incrementDate(DateUtil.firstDayInFiscalYear(calculatedTodayInt), -3, 0, 0), DateUtil.decrementYear(DateUtil.lastDayInFiscalYear(calculatedTodayInt)))
+                elif forOptionKey == "dr_last_five_fiscal_years":   rtnVal = (DateUtil.incrementDate(DateUtil.firstDayInFiscalYear(calculatedTodayInt), -5, 0, 0), DateUtil.decrementYear(DateUtil.lastDayInFiscalYear(calculatedTodayInt)))
+                elif forOptionKey == "last_fiscal_quarter":         rtnVal = (DateUtil.firstDayInFiscalQuarter(DateUtil.incrementDate(calculatedTodayInt, 0, -3, 0)), DateUtil.lastDayInFiscalQuarter(DateUtil.incrementDate(calculatedTodayInt, 0, -3, 0)))
+                elif forOptionKey == "this_quarter":                rtnVal = (Util.firstDayInQuarter(calculatedTodayInt), Util.lastDayInQuarter(calculatedTodayInt))
+                elif forOptionKey == "this_month":                  rtnVal = (Util.firstDayInMonth(calculatedTodayInt), Util.lastDayInMonth(calculatedTodayInt))
+                elif forOptionKey == "this_week":                   rtnVal = (Util.firstDayInWeek(calculatedTodayInt), Util.lastDayInWeek(calculatedTodayInt))
+                elif forOptionKey == "last_year":                   rtnVal = (Util.firstDayInYear(Util.decrementYear(calculatedTodayInt)), Util.lastDayInYear(Util.decrementYear(calculatedTodayInt)))
+                elif forOptionKey == "dr_last_two_years":           rtnVal = (Util.firstDayInYear(DateUtil.incrementDate(calculatedTodayInt, -2, 0, 0)), Util.lastDayInYear(Util.decrementYear(calculatedTodayInt)))
+                elif forOptionKey == "dr_last_three_years":         rtnVal = (Util.firstDayInYear(DateUtil.incrementDate(calculatedTodayInt, -3, 0, 0)), Util.lastDayInYear(Util.decrementYear(calculatedTodayInt)))
+                elif forOptionKey == "dr_last_five_years":          rtnVal = (Util.firstDayInYear(DateUtil.incrementDate(calculatedTodayInt, -5, 0, 0)), Util.lastDayInYear(Util.decrementYear(calculatedTodayInt)))
+                elif forOptionKey == "last_quarter":                rtnVal = (DateUtil.firstDayInQuarter(DateUtil.incrementDate(calculatedTodayInt, 0, -3, 0)), DateUtil.lastDayInQuarter(DateUtil.incrementDate(calculatedTodayInt, 0, -3, 0)))
+                elif forOptionKey == "last_month":                  rtnVal = (Util.incrementDate(Util.firstDayInMonth(calculatedTodayInt), 0, -1, 0), Util.incrementDate(Util.firstDayInMonth(calculatedTodayInt), 0, 0, -1))
+                elif forOptionKey == "last_week":                   rtnVal = (Util.incrementDate(Util.firstDayInWeek(calculatedTodayInt), 0, 0, -7), Util.incrementDate(Util.firstDayInWeek(calculatedTodayInt), 0, 0, -1))
+                elif forOptionKey == "last_12_months":              rtnVal = (Util.incrementDate(Util.firstDayInMonth(realTodayInt), 0, -12 * (offsetPeriods + 1), 0), Util.incrementDate(Util.firstDayInMonth(realTodayInt), 0, -12 * (offsetPeriods), -1))
+                elif forOptionKey == "dr_last_18_months":           rtnVal = (Util.incrementDate(Util.firstDayInMonth(realTodayInt), 0, -18 * (offsetPeriods + 1), 0), Util.incrementDate(Util.firstDayInMonth(realTodayInt), 0, -12 * (offsetPeriods), -1))
+                elif forOptionKey == "dr_last_24_months":           rtnVal = (Util.incrementDate(Util.firstDayInMonth(realTodayInt), 0, -24 * (offsetPeriods + 1), 0), Util.incrementDate(Util.firstDayInMonth(realTodayInt), 0, -12 * (offsetPeriods), -1))
+                elif forOptionKey == "last_1_day":                  rtnVal = (Util.incrementDate(realTodayInt, 0, 0, -1), realTodayInt)
+                elif forOptionKey == "last_30_days":                rtnVal = (Util.incrementDate(realTodayInt, 0, 0, (-29  * (offsetPeriods + 1)) -offsetPeriods), Util.incrementDate(realTodayInt, 0, 0, (-29  * (offsetPeriods)) -offsetPeriods))
+                elif forOptionKey == "last_60_days":                rtnVal = (Util.incrementDate(realTodayInt, 0, 0, (-59  * (offsetPeriods + 1)) -offsetPeriods), Util.incrementDate(realTodayInt, 0, 0, (-59  * (offsetPeriods)) -offsetPeriods))
+                elif forOptionKey == "last_90_days":                rtnVal = (Util.incrementDate(realTodayInt, 0, 0, (-89  * (offsetPeriods + 1)) -offsetPeriods), Util.incrementDate(realTodayInt, 0, 0, (-89  * (offsetPeriods)) -offsetPeriods))
+                elif forOptionKey == "last_120_days":               rtnVal = (Util.incrementDate(realTodayInt, 0, 0, (-119 * (offsetPeriods + 1)) -offsetPeriods), Util.incrementDate(realTodayInt, 0, 0, (-119 * (offsetPeriods)) -offsetPeriods))
+                elif forOptionKey == "last_180_days":               rtnVal = (Util.incrementDate(realTodayInt, 0, 0, (-179 * (offsetPeriods + 1)) -offsetPeriods), Util.incrementDate(realTodayInt, 0, 0, (-179 * (offsetPeriods)) -offsetPeriods))
+                elif forOptionKey == "last_365_days":               rtnVal = (Util.incrementDate(realTodayInt, 0, 0, (-364 * (offsetPeriods + 1)) -offsetPeriods), Util.incrementDate(realTodayInt, 0, 0, (-364 * (offsetPeriods)) -offsetPeriods))
+                elif forOptionKey == "next_month":                  rtnVal = (Util.firstDayInMonth(Util.incrementDate(calculatedTodayInt, 0, 1, 0)), Util.lastDayInMonth(Util.incrementDate(calculatedTodayInt, 0, 1, 0)))
+                elif forOptionKey == "yesterday":                   rtnVal = (DateUtil.incrementDate(calculatedTodayInt, 0, 0, -1), DateUtil.incrementDate(calculatedTodayInt, 0, 0, -1))
+                elif forOptionKey == "today":                       rtnVal = (DateUtil.incrementDate(calculatedTodayInt, 0, 0, -0), DateUtil.incrementDate(calculatedTodayInt, 0, 0, -0))
                 else: raise Exception("Error: date range key ('%s') invalid?!" %(forOptionKey))
 
                 return DateRange(Integer(rtnVal[0]), Integer(rtnVal[1]))
 
             @staticmethod
-            def getDateRangeFromKey(forOptionKey, skipBackPeriods):
+            def getDateRangeFromKey(forOptionKey, offsetPeriods):
                 # type: (str, int) -> DateRange
 
-                if skipBackPeriods is None: skipBackPeriods = 0
+                if offsetPeriods is None: offsetPeriods = 0
 
-                skipBackPeriods *= -1
+                offsetPeriods *= -1
 
                 todayInt = Util.getStrippedDateInt()
 
-                skipBackDayTodayInt  = DateUtil.incrementDate(todayInt, 0, 0, -skipBackPeriods)
-                skipBackWeekTodayInt = DateUtil.incrementDate(todayInt, 0, 0, 7 * -skipBackPeriods)
-                skipBackMnthTodayInt = DateUtil.incrementDate(todayInt, 0, -skipBackPeriods, 0)
-                skipBackQrtrTodayInt = DateUtil.incrementDate(todayInt, 0, 3 * -skipBackPeriods, 0)
-                skipBackYearTodayInt = DateUtil.incrementDate(todayInt, -skipBackPeriods, 0, 0)
+                offsetDayTodayInt  = DateUtil.incrementDate(todayInt, 0, 0, -offsetPeriods)
+                offsetWeekTodayInt = DateUtil.incrementDate(todayInt, 0, 0, 7 * -offsetPeriods)
+                offsetMnthTodayInt = DateUtil.incrementDate(todayInt, 0, -offsetPeriods, 0)
+                offsetQrtrTodayInt = DateUtil.incrementDate(todayInt, 0, 3 * -offsetPeriods, 0)
+                offsetYearTodayInt = DateUtil.incrementDate(todayInt, -offsetPeriods, 0, 0)
 
-                if forOptionKey ==  "custom_date":           calculatedTodayInt = None
-                elif forOptionKey == "all_dates":            calculatedTodayInt = None
-                elif forOptionKey == "year_to_date":         calculatedTodayInt = skipBackYearTodayInt
-                elif forOptionKey == "quarter_to_date":      calculatedTodayInt = skipBackQrtrTodayInt
-                elif forOptionKey == "month_to_date":        calculatedTodayInt = skipBackMnthTodayInt
-                elif forOptionKey == "this_year":            calculatedTodayInt = skipBackYearTodayInt
-                elif forOptionKey == "this_fiscal_year":     calculatedTodayInt = skipBackYearTodayInt
-                elif forOptionKey == "fiscal_year_to_date":  calculatedTodayInt = skipBackYearTodayInt
-                elif forOptionKey == "last_fiscal_year":     calculatedTodayInt = skipBackYearTodayInt
-                elif forOptionKey == "last_fiscal_quarter":  calculatedTodayInt = skipBackQrtrTodayInt
-                elif forOptionKey == "this_quarter":         calculatedTodayInt = skipBackQrtrTodayInt
-                elif forOptionKey == "this_month":           calculatedTodayInt = skipBackMnthTodayInt
-                elif forOptionKey == "this_week":            calculatedTodayInt = skipBackWeekTodayInt
-                elif forOptionKey == "last_year":            calculatedTodayInt = skipBackYearTodayInt
-                elif forOptionKey == "last_quarter":         calculatedTodayInt = skipBackQrtrTodayInt
-                elif forOptionKey == "last_month":           calculatedTodayInt = skipBackMnthTodayInt
-                elif forOptionKey == "last_week":            calculatedTodayInt = skipBackWeekTodayInt
-                elif forOptionKey == "last_12_months":       calculatedTodayInt = None
-                elif forOptionKey == "last_1_day":           calculatedTodayInt = None
-                elif forOptionKey == "last_30_days":         calculatedTodayInt = None
-                elif forOptionKey == "last_60_days":         calculatedTodayInt = None
-                elif forOptionKey == "last_90_days":         calculatedTodayInt = None
-                elif forOptionKey == "last_120_days":        calculatedTodayInt = None
-                elif forOptionKey == "last_180_days":        calculatedTodayInt = None
-                elif forOptionKey == "last_365_days":        calculatedTodayInt = None
-                elif forOptionKey == "next_month":           calculatedTodayInt = skipBackMnthTodayInt
-                elif forOptionKey == "yesterday":            calculatedTodayInt = skipBackDayTodayInt
-                elif forOptionKey == "today":                calculatedTodayInt = skipBackDayTodayInt
+                if forOptionKey ==  "custom_date":                  calculatedTodayInt = None
+                elif forOptionKey == "all_dates":                   calculatedTodayInt = None
+                elif forOptionKey == "year_to_date":                calculatedTodayInt = offsetYearTodayInt
+                elif forOptionKey == "quarter_to_date":             calculatedTodayInt = offsetQrtrTodayInt
+                elif forOptionKey == "month_to_date":               calculatedTodayInt = offsetMnthTodayInt
+                elif forOptionKey == "this_year":                   calculatedTodayInt = offsetYearTodayInt
+                elif forOptionKey == "this_fiscal_year":            calculatedTodayInt = offsetYearTodayInt
+                elif forOptionKey == "fiscal_year_to_date":         calculatedTodayInt = offsetYearTodayInt
+                elif forOptionKey == "last_fiscal_year":            calculatedTodayInt = offsetYearTodayInt
+                elif forOptionKey == "dr_last_two_fiscal_years":    calculatedTodayInt = offsetYearTodayInt
+                elif forOptionKey == "dr_last_three_fiscal_years":  calculatedTodayInt = offsetYearTodayInt
+                elif forOptionKey == "dr_last_five_fiscal_years":   calculatedTodayInt = offsetYearTodayInt
+                elif forOptionKey == "last_fiscal_quarter":         calculatedTodayInt = offsetQrtrTodayInt
+                elif forOptionKey == "this_quarter":                calculatedTodayInt = offsetQrtrTodayInt
+                elif forOptionKey == "this_month":                  calculatedTodayInt = offsetMnthTodayInt
+                elif forOptionKey == "this_week":                   calculatedTodayInt = offsetWeekTodayInt
+                elif forOptionKey == "last_year":                   calculatedTodayInt = offsetYearTodayInt
+                elif forOptionKey == "dr_last_two_years":           calculatedTodayInt = offsetYearTodayInt
+                elif forOptionKey == "dr_last_three_years":         calculatedTodayInt = offsetYearTodayInt
+                elif forOptionKey == "dr_last_five_years":          calculatedTodayInt = offsetYearTodayInt
+                elif forOptionKey == "last_quarter":                calculatedTodayInt = offsetQrtrTodayInt
+                elif forOptionKey == "last_month":                  calculatedTodayInt = offsetMnthTodayInt
+                elif forOptionKey == "last_week":                   calculatedTodayInt = offsetWeekTodayInt
+                elif forOptionKey == "last_12_months":              calculatedTodayInt = None
+                elif forOptionKey == "dr_last_18_months":           calculatedTodayInt = None
+                elif forOptionKey == "dr_last_24_months":           calculatedTodayInt = None
+                elif forOptionKey == "last_1_day":                  calculatedTodayInt = None
+                elif forOptionKey == "last_30_days":                calculatedTodayInt = None
+                elif forOptionKey == "last_60_days":                calculatedTodayInt = None
+                elif forOptionKey == "last_90_days":                calculatedTodayInt = None
+                elif forOptionKey == "last_120_days":               calculatedTodayInt = None
+                elif forOptionKey == "last_180_days":               calculatedTodayInt = None
+                elif forOptionKey == "last_365_days":               calculatedTodayInt = None
+                elif forOptionKey == "next_month":                  calculatedTodayInt = offsetMnthTodayInt
+                elif forOptionKey == "yesterday":                   calculatedTodayInt = offsetDayTodayInt
+                elif forOptionKey == "today":                       calculatedTodayInt = offsetDayTodayInt
                 else: raise Exception("Error: date range key ('%s') invalid?!" %(forOptionKey))
 
-                calculatedDateRange = MyDateRangeChooser.DateRangeChoice.internalCalculateDateRangeFromKey(forOptionKey, todayInt, calculatedTodayInt, skipBackPeriods)
+                calculatedDateRange = MyDateRangeChooser.DateRangeChoice.internalCalculateDateRangeFromKey(forOptionKey, todayInt, calculatedTodayInt, offsetPeriods)
 
                 if debug:
-                    if skipBackPeriods != 0:
+                    if offsetPeriods != 0:
                         originalDateRange = MyDateRangeChooser.DateRangeChoice.internalCalculateDateRangeFromKey(forOptionKey, todayInt, todayInt, 0)
-                        myPrint("B", "@@ .getDateRangeFromKey('%s', skipBackPeriods: %s): skipBackDayTodayInt: %s, skipBackWeekTodayInt: %s, skipBackMnthTodayInt: %s, skipBackQrtrTodayInt: %s, skipBackYearTodayInt: %s"
-                                %(forOptionKey, skipBackPeriods, skipBackDayTodayInt, skipBackWeekTodayInt, skipBackMnthTodayInt, skipBackQrtrTodayInt, skipBackYearTodayInt))
+                        myPrint("B", "@@ .getDateRangeFromKey('%s', offsetPeriods: %s): offsetDayTodayInt: %s, offsetWeekTodayInt: %s, offsetMnthTodayInt: %s, offsetQrtrTodayInt: %s, offsetYearTodayInt: %s"
+                                %(forOptionKey, offsetPeriods, offsetDayTodayInt, offsetWeekTodayInt, offsetMnthTodayInt, offsetQrtrTodayInt, offsetYearTodayInt))
                         myPrint("B", "@@ originalDateRange: %s, calculatedDateRange: %s" %(originalDateRange, calculatedDateRange))
-                    myPrint("B", "@@ .getDateRangeFromKey('%s', %s) returning %s" %(forOptionKey, skipBackPeriods, calculatedDateRange))
+                    myPrint("B", "@@ .getDateRangeFromKey('%s', %s) returning %s" %(forOptionKey, offsetPeriods, calculatedDateRange))
 
                 return calculatedDateRange
 
@@ -6449,7 +6479,7 @@ Visit: %s (Author's site)
             self.allDatesOption = None
             self.dateRangeResult = None                                                                                 # type: DateRange
             self.selectedOptionKeyResult = None
-            self.skipBackPeriodsResult = 0
+            self.offsetPeriodsResult = 0
             self.lastDeselectedOptionKey = None
             self.ignoreDateChanges = False
             self.isEnabled = True
@@ -6465,14 +6495,14 @@ Visit: %s (Author's site)
             self.endIntField_JDF.addPropertyChangeListener(JDateField.PROP_DATE_CHANGED, self)
             self.endIntField_JDF.addMouseListener(clickListener)
 
-            self.skipBackPeriods_JTF = MyJTextFieldAsInt(2, self.mdGUI.getPreferences().getDecimalChar())
-            self.skipBackPeriods_JTF.addPropertyChangeListener(MyJTextFieldAsInt.PROP_SKIPBACK_PERIODS_CHANGED, self)
+            self.offsetPeriods_JTF = MyJTextFieldAsInt(2, self.mdGUI.getPreferences().getDecimalChar())
+            self.offsetPeriods_JTF.addPropertyChangeListener(MyJTextFieldAsInt.PROP_OFFSET_PERIODS_CHANGED, self)
 
             self.startIntField_LBL = MyJLabel(" ", 4)
             self.endIntField_LBL = MyJLabel(" ", 4)
             self.dateRangeChoice_LBL = MyJLabel(" ", 4)
             self.dateRangeChoice_COMBO = MyJComboBox()
-            self.skipBackPeriods_LBL = MyJLabel(" ", 4)
+            self.offsetPeriods_LBL = MyJLabel(" ", 4)
             self.preferencesUpdated()
             self.dateRangeSelected()
             self.dateRangeChoice_COMBO.addItemListener(self)
@@ -6492,15 +6522,15 @@ Visit: %s (Author's site)
                 if choice.getKey() == self.KEY_DR_ALL_DATES: self.allDatesOption = choice
             return choices
 
-        def getStartIntLabel(self):         return self.startIntField_LBL
-        def getEndIntLabel(self):           return self.endIntField_LBL
-        def getStartIntField(self):         return self.startIntField_JDF
-        def getEndIntField(self):           return self.endIntField_JDF
+        def getStartLabel(self):            return self.startIntField_LBL
+        def getEndLabel(self):              return self.endIntField_LBL
+        def getStartField(self):            return self.startIntField_JDF
+        def getEndField(self):              return self.endIntField_JDF
         def getChoiceLabel(self):           return self.dateRangeChoice_LBL
         def getChoiceCombo(self):           return self.dateRangeChoice_COMBO
-        def getSkipBackPeriodsLabel(self):  return self.skipBackPeriods_LBL
-        def getSkipBackPeriodsField(self):  return self.skipBackPeriods_JTF
-        def getAllSwingComponents(self):    return [self.getStartIntLabel(), self.getEndIntLabel(), self.getStartIntField(), self.getEndIntField(), self.getChoiceLabel(), self.getChoiceCombo(), self.getSkipBackPeriodsLabel(), self.getSkipBackPeriodsField()]
+        def getOffsetPeriodsLabel(self):    return self.offsetPeriods_LBL
+        def getOffsetPeriodsField(self):    return self.offsetPeriods_JTF
+        def getAllSwingComponents(self):    return [self.getStartLabel(), self.getEndLabel(), self.getStartField(), self.getEndField(), self.getChoiceLabel(), self.getChoiceCombo(), self.getOffsetPeriodsLabel(), self.getOffsetPeriodsField()]
 
         def isCustomAsOfDatesSelected(self): return self.getChoiceCombo().getSelectedItem().equals(self.customOption)
         def isAllAsOfDatesSelected(self): return self.getChoiceCombo().getSelectedItem().equals(self.allDatesOption)
@@ -6511,13 +6541,13 @@ Visit: %s (Author's site)
 
         def preferencesUpdated(self):
             prefs = self.mdGUI.getPreferences()
-            self.getStartIntField().setDateFormat(prefs.getShortDateFormatter())
-            self.getEndIntField().setDateFormat(prefs.getShortDateFormatter())
-            self.getStartIntLabel().setText("Start date:")
-            self.getEndIntLabel().setText("End date:")
+            self.getStartField().setDateFormat(prefs.getShortDateFormatter())
+            self.getEndField().setDateFormat(prefs.getShortDateFormatter())
+            self.getStartLabel().setText("Start date:")
+            self.getEndLabel().setText("End date:")
             self.getChoiceLabel().setText("Date range:")
-            self.getSkipBackPeriodsLabel().setText("offset:")
-            self.getSkipBackPeriodsField().setValueInt(self.getSkipBackPeriodsField().defaultValue)
+            self.getOffsetPeriodsLabel().setText("offset:")
+            self.getOffsetPeriodsField().setValueInt(self.getOffsetPeriodsField().defaultValue)
             dateRangeSel = self.getSelectedIndex()
             self.getChoiceCombo().setModel(DefaultComboBoxModel(self.dateRangeOptions))
             prototypeText = ""
@@ -6545,14 +6575,14 @@ Visit: %s (Author's site)
                 p.add(self.getChoiceLabel(),        GridC.getc(x, y).label()); x += 1
             p.add(self.getChoiceCombo(),            GridC.getc(x, y).field()); x += 1; y += vertInc
             if not horizontal: x = 0
-            p.add(self.getStartIntLabel(),          GridC.getc(x, y).label()); x += 1
-            p.add(self.getStartIntField(),          GridC.getc(x, y).field()); x += 1; y += vertInc
+            p.add(self.getStartLabel(),          GridC.getc(x, y).label()); x += 1
+            p.add(self.getStartField(),          GridC.getc(x, y).field()); x += 1; y += vertInc
             if not horizontal: x = 0
-            p.add(self.getEndIntLabel(),            GridC.getc(x, y).label()); x += 1
-            p.add(self.getEndIntField(),            GridC.getc(x, y).field()); x += 1; y += vertInc
+            p.add(self.getEndLabel(),            GridC.getc(x, y).label()); x += 1
+            p.add(self.getEndField(),            GridC.getc(x, y).field()); x += 1; y += vertInc
             if not horizontal: x = 0
-            p.add(self.getSkipBackPeriodsLabel(),   GridC.getc(x, y).label()); x += 1
-            p.add(self.getSkipBackPeriodsField(),   GridC.getc(x, y).field()); x += 1; y += vertInc
+            p.add(self.getOffsetPeriodsLabel(),   GridC.getc(x, y).label()); x += 1
+            p.add(self.getOffsetPeriodsField(),   GridC.getc(x, y).field()); x += 1; y += vertInc
             return p
 
         def setSelectedOptionKey(self, dateOptionKey):
@@ -6573,14 +6603,14 @@ Visit: %s (Author's site)
             if sel < 0: sel = 0
             return sel
 
-        def setStartDateInt(self, startDateInt):
+        def setStartDate(self, startDateInt):
             self.getChoiceCombo().setSelectedItem(self.customOption)
-            self.getStartIntField().setDateInt(startDateInt)
+            self.getStartField().setDateInt(startDateInt)
             self.dateRangeSelected()
 
-        def setEndDateInt(self, endDateInt):
+        def setEndDate(self, endDateInt):
             self.getChoiceCombo().setSelectedItem(self.customOption)
-            self.getEndIntField().setDateInt(endDateInt)
+            self.getEndField().setDateInt(endDateInt)
             self.dateRangeSelected()
 
         def getDateRange(self):
@@ -6588,24 +6618,24 @@ Visit: %s (Author's site)
             if self.dateRangeResult is None: self.dateRangeSelected()
             return self.dateRangeResult
 
-        def setSkipBackPeriods(self, skipBackPeriods):
-            self.getSkipBackPeriodsField().setValueInt(skipBackPeriods)
+        def setOffsetPeriods(self, offsetPeriods):
+            self.getOffsetPeriodsField().setValueInt(offsetPeriods)
             self.dateRangeSelected()
 
-        def getSkipBackPeriods(self):
-            # if self.skipBackPeriodsResult is None: self.dateRangeSelected()
-            return self.skipBackPeriodsResult
+        def getOffsetPeriods(self):
+            # if self.offsetPeriodsResult is None: self.dateRangeSelected()
+            return self.offsetPeriodsResult
 
         def dateRangeSelected(self):
             dr = self.getDateRangeFromSelectedOption()
-            skipBackPeriods = self.getSkipBackPeriodsField().getValueInt()
+            offsetPeriods = self.getOffsetPeriodsField().getValueInt()
             # myPrint("B", "@@ MyDateRangeChooser:%s:dateRangeSelected() - getDateRangeFromSelectedOption() reports: '%s'" %(self.getName(), dr))
             self.ignoreDateChanges = True
-            self.getStartIntField().setDateInt(dr.getStartDateInt())
-            self.getEndIntField().setDateInt(dr.getEndDateInt())
-            self.getSkipBackPeriodsField().setValueInt(skipBackPeriods)
+            self.getStartField().setDateInt(dr.getStartDateInt())
+            self.getEndField().setDateInt(dr.getEndDateInt())
+            self.getOffsetPeriodsField().setValueInt(offsetPeriods)
             self.ignoreDateChanges = False
-            self.setDateRangeResult(dr, skipBackPeriods)
+            self.setDateRange(dr, offsetPeriods)
             self.updateEnabledStatus()
 
         def loadFromParameters(self, drSettings, defaultKey):
@@ -6618,17 +6648,17 @@ Visit: %s (Author's site)
             drOptionKey = drSettings[MyDateRangeChooser.DRC_DR_KEY_IDX]
             drStartDateInt = drSettings[MyDateRangeChooser.DRC_DR_START_KEY_IDX]
             drEndDateInt = drSettings[MyDateRangeChooser.DRC_DR_END_KEY_IDX]
-            skipBackPeriods = drSettings[MyDateRangeChooser.DRC_DR_SKIPBACKPERIODS_IDX]
+            offsetPeriods = drSettings[MyDateRangeChooser.DRC_DR_OFFSETPERIODS_IDX]
 
             if drOptionKey is None or drOptionKey == "": drOptionKey = defaultKey
             drSettings[MyDateRangeChooser.DRC_DR_KEY_IDX] = drOptionKey
 
             foundSetting = False
-            self.getSkipBackPeriodsField().setValueInt(skipBackPeriods)
+            self.getOffsetPeriodsField().setValueInt(offsetPeriods)
             if drOptionKey == self.KEY_CUSTOM_DATE_RANGE:
                 if MyDateRangeChooser.isValidDateRange(drSettings):
-                    self.setStartDateInt(drStartDateInt)
-                    self.setEndDateInt(drEndDateInt)
+                    self.setStartDate(drStartDateInt)
+                    self.setEndDate(drEndDateInt)
                     foundSetting = True
             else:
                 foundSetting = self.setSelectedOptionKey(drOptionKey)
@@ -6646,12 +6676,12 @@ Visit: %s (Author's site)
             selectedOptionKey = self.getSelectedOptionKey(self.getSelectedIndex())
             startDateInt = dr.getStartDateInt()
             endDateInt = dr.getEndDateInt()
-            skipBackPeriods = self.getSkipBackPeriodsField().getValueInt()
+            offsetPeriods = self.getOffsetPeriodsField().getValueInt()
             # leave settings[MyDateRangeChooser.DRC_DR_ENABLED_IDX] untouched
             drSettings[MyDateRangeChooser.DRC_DR_KEY_IDX] = selectedOptionKey
             drSettings[MyDateRangeChooser.DRC_DR_START_KEY_IDX] = startDateInt if (selectedOptionKey == self.KEY_CUSTOM_DATE_RANGE) else 0
             drSettings[MyDateRangeChooser.DRC_DR_END_KEY_IDX] = endDateInt if (selectedOptionKey == self.KEY_CUSTOM_DATE_RANGE) else 0
-            drSettings[MyDateRangeChooser.DRC_DR_SKIPBACKPERIODS_IDX] = skipBackPeriods
+            drSettings[MyDateRangeChooser.DRC_DR_OFFSETPERIODS_IDX] = offsetPeriods
             if debug: myPrint("B", "%s::returnStoredParameters() - Returning stored date range parameters settings ('%s')" %(self.getName(), drSettings))
             return drSettings
 
@@ -6660,38 +6690,38 @@ Visit: %s (Author's site)
             # type: ([bool, str, int, int, int]) -> bool
             _startInt = drSettings[MyDateRangeChooser.DRC_DR_START_KEY_IDX]
             _endInt = drSettings[MyDateRangeChooser.DRC_DR_END_KEY_IDX]
-            _skipBackPeriods = drSettings[MyDateRangeChooser.DRC_DR_SKIPBACKPERIODS_IDX]
+            _offsetPeriods = drSettings[MyDateRangeChooser.DRC_DR_OFFSETPERIODS_IDX]
             if not isinstance(_startInt, (int, Integer)):               return False
             if not isinstance(_endInt, (int, Integer)):                 return False
-            if not isinstance(_skipBackPeriods, (int, Integer, long)):  return False
+            if not isinstance(_offsetPeriods, (int, Integer, long)):    return False
             if _startInt <= MyDateRangeChooser.DATE_RANGE_VALID:        return False
             if _endInt   <= MyDateRangeChooser.DATE_RANGE_VALID:        return False
             if _startInt > _endInt:                                     return False
             return True
 
-        def setDateRangeResult(self, dr, skipBackPeriods):
+        def setDateRange(self, dr, offsetPeriods):
             # type: (DateRange, int) -> None
             oldDateRange = self.dateRangeResult
             oldSelectedKey = self.selectedOptionKeyResult
-            oldSkipBackPeriods = self.skipBackPeriodsResult
+            oldOffsetPeriods = self.offsetPeriodsResult
             selectedOptionKey = self.getSelectedOptionKey(self.getSelectedIndex())
-            # myPrint("B", "@@ MyDateRangeChooser:%s:setDateRangeResult(%s) (old asof date: %s), selectedKey: '%s' (old key: '%s')" %(self.getName(), dr, oldDateRange, selectedOptionKey, oldSelectedKey));
-            if not dr.equals(oldDateRange) or selectedOptionKey != oldSelectedKey or skipBackPeriods != oldSkipBackPeriods:
+            # myPrint("B", "@@ MyDateRangeChooser:%s:setDateRange(%s) (old asof date: %s), selectedKey: '%s' (old key: '%s')" %(self.getName(), dr, oldDateRange, selectedOptionKey, oldSelectedKey));
+            if not dr.equals(oldDateRange) or selectedOptionKey != oldSelectedKey or offsetPeriods != oldOffsetPeriods:
                 self.dateRangeResult = dr
                 self.selectedOptionKeyResult = selectedOptionKey
-                self.skipBackPeriodsResult = skipBackPeriods
+                self.offsetPeriodsResult = offsetPeriods
                 if not dr.equals(oldDateRange):
                     # if debug:
-                    #     myPrint("B", "@@ MyDateRangeChooser:%s:setDateRangeResult(%s).firePropertyChange(%s) >> asof date changed (from: %s to %s) <<" %(self.getName(), dr, self.PROP_DATE_RANGE_CHANGED, oldDateRange, dr))
+                    #     myPrint("B", "@@ MyDateRangeChooser:%s:setDateRange(%s).firePropertyChange(%s) >> asof date changed (from: %s to %s) <<" %(self.getName(), dr, self.PROP_DATE_RANGE_CHANGED, oldDateRange, dr))
                     getFieldByReflection(self, "_eventNotify").firePropertyChange(self.PROP_DATE_RANGE_CHANGED, oldDateRange, dr)
                 elif selectedOptionKey != oldSelectedKey:
                     # if debug:
-                    #     myPrint("B", "@@ MyDateRangeChooser:%s:setDateRangeResult(%s).firePropertyChange(%s) >> selected key changed (from: '%s' to '%s') <<" %(self.getName(), dr, self.PROP_DATE_RANGE_CHANGED, oldSelectedKey, selectedOptionKey))
+                    #     myPrint("B", "@@ MyDateRangeChooser:%s:setDateRange(%s).firePropertyChange(%s) >> selected key changed (from: '%s' to '%s') <<" %(self.getName(), dr, self.PROP_DATE_RANGE_CHANGED, oldSelectedKey, selectedOptionKey))
                     getFieldByReflection(self, "_eventNotify").firePropertyChange(self.PROP_DATE_RANGE_CHANGED, oldSelectedKey, selectedOptionKey)
-                elif skipBackPeriods != oldSkipBackPeriods:
+                elif offsetPeriods != oldOffsetPeriods:
                     # if debug:
-                    #     myPrint("B", "@@ MyDateRangeChooser:%s:setDateRangeResult(%s).firePropertyChange(%s) >> selected key changed (from: '%s' to '%s') <<" %(self.getName(), dr, self.PROP_DATE_RANGE_CHANGED, oldSkipBackPeriods, skipBackPeriods))
-                    getFieldByReflection(self, "_eventNotify").firePropertyChange(self.PROP_DATE_RANGE_CHANGED, oldSkipBackPeriods, skipBackPeriods)
+                    #     myPrint("B", "@@ MyDateRangeChooser:%s:setDateRange(%s).firePropertyChange(%s) >> selected key changed (from: '%s' to '%s') <<" %(self.getName(), dr, self.PROP_DATE_RANGE_CHANGED, oldOffsetPeriods, offsetPeriods))
+                    getFieldByReflection(self, "_eventNotify").firePropertyChange(self.PROP_DATE_RANGE_CHANGED, oldOffsetPeriods, offsetPeriods)
 
         def setEnabled(self, isEnabled, shouldHide=False):
             self.isEnabled = isEnabled
@@ -6742,27 +6772,27 @@ Visit: %s (Author's site)
                 if (selectedOptionKey != self.KEY_CUSTOM_DATE_RANGE and self.datesVaryFromSelectedOption()):
                     self.getChoiceCombo().setSelectedItem(self.customOption)
                 if (selectedOptionKey == self.KEY_CUSTOM_DATE_RANGE):
-                    self.setDateRangeResult(DateRange(Integer(self.getStartIntField().getDateInt()), Integer(self.getEndIntField().getDateInt())), self.getSkipBackPeriodsField().getValueInt())
-            if (event.getPropertyName() == MyJTextFieldAsInt.PROP_SKIPBACK_PERIODS_CHANGED and not self.ignoreDateChanges):
-                self.setDateRangeResult(DateRange(Integer(self.getStartIntField().getDateInt()), Integer(self.getEndIntField().getDateInt())), self.getSkipBackPeriodsField().getValueInt())
+                    self.setDateRange(DateRange(Integer(self.getStartField().getDateInt()), Integer(self.getEndField().getDateInt())), self.getOffsetPeriodsField().getValueInt())
+            if (event.getPropertyName() == MyJTextFieldAsInt.PROP_OFFSET_PERIODS_CHANGED and not self.ignoreDateChanges):
+                self.setDateRange(DateRange(Integer(self.getStartField().getDateInt()), Integer(self.getEndField().getDateInt())), self.getOffsetPeriodsField().getValueInt())
                 self.dateRangeSelected()
 
         def datesVaryFromSelectedOption(self):
-            startDateInt = self.getStartIntField().getDateInt()
-            endDateInt = self.getEndIntField().getDateInt()
+            startDateInt = self.getStartField().getDateInt()
+            endDateInt = self.getEndField().getDateInt()
             dr = self.getDateRangeFromSelectedOption()
             return (startDateInt != dr.getStartDateInt() or endDateInt != dr.getEndDateInt())
 
         def getDateRangeFromSelectedOption(self):
             selectedOptionKey = self.getSelectedOptionKey(self.getSelectedIndex())
             if (selectedOptionKey == self.KEY_CUSTOM_DATE_RANGE):
-                return DateRange(Integer(self.getStartIntField().parseDateInt()), Integer(self.getEndIntField().parseDateInt()))
-            return self.DateRangeChoice.getDateRangeFromKey(selectedOptionKey, self.getSkipBackPeriods())
+                return DateRange(Integer(self.getStartField().parseDateInt()), Integer(self.getEndField().parseDateInt()))
+            return self.DateRangeChoice.getDateRangeFromKey(selectedOptionKey, self.getOffsetPeriods())
 
         def toString(self):  return self.__str__()
         def __repr__(self):  return self.__str__()
         def __str__(self):
-            return "MyDateRangeChooser::%s - key: '%s' startInt: %s, endInt: %s, offset: %s" %(self.getName(), self.getSelectedOptionKey(self.getSelectedIndex()), self.getStartIntField().getDateInt(), self.getEndIntField().getDateInt(), self.getSkipBackPeriodsField().getValueInt())
+            return "MyDateRangeChooser::%s - key: '%s' startInt: %s, endInt: %s, offset: %s" %(self.getName(), self.getSelectedOptionKey(self.getSelectedIndex()), self.getStartField().getDateInt(), self.getEndField().getDateInt(), self.getOffsetPeriodsField().getValueInt())
 
     class AsOfDateChooser(BasePropertyChangeReporter, ItemListener, PropertyChangeListener):    # Based on: com.moneydance.apps.md.view.gui.DateRangeChooser
         """Class that allows selection of an AsOf date. Listen to changes using java.beans.PropertyChangeListener() on "asOfChanged
@@ -6773,7 +6803,7 @@ Visit: %s (Author's site)
         ASOF_DRC_ENABLED_IDX = 0
         ASOF_DRC_KEY_IDX = 1
         ASOF_DRC_DATEINT_IDX = 2
-        ASOF_DRC_SKIPBACKPERIODS_IDX = 3
+        ASOF_DRC_OFFSETPERIODS_IDX = 3
 
         PROP_ASOF_CHANGED = "asOfChanged"
         ASOF_TODAY = "asof_today"
@@ -6818,7 +6848,7 @@ Visit: %s (Author's site)
             def toString(self):         return self.__str__()
 
             @staticmethod
-            def internalCalculateAsOfDateFromKey(forOptionKey, realTodayInt, calculatedTodayInt, skipBackPeriods):
+            def internalCalculateAsOfDateFromKey(forOptionKey, realTodayInt, calculatedTodayInt, offsetPeriods):
                 # type: (str, int, int, int) -> int
                 if forOptionKey == "custom_asof":                    rtnVal = realTodayInt
                 elif forOptionKey ==  "asof_end_future":             rtnVal = DateRange().getEndDateInt()
@@ -6836,47 +6866,47 @@ Visit: %s (Author's site)
                 elif forOptionKey == "asof_end_last_quarter":        rtnVal = DateUtil.lastDayInQuarter(DateUtil.incrementDate(calculatedTodayInt, 0, -3, 0))
                 elif forOptionKey == "asof_end_last_month":          rtnVal = Util.incrementDate(Util.firstDayInMonth(calculatedTodayInt), 0, 0, -1)
                 elif forOptionKey == "asof_end_last_week":           rtnVal = Util.incrementDate(Util.firstDayInWeek(calculatedTodayInt), 0, 0, -1)
-                elif forOptionKey == "asof_30_days_ago":             rtnVal = Util.incrementDate(realTodayInt, 0, 0, (-29  * (skipBackPeriods + 1)) -skipBackPeriods)
-                elif forOptionKey == "asof_60_days_ago":             rtnVal = Util.incrementDate(realTodayInt, 0, 0, (-59  * (skipBackPeriods + 1)) -skipBackPeriods)
-                elif forOptionKey == "asof_90_days_ago":             rtnVal = Util.incrementDate(realTodayInt, 0, 0, (-89  * (skipBackPeriods + 1)) -skipBackPeriods)
-                elif forOptionKey == "asof_120_days_ago":            rtnVal = Util.incrementDate(realTodayInt, 0, 0, (-119 * (skipBackPeriods + 1)) -skipBackPeriods)
-                elif forOptionKey == "asof_180_days_ago":            rtnVal = Util.incrementDate(realTodayInt, 0, 0, (-179 * (skipBackPeriods + 1)) -skipBackPeriods)
-                elif forOptionKey == "asof_365_days_ago":            rtnVal = Util.incrementDate(realTodayInt, 0, 0, (-364 * (skipBackPeriods + 1)) -skipBackPeriods)
+                elif forOptionKey == "asof_30_days_ago":             rtnVal = Util.incrementDate(realTodayInt, 0, 0, (-29  * (offsetPeriods + 1)) -offsetPeriods)
+                elif forOptionKey == "asof_60_days_ago":             rtnVal = Util.incrementDate(realTodayInt, 0, 0, (-59  * (offsetPeriods + 1)) -offsetPeriods)
+                elif forOptionKey == "asof_90_days_ago":             rtnVal = Util.incrementDate(realTodayInt, 0, 0, (-89  * (offsetPeriods + 1)) -offsetPeriods)
+                elif forOptionKey == "asof_120_days_ago":            rtnVal = Util.incrementDate(realTodayInt, 0, 0, (-119 * (offsetPeriods + 1)) -offsetPeriods)
+                elif forOptionKey == "asof_180_days_ago":            rtnVal = Util.incrementDate(realTodayInt, 0, 0, (-179 * (offsetPeriods + 1)) -offsetPeriods)
+                elif forOptionKey == "asof_365_days_ago":            rtnVal = Util.incrementDate(realTodayInt, 0, 0, (-364 * (offsetPeriods + 1)) -offsetPeriods)
                 else: raise Exception("Error: asof date key ('%s') invalid?!" %(forOptionKey))
                 return rtnVal
 
             @staticmethod
-            def getAsOfDateFromKey(forOptionKey, skipBackPeriods):
+            def getAsOfDateFromKey(forOptionKey, offsetPeriods):
                 # type: (str, int) -> int
 
-                if skipBackPeriods is None: skipBackPeriods = 0
+                if offsetPeriods is None: offsetPeriods = 0
 
-                skipBackPeriods *= -1
+                offsetPeriods *= -1
 
                 todayInt = Util.getStrippedDateInt()
 
-                skipBackDayTodayInt  = DateUtil.incrementDate(todayInt, 0, 0, -skipBackPeriods)
-                skipBackWeekTodayInt = DateUtil.incrementDate(todayInt, 0, 0, 7 * -skipBackPeriods)
-                skipBackMnthTodayInt = DateUtil.incrementDate(todayInt, 0, -skipBackPeriods, 0)
-                skipBackQrtrTodayInt = DateUtil.incrementDate(todayInt, 0, 3 * -skipBackPeriods, 0)
-                skipBackYearTodayInt = DateUtil.incrementDate(todayInt, -skipBackPeriods, 0, 0)
+                offsetDayTodayInt  = DateUtil.incrementDate(todayInt, 0, 0, -offsetPeriods)
+                offsetWeekTodayInt = DateUtil.incrementDate(todayInt, 0, 0, 7 * -offsetPeriods)
+                offsetMnthTodayInt = DateUtil.incrementDate(todayInt, 0, -offsetPeriods, 0)
+                offsetQrtrTodayInt = DateUtil.incrementDate(todayInt, 0, 3 * -offsetPeriods, 0)
+                offsetYearTodayInt = DateUtil.incrementDate(todayInt, -offsetPeriods, 0, 0)
 
                 if forOptionKey == "custom_asof":                    calculatedTodayInt = None
                 elif forOptionKey ==  "asof_end_future":             calculatedTodayInt = None
-                elif forOptionKey == "asof_today":                   calculatedTodayInt = skipBackDayTodayInt
-                elif forOptionKey == "asof_yesterday":               calculatedTodayInt = skipBackDayTodayInt
-                elif forOptionKey == "asof_end_this_fiscal_year":    calculatedTodayInt = skipBackYearTodayInt
-                elif forOptionKey == "asof_end_last_fiscal_year":    calculatedTodayInt = skipBackYearTodayInt
-                elif forOptionKey == "asof_end_last_fiscal_quarter": calculatedTodayInt = skipBackQrtrTodayInt
-                elif forOptionKey == "asof_end_this_quarter":        calculatedTodayInt = skipBackQrtrTodayInt
-                elif forOptionKey == "asof_end_this_year":           calculatedTodayInt = skipBackYearTodayInt
-                elif forOptionKey == "asof_end_this_month":          calculatedTodayInt = skipBackMnthTodayInt
-                elif forOptionKey == "asof_end_next_month":          calculatedTodayInt = skipBackMnthTodayInt
-                elif forOptionKey == "asof_end_this_week":           calculatedTodayInt = skipBackWeekTodayInt
-                elif forOptionKey == "asof_end_last_year":           calculatedTodayInt = skipBackYearTodayInt
-                elif forOptionKey == "asof_end_last_quarter":        calculatedTodayInt = skipBackQrtrTodayInt
-                elif forOptionKey == "asof_end_last_month":          calculatedTodayInt = skipBackMnthTodayInt
-                elif forOptionKey == "asof_end_last_week":           calculatedTodayInt = skipBackWeekTodayInt
+                elif forOptionKey == "asof_today":                   calculatedTodayInt = offsetDayTodayInt
+                elif forOptionKey == "asof_yesterday":               calculatedTodayInt = offsetDayTodayInt
+                elif forOptionKey == "asof_end_this_fiscal_year":    calculatedTodayInt = offsetYearTodayInt
+                elif forOptionKey == "asof_end_last_fiscal_year":    calculatedTodayInt = offsetYearTodayInt
+                elif forOptionKey == "asof_end_last_fiscal_quarter": calculatedTodayInt = offsetQrtrTodayInt
+                elif forOptionKey == "asof_end_this_quarter":        calculatedTodayInt = offsetQrtrTodayInt
+                elif forOptionKey == "asof_end_this_year":           calculatedTodayInt = offsetYearTodayInt
+                elif forOptionKey == "asof_end_this_month":          calculatedTodayInt = offsetMnthTodayInt
+                elif forOptionKey == "asof_end_next_month":          calculatedTodayInt = offsetMnthTodayInt
+                elif forOptionKey == "asof_end_this_week":           calculatedTodayInt = offsetWeekTodayInt
+                elif forOptionKey == "asof_end_last_year":           calculatedTodayInt = offsetYearTodayInt
+                elif forOptionKey == "asof_end_last_quarter":        calculatedTodayInt = offsetQrtrTodayInt
+                elif forOptionKey == "asof_end_last_month":          calculatedTodayInt = offsetMnthTodayInt
+                elif forOptionKey == "asof_end_last_week":           calculatedTodayInt = offsetWeekTodayInt
                 elif forOptionKey == "asof_30_days_ago":             calculatedTodayInt = None
                 elif forOptionKey == "asof_60_days_ago":             calculatedTodayInt = None
                 elif forOptionKey == "asof_90_days_ago":             calculatedTodayInt = None
@@ -6885,15 +6915,15 @@ Visit: %s (Author's site)
                 elif forOptionKey == "asof_365_days_ago":            calculatedTodayInt = None
                 else: raise Exception("Error: asof date key ('%s') invalid?!" %(forOptionKey))
 
-                calculatedDateInt = AsOfDateChooser.AsOfDateChoice.internalCalculateAsOfDateFromKey(forOptionKey, todayInt, calculatedTodayInt, skipBackPeriods)
+                calculatedDateInt = AsOfDateChooser.AsOfDateChoice.internalCalculateAsOfDateFromKey(forOptionKey, todayInt, calculatedTodayInt, offsetPeriods)
 
                 if debug:
-                    if skipBackPeriods != 0:
+                    if offsetPeriods != 0:
                         originalDateInt = AsOfDateChooser.AsOfDateChoice.internalCalculateAsOfDateFromKey(forOptionKey, todayInt, todayInt, 0)
-                        myPrint("B", "@@ .getAsOfDateFromKey('%s', skipBackPeriods: %s): skipBackDayTodayInt: %s, skipBackWeekTodayInt: %s, skipBackMnthTodayInt: %s, skipBackQrtrTodayInt: %s, skipBackYearTodayInt: %s"
-                                %(forOptionKey, skipBackPeriods, skipBackDayTodayInt, skipBackWeekTodayInt, skipBackMnthTodayInt, skipBackQrtrTodayInt, skipBackYearTodayInt))
+                        myPrint("B", "@@ .getAsOfDateFromKey('%s', offsetPeriods: %s): offsetDayTodayInt: %s, offsetWeekTodayInt: %s, offsetMnthTodayInt: %s, offsetQrtrTodayInt: %s, offsetYearTodayInt: %s"
+                                %(forOptionKey, offsetPeriods, offsetDayTodayInt, offsetWeekTodayInt, offsetMnthTodayInt, offsetQrtrTodayInt, offsetYearTodayInt))
                         myPrint("B", "@@ originalDateInt: %s, calculatedDateInt: %s" %(originalDateInt, calculatedDateInt))
-                    myPrint("B", "@@ .getAsOfDateFromKey('%s', %s) returning %s" %(forOptionKey, skipBackPeriods, calculatedDateInt))
+                    myPrint("B", "@@ .getAsOfDateFromKey('%s', %s) returning %s" %(forOptionKey, offsetPeriods, calculatedDateInt))
 
                 return calculatedDateInt
 
@@ -6924,7 +6954,7 @@ Visit: %s (Author's site)
             self.allDatesOption = None
             self.asOfDateIntResult = None
             self.selectedOptionKeyResult = None
-            self.skipBackPeriodsResult = 0
+            self.offsetPeriodsResult = 0
             self.lastDeselectedOptionKey = None
             self.ignoreDateChanges = False
             self.isEnabled = True
@@ -6934,8 +6964,8 @@ Visit: %s (Author's site)
             self.asOfDate_JDF.addPropertyChangeListener(JDateField.PROP_DATE_CHANGED, self)
             self.asOfDate_JDF.addMouseListener(self.AsOfDateClickListener(self))
 
-            self.skipBackPeriods_JTF = MyJTextFieldAsInt(2, self.mdGUI.getPreferences().getDecimalChar())
-            self.skipBackPeriods_JTF.addPropertyChangeListener(MyJTextFieldAsInt.PROP_SKIPBACK_PERIODS_CHANGED, self)
+            self.offsetPeriods_JTF = MyJTextFieldAsInt(2, self.mdGUI.getPreferences().getDecimalChar())
+            self.offsetPeriods_JTF.addPropertyChangeListener(MyJTextFieldAsInt.PROP_OFFSET_PERIODS_CHANGED, self)
 
             # self.asOfDate_JDF.setFocusable(True)
             # self.asOfDate_JDF.addKeyListener(MyKeyAdapter())
@@ -6943,7 +6973,7 @@ Visit: %s (Author's site)
             self.asOfDate_LBL = MyJLabel(" ", 4)
             self.asOfChoice_LBL = MyJLabel(" ", 4)
             self.asOfChoice_COMBO = MyJComboBox()
-            self.skipBackPeriods_LBL = MyJLabel(" ", 4)
+            self.offsetPeriods_LBL = MyJLabel(" ", 4)
             self.preferencesUpdated()
             self.asOfSelected()
             self.asOfChoice_COMBO.addItemListener(self)
@@ -6967,9 +6997,9 @@ Visit: %s (Author's site)
         def getAsOfDateField(self):         return self.asOfDate_JDF
         def getChoiceLabel(self):           return self.asOfChoice_LBL
         def getChoiceCombo(self):           return self.asOfChoice_COMBO
-        def getSkipBackPeriodsLabel(self):  return self.skipBackPeriods_LBL
-        def getSkipBackPeriodsField(self):  return self.skipBackPeriods_JTF
-        def getAllSwingComponents(self):    return [self.getAsOfLabel(), self.getAsOfDateField(), self.getChoiceLabel(), self.getChoiceCombo(), self.getSkipBackPeriodsLabel(), self.getSkipBackPeriodsField()]
+        def getOffsetPeriodsLabel(self):    return self.offsetPeriods_LBL
+        def getOffsetPeriodsField(self):    return self.offsetPeriods_JTF
+        def getAllSwingComponents(self):    return [self.getAsOfLabel(), self.getAsOfDateField(), self.getChoiceLabel(), self.getChoiceCombo(), self.getOffsetPeriodsLabel(), self.getOffsetPeriodsField()]
 
         def isCustomAsOfDatesSelected(self): return self.getChoiceCombo().getSelectedItem().equals(self.customOption)
         def isAllAsOfDatesSelected(self): return self.getChoiceCombo().getSelectedItem().equals(self.allDatesOption)
@@ -6983,8 +7013,8 @@ Visit: %s (Author's site)
             self.asOfDate_JDF.setDateFormat(prefs.getShortDateFormatter())
             self.asOfDate_LBL.setText("date:")
             self.asOfChoice_LBL.setText("Balance:")
-            self.skipBackPeriods_LBL.setText("offset:")
-            self.skipBackPeriods_JTF.setValueInt(self.skipBackPeriods_JTF.defaultValue)
+            self.offsetPeriods_LBL.setText("offset:")
+            self.offsetPeriods_JTF.setValueInt(self.offsetPeriods_JTF.defaultValue)
             asOfSel = self.getSelectedIndex()
             self.getChoiceCombo().setModel(DefaultComboBoxModel(self.asOfOptions))
             prototypeText = ""
@@ -7015,8 +7045,8 @@ Visit: %s (Author's site)
             p.add(self.getAsOfLabel(),              GridC.getc(x, y).label()); x += 1
             p.add(self.getAsOfDateField(),          GridC.getc(x, y).field()); x += 1; y += vertInc
             if not horizontal: x = 0
-            p.add(self.getSkipBackPeriodsLabel(),   GridC.getc(x, y).label()); x += 1
-            p.add(self.getSkipBackPeriodsField(),   GridC.getc(x, y).field()); x += 1; y += vertInc
+            p.add(self.getOffsetPeriodsLabel(),     GridC.getc(x, y).label()); x += 1
+            p.add(self.getOffsetPeriodsField(),     GridC.getc(x, y).field()); x += 1; y += vertInc
             return p
 
         def setSelectedOptionKey(self, asOfOptionKey):
@@ -7045,23 +7075,23 @@ Visit: %s (Author's site)
             if self.asOfDateIntResult is None: self.asOfSelected()
             return Integer(self.asOfDateIntResult).intValue()
 
-        def setSkipBackPeriods(self, skipBackPeriods):
-            self.skipBackPeriods_JTF.setValueInt(skipBackPeriods)
+        def setOffsetPeriods(self, offsetPeriods):
+            self.offsetPeriods_JTF.setValueInt(offsetPeriods)
             self.asOfSelected()
 
-        def getSkipBackPeriods(self):
-            # if self.skipBackPeriodsResult is None: self.asOfSelected()
-            return self.skipBackPeriodsResult
+        def getOffsetPeriods(self):
+            # if self.offsetPeriodsResult is None: self.asOfSelected()
+            return self.offsetPeriodsResult
 
         def asOfSelected(self):
             asofDateInt = self.getAsOfDateIntFromSelectedOption()
-            skipBackPeriods = self.skipBackPeriods_JTF.getValueInt()
+            offsetPeriods = self.offsetPeriods_JTF.getValueInt()
             # myPrint("B", "@@ AsOfDateChooser:%s:asOfSelected() - getAsOfDateIntFromSelectedOption() reports: '%s'" %(self.getName(), asofDateInt))
             self.ignoreDateChanges = True
             self.asOfDate_JDF.setDateInt(asofDateInt)
-            self.skipBackPeriods_JTF.setValueInt(skipBackPeriods)
+            self.offsetPeriods_JTF.setValueInt(offsetPeriods)
             self.ignoreDateChanges = False
-            self.setAsOfDateResult(asofDateInt, skipBackPeriods)
+            self.setAsOfDateResult(asofDateInt, offsetPeriods)
             self.updateEnabledStatus()
 
         def loadFromParameters(self, settings, defaultKey):
@@ -7074,8 +7104,8 @@ Visit: %s (Author's site)
             # asOfOptionSelected = settings[AsOfDateChooser.ASOF_DRC_ENABLED_IDX]
             asOfOptionKey = settings[AsOfDateChooser.ASOF_DRC_KEY_IDX]
             asOfDateInt = settings[AsOfDateChooser.ASOF_DRC_DATEINT_IDX]
-            skipBackPeriods = settings[AsOfDateChooser.ASOF_DRC_SKIPBACKPERIODS_IDX]
-            self.skipBackPeriods_JTF.setValueInt(skipBackPeriods)
+            offsetPeriods = settings[AsOfDateChooser.ASOF_DRC_OFFSETPERIODS_IDX]
+            self.offsetPeriods_JTF.setValueInt(offsetPeriods)
             if asOfOptionKey == self.KEY_CUSTOM_ASOF:
                 if AsOfDateChooser.isValidAsOfDate(asOfDateInt):
                     self.setAsOfDateInt(asOfDateInt)
@@ -7094,11 +7124,11 @@ Visit: %s (Author's site)
             settings = copy.deepcopy(defaultSettings)
             asOfDateInt = self.getAsOfDateInt()
             selectedOptionKey = self.getSelectedOptionKey(self.getSelectedIndex())
-            skipBackPeriods = self.skipBackPeriods_JTF.getValueInt()
+            offsetPeriods = self.offsetPeriods_JTF.getValueInt()
             # leave settings[AsOfDateChooser.ASOF_DRC_ENABLED_IDX] untouched
             settings[AsOfDateChooser.ASOF_DRC_KEY_IDX] = selectedOptionKey
             settings[AsOfDateChooser.ASOF_DRC_DATEINT_IDX] = asOfDateInt if (selectedOptionKey == self.KEY_CUSTOM_ASOF) else 0
-            settings[AsOfDateChooser.ASOF_DRC_SKIPBACKPERIODS_IDX] = skipBackPeriods
+            settings[AsOfDateChooser.ASOF_DRC_OFFSETPERIODS_IDX] = offsetPeriods
             if debug: myPrint("B", "%s::returnStoredParameters() - Returning stored asof date parameters settings ('%s')" %(self.getName(), settings))
             return settings
 
@@ -7109,16 +7139,16 @@ Visit: %s (Author's site)
             if _dateInt < AsOfDateChooser.ASOF_DATE_VALID:  return False
             return True
 
-        def setAsOfDateResult(self, asOfDateInt, skipBackPeriods):
+        def setAsOfDateResult(self, asOfDateInt, offsetPeriods):
             oldAsOfDateInt = self.asOfDateIntResult
             oldSelectedKey = self.selectedOptionKeyResult
-            oldSkipBackPeriods = self.skipBackPeriodsResult
+            oldOffsetPeriods = self.offsetPeriodsResult
             selectedOptionKey = self.getSelectedOptionKey(self.getSelectedIndex())
             # myPrint("B", "@@ AsOfDateChooser:%s:setAsOfDateResult(%s) (old asof date: %s), selectedKey: '%s' (old key: '%s')" %(self.getName(), asOfDateInt, oldAsOfDateInt, selectedOptionKey, oldSelectedKey));
-            if asOfDateInt != oldAsOfDateInt or selectedOptionKey != oldSelectedKey or skipBackPeriods != oldSkipBackPeriods:
+            if asOfDateInt != oldAsOfDateInt or selectedOptionKey != oldSelectedKey or offsetPeriods != oldOffsetPeriods:
                 self.asOfDateIntResult = asOfDateInt
                 self.selectedOptionKeyResult = selectedOptionKey
-                self.skipBackPeriodsResult = skipBackPeriods
+                self.offsetPeriodsResult = offsetPeriods
                 if asOfDateInt != oldAsOfDateInt:
                     # if debug:
                     #     myPrint("B", "@@ AsOfDateChooser:%s:setAsOfDateResult(%s).firePropertyChange(%s) >> asof date changed (from: %s to %s) <<" %(self.getName(), asOfDateInt, self.PROP_ASOF_CHANGED, oldAsOfDateInt, asOfDateInt))
@@ -7127,10 +7157,10 @@ Visit: %s (Author's site)
                     # if debug:
                     #     myPrint("B", "@@ AsOfDateChooser:%s:setAsOfDateResult(%s).firePropertyChange(%s) >> selected key changed (from: '%s' to '%s') <<" %(self.getName(), asOfDateInt, self.PROP_ASOF_CHANGED, oldSelectedKey, selectedOptionKey))
                     getFieldByReflection(self, "_eventNotify").firePropertyChange(self.PROP_ASOF_CHANGED, oldSelectedKey, selectedOptionKey)
-                elif skipBackPeriods != oldSkipBackPeriods:
+                elif offsetPeriods != oldOffsetPeriods:
                     # if debug:
-                    #     myPrint("B", "@@ AsOfDateChooser:%s:setAsOfDateResult(%s).firePropertyChange(%s) >> selected key changed (from: '%s' to '%s') <<" %(self.getName(), asOfDateInt, self.PROP_ASOF_CHANGED, oldSkipBackPeriods, skipBackPeriods))
-                    getFieldByReflection(self, "_eventNotify").firePropertyChange(self.PROP_ASOF_CHANGED, oldSkipBackPeriods, skipBackPeriods)
+                    #     myPrint("B", "@@ AsOfDateChooser:%s:setAsOfDateResult(%s).firePropertyChange(%s) >> selected key changed (from: '%s' to '%s') <<" %(self.getName(), asOfDateInt, self.PROP_ASOF_CHANGED, oldOffsetPeriods, offsetPeriods))
+                    getFieldByReflection(self, "_eventNotify").firePropertyChange(self.PROP_ASOF_CHANGED, oldOffsetPeriods, offsetPeriods)
 
         def setEnabled(self, isEnabled, shouldHide=False):
             self.isEnabled = isEnabled
@@ -7181,9 +7211,9 @@ Visit: %s (Author's site)
                 if (selectedOptionKey != self.KEY_CUSTOM_ASOF and self.asOfVariesFromSelectedOption()):
                     self.getChoiceCombo().setSelectedItem(self.customOption)
                 if (selectedOptionKey == self.KEY_CUSTOM_ASOF):
-                    self.setAsOfDateResult(self.asOfDate_JDF.getDateInt(), self.skipBackPeriods_JTF.getValueInt())
-            if (event.getPropertyName() == MyJTextFieldAsInt.PROP_SKIPBACK_PERIODS_CHANGED and not self.ignoreDateChanges):
-                self.setAsOfDateResult(self.asOfDate_JDF.getDateInt(), self.skipBackPeriods_JTF.getValueInt())
+                    self.setAsOfDateResult(self.asOfDate_JDF.getDateInt(), self.offsetPeriods_JTF.getValueInt())
+            if (event.getPropertyName() == MyJTextFieldAsInt.PROP_OFFSET_PERIODS_CHANGED and not self.ignoreDateChanges):
+                self.setAsOfDateResult(self.asOfDate_JDF.getDateInt(), self.offsetPeriods_JTF.getValueInt())
                 self.asOfSelected()
 
         def asOfVariesFromSelectedOption(self):
@@ -7195,12 +7225,12 @@ Visit: %s (Author's site)
             selectedOptionKey = self.getSelectedOptionKey(self.getSelectedIndex())
             if (selectedOptionKey == self.KEY_CUSTOM_ASOF):
                 return self.asOfDate_JDF.parseDateInt()
-            return self.AsOfDateChoice.getAsOfDateFromKey(selectedOptionKey, self.getSkipBackPeriods())
+            return self.AsOfDateChoice.getAsOfDateFromKey(selectedOptionKey, self.getOffsetPeriods())
 
         def toString(self):  return self.__str__()
         def __repr__(self):  return self.__str__()
         def __str__(self):
-            return "AsOfDateChooser::%s - key: '%s' asofDate: %s, offset: %s" %(self.getName(), self.getSelectedOptionKey(self.getSelectedIndex()), self.getAsOfDateField().getDateInt(), self.getSkipBackPeriodsField().getValueInt())
+            return "AsOfDateChooser::%s - key: '%s' asofDate: %s, offset: %s" %(self.getName(), self.getSelectedOptionKey(self.getSelectedIndex()), self.getAsOfDateField().getDateInt(), self.getOffsetPeriodsField().getValueInt())
 
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -7601,7 +7631,7 @@ Visit: %s (Author's site)
         fromRangeKey = _fromDrSettings[MyDateRangeChooser.DRC_DR_KEY_IDX]
         startDateInt = _fromDrSettings[MyDateRangeChooser.DRC_DR_START_KEY_IDX]
         endDateInt = _fromDrSettings[MyDateRangeChooser.DRC_DR_END_KEY_IDX]
-        skipBackPeriods = _fromDrSettings[MyDateRangeChooser.DRC_DR_SKIPBACKPERIODS_IDX]
+        offsetPeriods = _fromDrSettings[MyDateRangeChooser.DRC_DR_OFFSETPERIODS_IDX]
 
         if not allowAllDatesKey:
             if fromRangeKey == MyDateRangeChooser.KEY_DR_ALL_DATES:
@@ -7615,7 +7645,7 @@ Visit: %s (Author's site)
                 # myPrint("DB", "..... ALERT >> No valid custom start/end dates found! Will use defaults");
                 dateRange = MyDateRangeChooser.DateRangeChoice.getDateRangeFromKey(MyDateRangeChooser.KEY_CUSTOM_DATE_RANGE, 0)
         else:
-            dateRange = MyDateRangeChooser.DateRangeChoice.getDateRangeFromKey(fromRangeKey, skipBackPeriods)
+            dateRange = MyDateRangeChooser.DateRangeChoice.getDateRangeFromKey(fromRangeKey, offsetPeriods)
 
         if debug: myPrint("B", "getDateRangeFromSettings(): '%s' Date Range reporting as: %s (drSettings: '%s')" %(fromRangeKey, dateRange, _fromDrSettings))
 
@@ -7640,15 +7670,15 @@ Visit: %s (Author's site)
         _fromAsOfWanted = rowBalanceAsOfDateSettings[AsOfDateChooser.ASOF_DRC_ENABLED_IDX]
         _fromAsOfKey = rowBalanceAsOfDateSettings[AsOfDateChooser.ASOF_DRC_KEY_IDX]
         _fromCustomAsOfDateInt = rowBalanceAsOfDateSettings[AsOfDateChooser.ASOF_DRC_DATEINT_IDX]
-        _fromSkipBackPeriods = rowBalanceAsOfDateSettings[AsOfDateChooser.ASOF_DRC_SKIPBACKPERIODS_IDX]
+        _fromOffsetPeriods = rowBalanceAsOfDateSettings[AsOfDateChooser.ASOF_DRC_OFFSETPERIODS_IDX]
         if _fromAsOfWanted:
             if _fromAsOfKey == AsOfDateChooser.KEY_CUSTOM_ASOF:
                 if AsOfDateChooser.isValidAsOfDate(_fromCustomAsOfDateInt):
                     asOfDateInt = _fromCustomAsOfDateInt
                 else:
-                    asOfDateInt = AsOfDateChooser.AsOfDateChoice.getAsOfDateFromKey(AsOfDateChooser.ASOF_TODAY, _fromSkipBackPeriods)
+                    asOfDateInt = AsOfDateChooser.AsOfDateChoice.getAsOfDateFromKey(AsOfDateChooser.ASOF_TODAY, _fromOffsetPeriods)
             else:
-                asOfDateInt = AsOfDateChooser.AsOfDateChoice.getAsOfDateFromKey(_fromAsOfKey, _fromSkipBackPeriods)
+                asOfDateInt = AsOfDateChooser.AsOfDateChoice.getAsOfDateFromKey(_fromAsOfKey, _fromOffsetPeriods)
         else:
             asOfDateInt = 0
 
@@ -7666,15 +7696,15 @@ Visit: %s (Author's site)
         _fromAsOfWanted = rowIncludeRemindersAsOfSettings[AsOfDateChooser.ASOF_DRC_ENABLED_IDX]
         _fromAsOfKey = rowIncludeRemindersAsOfSettings[AsOfDateChooser.ASOF_DRC_KEY_IDX]
         _fromCustomAsOfDateInt = rowIncludeRemindersAsOfSettings[AsOfDateChooser.ASOF_DRC_DATEINT_IDX]
-        _fromSkipBackPeriods = rowIncludeRemindersAsOfSettings[AsOfDateChooser.ASOF_DRC_SKIPBACKPERIODS_IDX]
+        _fromOffsetPeriods = rowIncludeRemindersAsOfSettings[AsOfDateChooser.ASOF_DRC_OFFSETPERIODS_IDX]
         if _fromAsOfWanted:
             if _fromAsOfKey == AsOfDateChooser.KEY_CUSTOM_ASOF:
                 if AsOfDateChooser.isValidAsOfDate(_fromCustomAsOfDateInt):
                     asOfDateInt = _fromCustomAsOfDateInt
                 else:
-                    asOfDateInt = AsOfDateChooser.AsOfDateChoice.getAsOfDateFromKey(AsOfDateChooser.KEY_ASOF_END_THIS_MONTH, _fromSkipBackPeriods)
+                    asOfDateInt = AsOfDateChooser.AsOfDateChoice.getAsOfDateFromKey(AsOfDateChooser.KEY_ASOF_END_THIS_MONTH, _fromOffsetPeriods)
             else:
-                asOfDateInt = AsOfDateChooser.AsOfDateChoice.getAsOfDateFromKey(_fromAsOfKey, _fromSkipBackPeriods)
+                asOfDateInt = AsOfDateChooser.AsOfDateChoice.getAsOfDateFromKey(_fromAsOfKey, _fromOffsetPeriods)
         else:
             asOfDateInt = 0
 
@@ -7967,7 +7997,7 @@ Visit: %s (Author's site)
 
                     if isCostCalculationUpgradedBuild():
                         costCalculationBal = CostCalculation(acct, asOfDate, None, True)
-                        costCalculationCurrBal = costCalculationBal.getCurrentBalanceCostCalculation()
+                        costCalculationCurrBal = costCalculationBal.getCurrentBalanceCostCalculation()                  # noqa
                     else:
                         costCalculationBal = MyCostCalculation(acct, asOfDate, None, True)
                         costCalculationCurrBal = costCalculationBal.getCurrentBalanceCostCalculation()
@@ -10907,14 +10937,14 @@ Visit: %s (Author's site)
                         printResetMessage("savedBalanceType", self.savedBalanceType[i], self.balanceDefault(), i)
                         self.savedBalanceType[i] = self.balanceDefault()
 
-                    # Upgrade this parameter with new skipbackperiods field (0=default / no skipbackperiods)....
+                    # Upgrade this parameter with new offsetPeriods field (0=default / no offsetPeriods)....
                     if isinstance(self.savedBalanceAsOfDateTable[i], list) and len(self.savedBalanceAsOfDateTable[i]) == 3:
                         oldValue = copy.deepcopy(self.savedIncludeRemindersTable[i])
                         self.savedBalanceAsOfDateTable[i].append(0)
-                        myPrint("B", "... Upgrading row: %s saved parameter 'savedBalanceAsOfDateTable' - adding 0 skipback periods (from: '%s' to: '%s')" %(i+1, oldValue, self.savedBalanceAsOfDateTable[i]))
+                        myPrint("B", "... Upgrading row: %s saved parameter 'savedBalanceAsOfDateTable' - adding 0 offset periods (from: '%s' to: '%s')" %(i+1, oldValue, self.savedBalanceAsOfDateTable[i]))
 
                     if (self.savedBalanceAsOfDateTable[i] is None or not isinstance(self.savedBalanceAsOfDateTable[i], list) or len(self.savedBalanceAsOfDateTable[i]) != len(self.balanceAsOfDateDefault())
-                            or not isinstance(self.savedBalanceAsOfDateTable[i][AsOfDateChooser.ASOF_DRC_ENABLED_IDX], bool) or not isinstance(self.savedBalanceAsOfDateTable[i][AsOfDateChooser.ASOF_DRC_SKIPBACKPERIODS_IDX], (int, Integer, float))
+                            or not isinstance(self.savedBalanceAsOfDateTable[i][AsOfDateChooser.ASOF_DRC_ENABLED_IDX], bool) or not isinstance(self.savedBalanceAsOfDateTable[i][AsOfDateChooser.ASOF_DRC_OFFSETPERIODS_IDX], (int, Integer, float))
                             or not isinstance(self.savedBalanceAsOfDateTable[i][AsOfDateChooser.ASOF_DRC_KEY_IDX], str) or not isinstance(self.savedBalanceAsOfDateTable[i][AsOfDateChooser.ASOF_DRC_DATEINT_IDX], int)
                             or (self.savedBalanceAsOfDateTable[i][AsOfDateChooser.ASOF_DRC_ENABLED_IDX] and not AsOfDateChooser.isValidAsOfDate(getBalanceAsOfDateSelected(self.savedBalanceAsOfDateTable[i])))):
                         printResetMessage("savedBalanceAsOfDateTable", self.savedBalanceAsOfDateTable[i], self.balanceAsOfDateDefault(), i)
@@ -10956,23 +10986,23 @@ Visit: %s (Author's site)
                         self.savedUseCostBasisTable[i].extend(self.useCostBasisDefault(False)[GlobalVars.COSTBASIS_DR_ENABLED_IDX:])
                         myPrint("B", "... Upgrading row: %s saved parameter 'savedUseCostBasisTable' - adding capital gains date range settings (from: '%s' to: '%s')" %(i+1, oldValue, self.savedUseCostBasisTable[i]))
 
-                    if (self.savedUseCostBasisTable[i] is None or not isinstance(self.savedUseCostBasisTable[i], list) or len(self.savedUseCostBasisTable[i]) != (GlobalVars.COSTBASIS_DR_SKIPBACKPERIODS_IDX + 1)
+                    if (self.savedUseCostBasisTable[i] is None or not isinstance(self.savedUseCostBasisTable[i], list) or len(self.savedUseCostBasisTable[i]) != (GlobalVars.COSTBASIS_DR_OFFSETPERIODS_IDX + 1)
                             or not isinstance(self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_TYPE_IDX], int)
                             or not isinstance(self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_DR_ENABLED_IDX], bool) or not isinstance(self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_DR_KEY_IDX], str)
                             or not isinstance(self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_DR_START_KEY_IDX], (int)) or not isinstance(self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_DR_END_KEY_IDX], (int))
-                            or not isinstance(self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_DR_SKIPBACKPERIODS_IDX], (int, Integer, float))
+                            or not isinstance(self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_DR_OFFSETPERIODS_IDX], (int, Integer, float))
                             or self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_TYPE_IDX] < GlobalVars.COSTBASIS_TYPE_NONE or self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_TYPE_IDX] > GlobalVars.COSTBASIS_TYPE_CB_INCL_CASH):
                         printResetMessage("savedUseCostBasisTable", self.savedUseCostBasisTable[i], self.useCostBasisDefault(), i)
                         self.savedUseCostBasisTable[i] = self.useCostBasisDefault()
 
-                    # Upgrade this parameter with new skipbackperiods field (0=default / no skipbackperiods)....
+                    # Upgrade this parameter with new offsetPeriods field (0=default / no offsetPeriods)....
                     if isinstance(self.savedIncludeRemindersTable[i], list) and len(self.savedIncludeRemindersTable[i]) == 3:
                         oldValue = copy.deepcopy(self.savedIncludeRemindersTable[i])
                         self.savedIncludeRemindersTable[i].append(0)
-                        myPrint("B", "... Upgrading row: %s saved parameter 'savedIncludeRemindersTable' - adding 0 skipback periods (from: '%s' to: '%s')" %(i+1, oldValue, self.savedIncludeRemindersTable[i]))
+                        myPrint("B", "... Upgrading row: %s saved parameter 'savedIncludeRemindersTable' - adding 0 offset periods (from: '%s' to: '%s')" %(i+1, oldValue, self.savedIncludeRemindersTable[i]))
 
                     if (self.savedIncludeRemindersTable[i] is None or not isinstance(self.savedIncludeRemindersTable[i], list) or len(self.savedIncludeRemindersTable[i]) != len(self.includeRemindersDefault())
-                            or not isinstance(self.savedIncludeRemindersTable[i][AsOfDateChooser.ASOF_DRC_ENABLED_IDX], bool) or not isinstance(self.savedIncludeRemindersTable[i][AsOfDateChooser.ASOF_DRC_SKIPBACKPERIODS_IDX], (int, Integer, float))
+                            or not isinstance(self.savedIncludeRemindersTable[i][AsOfDateChooser.ASOF_DRC_ENABLED_IDX], bool) or not isinstance(self.savedIncludeRemindersTable[i][AsOfDateChooser.ASOF_DRC_OFFSETPERIODS_IDX], (int, Integer, float))
                             or not isinstance(self.savedIncludeRemindersTable[i][AsOfDateChooser.ASOF_DRC_KEY_IDX], str) or not isinstance(self.savedIncludeRemindersTable[i][AsOfDateChooser.ASOF_DRC_DATEINT_IDX], int)
                             or (self.savedIncludeRemindersTable[i][AsOfDateChooser.ASOF_DRC_ENABLED_IDX] and not AsOfDateChooser.isValidAsOfDate(getIncludeRemindersAsOfDateSelected(self.savedIncludeRemindersTable[i])))):
                         printResetMessage("savedIncludeRemindersTable", self.savedIncludeRemindersTable[i], self.includeRemindersDefault(), i)
@@ -12748,7 +12778,7 @@ Visit: %s (Author's site)
                 myPrint("B", "  %s" %(pad("savedHideDecimalsTable",60)),          NAB.savedHideDecimalsTable[iRowIdx])
 
                 dateRange = MyDateRangeChooser.DateRangeChoice.getDateRangeFromKey(NAB.savedIncExpDateRangeTable[iRowIdx][MyDateRangeChooser.DRC_DR_KEY_IDX],
-                                                                                   NAB.savedIncExpDateRangeTable[iRowIdx][MyDateRangeChooser.DRC_DR_SKIPBACKPERIODS_IDX])
+                                                                                   NAB.savedIncExpDateRangeTable[iRowIdx][MyDateRangeChooser.DRC_DR_OFFSETPERIODS_IDX])
                 myPrint("B", "  %s" %(pad(">> System Default for savedIncExpDateRangeTable will be:", 60)), dateRange)
                 myPrint("B", "  ----")
 
@@ -15358,7 +15388,7 @@ Visit: %s (Author's site)
                     NAB.asOfDateChooser_AODC.setName("asOfDateChooser_AODC")
                     NAB.asOfDateChooser_AODC.getChoiceCombo().setToolTipText("Select the balance asof date option")
                     NAB.asOfDateChooser_AODC.getAsOfDateField().setToolTipText("Select the balance asof custom date")
-                    NAB.asOfDateChooser_AODC.getSkipBackPeriodsField().setToolTipText("Enter the number of period offsets to manipulate the asof date (-past, +future)")
+                    NAB.asOfDateChooser_AODC.getOffsetPeriodsField().setToolTipText("Enter the number of period offsets to manipulate the asof date (-past, +future)")
                     NAB.asOfDateChooser_AODC.addPropertyChangeListener(NAB.savePropertyChangeListener)
                     balanceAsOfSelection_pnl.add(NAB.asOfDateChooser_AODC.getPanel(includeChoiceLabel=False), GridC.getc(onBalanceAsOfCol, onBalanceAsOfRow).leftInset(5).west())
 
@@ -15412,7 +15442,7 @@ Visit: %s (Author's site)
                     NAB.includeRemindersChooser_AODC.setName("includeRemindersChooser_AODC")
                     NAB.includeRemindersChooser_AODC.getChoiceCombo().setToolTipText("Select the include reminders asof date option (when include reminders has been selected)")
                     NAB.includeRemindersChooser_AODC.getAsOfDateField().setToolTipText("Select the include reminders asof custom date (when include reminders has been selected)")
-                    NAB.includeRemindersChooser_AODC.getSkipBackPeriodsField().setToolTipText("Enter the number of period offsets to manipulate the asof date (-past, +future)")
+                    NAB.includeRemindersChooser_AODC.getOffsetPeriodsField().setToolTipText("Enter the number of period offsets to manipulate the asof date (-past, +future)")
                     NAB.includeRemindersChooser_AODC.addPropertyChangeListener(NAB.savePropertyChangeListener)
                     includeRemindersSelection_pnl.add(NAB.includeRemindersChooser_AODC.getPanel(includeChoiceLabel=False), GridC.getc(onIncludeRemindersCol, onIncludeRemindersRow).leftInset(5).west())
 
@@ -15503,9 +15533,9 @@ Visit: %s (Author's site)
                         comp.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
 
                     NAB.securitiesCapitalGains_DRC.getChoiceCombo().setToolTipText("Specify a dynamic date range for Securities Capital Gains calculations ('Custom' always fixed) - does not affect other accounts/securities")
-                    NAB.securitiesCapitalGains_DRC.getStartIntField().setToolTipText("Select the start date for the Securities Capital Gains custom date range")
-                    NAB.securitiesCapitalGains_DRC.getEndIntField().setToolTipText("Select the end date for the Securities Capital Gains custom date range")
-                    NAB.securitiesCapitalGains_DRC.getSkipBackPeriodsField().setToolTipText("Enter the number of period offsets to manipulate the Securities Capital Gains date range (-past, +future)")
+                    NAB.securitiesCapitalGains_DRC.getStartField().setToolTipText("Select the start date for the Securities Capital Gains custom date range")
+                    NAB.securitiesCapitalGains_DRC.getEndField().setToolTipText("Select the end date for the Securities Capital Gains custom date range")
+                    NAB.securitiesCapitalGains_DRC.getOffsetPeriodsField().setToolTipText("Enter the number of period offsets to manipulate the Securities Capital Gains date range (-past, +future)")
                     NAB.securitiesCapitalGains_DRC.addPropertyChangeListener(NAB.savePropertyChangeListener)
                     controlPnl.add(NAB.securitiesCapitalGains_DRC.getPanel(includeChoiceLabel=False), GridC.getc(onCol, onRow).colspan(3).leftInset(colInsetFiller).topInset(topInset).west())
 
@@ -15544,9 +15574,9 @@ Visit: %s (Author's site)
                     for comp in drc.getAllSwingComponents(): comp.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
 
                     NAB.incomeExpenseDateRange_DRC.getChoiceCombo().setToolTipText("Specify a dynamic date range for Income / Expense Category calculations ('Custom' is always fixed) - does not affect other accounts/securities")
-                    NAB.incomeExpenseDateRange_DRC.getStartIntField().setToolTipText("Select the start date for the I/E custom date range")
-                    NAB.incomeExpenseDateRange_DRC.getEndIntField().setToolTipText("Select the end date for the I/E custom date range")
-                    NAB.incomeExpenseDateRange_DRC.getSkipBackPeriodsField().setToolTipText("Enter the number of period offsets to manipulate the I/E date range (-past, +future)")
+                    NAB.incomeExpenseDateRange_DRC.getStartField().setToolTipText("Select the start date for the I/E custom date range")
+                    NAB.incomeExpenseDateRange_DRC.getEndField().setToolTipText("Select the end date for the I/E custom date range")
+                    NAB.incomeExpenseDateRange_DRC.getOffsetPeriodsField().setToolTipText("Enter the number of period offsets to manipulate the I/E date range (-past, +future)")
                     NAB.incomeExpenseDateRange_DRC.addPropertyChangeListener(NAB.savePropertyChangeListener)
                     controlPnl.add(NAB.incomeExpenseDateRange_DRC.getPanel(includeChoiceLabel=False), GridC.getc(onCol, onRow).colspan(3).leftInset(colInsetFiller).topInset(topInset).west())
 
