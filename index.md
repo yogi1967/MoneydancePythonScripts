@@ -82,7 +82,7 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
     - Decrypt / extract raw 'Trunk' file; Extract raw data as JSON file; All attachments;
 
 
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/accounts_categories_mega_search_window.zip">**^^Accounts & Categories Mega Search Window**: Clones MD Menu> Tools>Accounts/Categories (combined) and adds a Quick Search box/capability.
+-  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/accounts_categories_mega_search_window.zip">**^^Accounts & Categories Mega Search Window**: Clones MD Menu> Tools>Accounts/Categories (combined) and adds a Quick Search box/capability - NOT SUPPORTED POST MD2023.3(5064)
 
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/list_future_reminders.zip">**List Future Reminders**: Lists your future dated reminders to screen, and allows you to select how far forward to look.
 
@@ -98,7 +98,7 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
 
 ### Signed Versions (hosted on this site - i.e. NOT InfiniteKind's site - may be newer than appear (or not available) in Moneydance's Extensions menu)
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/tree/master/signed_builds">Directory listing of all current and previously official (IK) signed builds
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/accounts_categories_mega_search_window.mxt">Accounts Categories Mega Search Window (signed) (build: 1012 - 4th Nov 2023) (MD2023 support...)
+- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/accounts_categories_mega_search_window.mxt">Accounts Categories Mega Search Window (signed) (build: 1012 - 4th Nov 2023) (MD2023 support...) - NOT SUPPORTED POST MD2023.3(5064)
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/security_performance_graph.mxt">Security Performance Graph (signed) (build: 1010 - 29th Jan 2024) - (MD2023 support...)
 
 ### Other useful ad-hoc scripts (*.py format only) - Very latest code versions
