@@ -144,6 +144,7 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 #               NOTE: New FeatureModule::getActionsForContext() method and MDActionContext
 #               Rename 'skipback' periods to 'offset' periods to match the upgraded MD DateRangeChooser, also add new / extra DateRangeOptions.
 #               ... note: I considered switching to the MD upgraded DRC, but still wouldn't work with older versions... So keeping my own...
+#               Switched to latest DateRangeOption resource keys, with behind the scenes method to fix them....
 
 # todo - consider better formula handlers... e.g. com.infinitekind.util.StringUtils.parseFormula(String, char)
 # todo - option to show different dpc (e.g. full decimal precision)
@@ -6290,45 +6291,56 @@ Visit: %s (Author's site)
         KEY_DR_ALL_DATES = "all_dates"
         KEY_DR_YEAR_TO_DATE = "year_to_date"
 
+        # NOTE: These need to exactly match the resource keys in DateRangeOption Enum.. Especially the resource key strings!
+        # ... column[3] = legacy key of there is one....
         DR_DATE_OPTIONS = [
-                            ["year_to_date",                 "Year to date",                  41],
-                            ["fiscal_year_to_date",          "Fiscal Year to date",           61],
-                            ["quarter_to_date",              "Quarter to date",               31],
-                            ["month_to_date",                "Month to date",                 22],
-                            ["this_year",                    "This year",                     40],
-                            ["this_fiscal_year",             "This Fiscal Year",              60],
-                            ["this_quarter",                 "This quarter",                  30],
-                            ["this_month",                   "This month",                    21],
-                            ["last_year",                    "Last year",                     42],
-                            ["dr_last_two_years",            "Last 2 years",                  43],
-                            ["dr_last_three_years",          "Last 3 years",                  44],
-                            ["dr_last_five_years",           "Last 5 years",                  45],
-                            ["last_fiscal_year",             "Last Fiscal Year",              63],
-                            ["dr_last_two_fiscal_years",     "Last 2 Fiscal Years",           64],
-                            ["dr_last_three_fiscal_years",   "Last 3 Fiscal Years",           65],
-                            ["dr_last_five_fiscal_years",    "Last 5 Fiscal Years",           66],
-                            ["last_fiscal_quarter",          "Last Fiscal Quarter",           62],
-                            ["last_quarter",                 "Last quarter",                  32],
-                            ["last_month",                   "Last month",                    23],
-                            ["last_12_months",               "Last 12 months",                24],
-                            ["dr_last_18_months",            "Last 18 months",                25],
-                            ["dr_last_24_months",            "Last 24 months",                26],
-                            ["all_dates",                    "All dates",                      0],
-                            ["custom_date",                  "Custom dates",                  99],
-                            ["this_week",                    "This week",                     10],
-                            ["last_30_days",                 "Last 30 days",                  51],
-                            ["last_60_days",                 "Last 60 days",                  52],
-                            ["last_90_days",                 "Last 90 days",                  53],
-                            ["last_120_days",                "Last 120 days",                 54],
-                            ["last_180_days",                "Last 180 days",                 55],
-                            ["last_365_days",                "Last 365 days",                 56],
-                            ["last_week",                    "Last week",                     11],
-                            ["last_1_day",                   "Last 1 day (yesterday & today)",50],
-                            ["yesterday",                    "Yesterday",                      3],
-                            ["today",                        "Today",                          2],
-                            ["next_month",                   "Next month",                    20]
+                            ["year_to_date",                 "Year to date",                  41,   None],
+                            ["fiscal_year_to_date",          "Fiscal Year to date",           61,   None],
+                            ["quarter_to_date",              "Quarter to date",               31,   None],
+                            ["month_to_date",                "Month to date",                 22,   None],
+                            ["this_year",                    "This year",                     40,   None],
+                            ["this_fiscal_year",             "This Fiscal Year",              60,   None],
+                            ["this_quarter",                 "This quarter",                  30,   None],
+                            ["this_month",                   "This month",                    21,   None],
+                            ["last_year",                    "Last year",                     42,   None],
+                            ["dr_last_two_years",            "Last 2 years",                  43,   None],
+                            ["dr_last_three_years",          "Last 3 years",                  44,   None],
+                            ["dr_last_five_years",           "Last 5 years",                  45,   None],
+                            ["last_fiscal_year",             "Last Fiscal Year",              63,   None],
+                            ["dr_last_two_fiscal_years",     "Last 2 Fiscal Years",           64,   None],
+                            ["dr_last_three_fiscal_years",   "Last 3 Fiscal Years",           65,   None],
+                            ["dr_last_five_fiscal_years",    "Last 5 Fiscal Years",           66,   None],
+                            ["last_fiscal_quarter",          "Last Fiscal Quarter",           62,   None],
+                            ["last_quarter",                 "Last quarter",                  32,   None],
+                            ["last_month",                   "Last month",                    23,   None],
+                            ["last_12_months",               "Last 12 months",                24,   None],
+                            ["dr_last_18_months",            "Last 18 months",                25,   None],
+                            ["dr_last_24_months",            "Last 24 months",                26,   None],
+                            ["all_dates",                    "All dates",                      0,   None],
+                            ["custom_date",                  "Custom dates",                  99,   None],
+                            ["this_week",                    "This week",                     10,   None],
+                            ["last_30_days",                 "Last 30 days",                  51,   None],
+                            ["dr_last_60_days",              "Last 60 days",                  52,   "last_60_days"],
+                            ["dr_last_90_days",              "Last 90 days",                  53,   "last_90_days"],
+                            ["dr_last_120_days",             "Last 120 days",                 54,   "last_120_days"],
+                            ["dr_last_180_days",             "Last 180 days",                 55,   "last_180_days"],
+                            ["last_365_days",                "Last 365 days",                 56,   None],
+                            ["last_week",                    "Last week",                     11,   None],
+                            ["last_1_day",                   "Last 1 day (yesterday & today)",50,   None],
+                            ["dr_yesterday",                 "Yesterday",                      3,   "yesterday"],
+                            ["dr_today",                     "Today",                          2,   "today"],
+                            ["dr_next_month",                "Next month",                    20,   "next_month"]
                         ]
+        LEGACY_DRO_KEYS = dict((droLegacyKey, droKey) for droKey, droName, droSort, droLegacyKey in DR_DATE_OPTIONS if droLegacyKey is not None)
 
+        @staticmethod
+        def upgradeLegacyResourceKey(resourceKey):
+            """Takes a resource key for DR_DATE_OPTIONS and switches it to the proper / latest resource key
+            ... MD2024(5100) included the upgraded DateRangeChooser/DateRangeOption and some of the resource keys changed..."""
+            if (resourceKey not in MyDateRangeChooser.LEGACY_DRO_KEYS): return resourceKey
+            upgradedKey = MyDateRangeChooser.LEGACY_DRO_KEYS[resourceKey]
+            myPrint("B", "** Legacy DateRangeOption resource key '%s' upgraded in memory to '%s' **" %(resourceKey, upgradedKey))
+            return upgradedKey
 
         class DateRangeChoice:
             def __init__(self, key, displayName, sortIdx):
@@ -6341,6 +6353,10 @@ Visit: %s (Author's site)
             def __str__(self):          return self.getDisplayName()
             def __repr__(self):         return self.__str__()
             def toString(self):         return self.__str__()
+
+            @staticmethod
+            def fixLegacyKeyValues(keyToCheck):
+                return keyToCheck
 
             @staticmethod
             def internalCalculateDateRangeFromKey(forOptionKey, realTodayInt, calculatedTodayInt, offsetPeriods):
@@ -6374,14 +6390,14 @@ Visit: %s (Author's site)
                 elif forOptionKey == "dr_last_24_months":           rtnVal = (Util.incrementDate(Util.firstDayInMonth(realTodayInt), 0, -24 * (offsetPeriods + 1), 0), Util.incrementDate(Util.firstDayInMonth(realTodayInt), 0, -12 * (offsetPeriods), -1))
                 elif forOptionKey == "last_1_day":                  rtnVal = (Util.incrementDate(realTodayInt, 0, 0, -1), realTodayInt)
                 elif forOptionKey == "last_30_days":                rtnVal = (Util.incrementDate(realTodayInt, 0, 0, (-29  * (offsetPeriods + 1)) -offsetPeriods), Util.incrementDate(realTodayInt, 0, 0, (-29  * (offsetPeriods)) -offsetPeriods))
-                elif forOptionKey == "last_60_days":                rtnVal = (Util.incrementDate(realTodayInt, 0, 0, (-59  * (offsetPeriods + 1)) -offsetPeriods), Util.incrementDate(realTodayInt, 0, 0, (-59  * (offsetPeriods)) -offsetPeriods))
-                elif forOptionKey == "last_90_days":                rtnVal = (Util.incrementDate(realTodayInt, 0, 0, (-89  * (offsetPeriods + 1)) -offsetPeriods), Util.incrementDate(realTodayInt, 0, 0, (-89  * (offsetPeriods)) -offsetPeriods))
-                elif forOptionKey == "last_120_days":               rtnVal = (Util.incrementDate(realTodayInt, 0, 0, (-119 * (offsetPeriods + 1)) -offsetPeriods), Util.incrementDate(realTodayInt, 0, 0, (-119 * (offsetPeriods)) -offsetPeriods))
-                elif forOptionKey == "last_180_days":               rtnVal = (Util.incrementDate(realTodayInt, 0, 0, (-179 * (offsetPeriods + 1)) -offsetPeriods), Util.incrementDate(realTodayInt, 0, 0, (-179 * (offsetPeriods)) -offsetPeriods))
+                elif forOptionKey == "dr_last_60_days":             rtnVal = (Util.incrementDate(realTodayInt, 0, 0, (-59  * (offsetPeriods + 1)) -offsetPeriods), Util.incrementDate(realTodayInt, 0, 0, (-59  * (offsetPeriods)) -offsetPeriods))
+                elif forOptionKey == "dr_last_90_days":             rtnVal = (Util.incrementDate(realTodayInt, 0, 0, (-89  * (offsetPeriods + 1)) -offsetPeriods), Util.incrementDate(realTodayInt, 0, 0, (-89  * (offsetPeriods)) -offsetPeriods))
+                elif forOptionKey == "dr_last_120_days":            rtnVal = (Util.incrementDate(realTodayInt, 0, 0, (-119 * (offsetPeriods + 1)) -offsetPeriods), Util.incrementDate(realTodayInt, 0, 0, (-119 * (offsetPeriods)) -offsetPeriods))
+                elif forOptionKey == "dr_last_180_days":            rtnVal = (Util.incrementDate(realTodayInt, 0, 0, (-179 * (offsetPeriods + 1)) -offsetPeriods), Util.incrementDate(realTodayInt, 0, 0, (-179 * (offsetPeriods)) -offsetPeriods))
                 elif forOptionKey == "last_365_days":               rtnVal = (Util.incrementDate(realTodayInt, 0, 0, (-364 * (offsetPeriods + 1)) -offsetPeriods), Util.incrementDate(realTodayInt, 0, 0, (-364 * (offsetPeriods)) -offsetPeriods))
-                elif forOptionKey == "next_month":                  rtnVal = (Util.firstDayInMonth(Util.incrementDate(calculatedTodayInt, 0, 1, 0)), Util.lastDayInMonth(Util.incrementDate(calculatedTodayInt, 0, 1, 0)))
-                elif forOptionKey == "yesterday":                   rtnVal = (DateUtil.incrementDate(calculatedTodayInt, 0, 0, -1), DateUtil.incrementDate(calculatedTodayInt, 0, 0, -1))
-                elif forOptionKey == "today":                       rtnVal = (DateUtil.incrementDate(calculatedTodayInt, 0, 0, -0), DateUtil.incrementDate(calculatedTodayInt, 0, 0, -0))
+                elif forOptionKey == "dr_next_month":               rtnVal = (Util.firstDayInMonth(Util.incrementDate(calculatedTodayInt, 0, 1, 0)), Util.lastDayInMonth(Util.incrementDate(calculatedTodayInt, 0, 1, 0)))
+                elif forOptionKey == "dr_yesterday":                rtnVal = (DateUtil.incrementDate(calculatedTodayInt, 0, 0, -1), DateUtil.incrementDate(calculatedTodayInt, 0, 0, -1))
+                elif forOptionKey == "dr_today":                    rtnVal = (DateUtil.incrementDate(calculatedTodayInt, 0, 0, -0), DateUtil.incrementDate(calculatedTodayInt, 0, 0, -0))
                 else: raise Exception("Error: date range key ('%s') invalid?!" %(forOptionKey))
 
                 return DateRange(Integer(rtnVal[0]), Integer(rtnVal[1]))
@@ -6430,14 +6446,14 @@ Visit: %s (Author's site)
                 elif forOptionKey == "dr_last_24_months":           calculatedTodayInt = None
                 elif forOptionKey == "last_1_day":                  calculatedTodayInt = None
                 elif forOptionKey == "last_30_days":                calculatedTodayInt = None
-                elif forOptionKey == "last_60_days":                calculatedTodayInt = None
-                elif forOptionKey == "last_90_days":                calculatedTodayInt = None
-                elif forOptionKey == "last_120_days":               calculatedTodayInt = None
-                elif forOptionKey == "last_180_days":               calculatedTodayInt = None
+                elif forOptionKey == "dr_last_60_days":             calculatedTodayInt = None
+                elif forOptionKey == "dr_last_90_days":             calculatedTodayInt = None
+                elif forOptionKey == "dr_last_120_days":            calculatedTodayInt = None
+                elif forOptionKey == "dr_last_180_days":            calculatedTodayInt = None
                 elif forOptionKey == "last_365_days":               calculatedTodayInt = None
-                elif forOptionKey == "next_month":                  calculatedTodayInt = offsetMnthTodayInt
-                elif forOptionKey == "yesterday":                   calculatedTodayInt = offsetDayTodayInt
-                elif forOptionKey == "today":                       calculatedTodayInt = offsetDayTodayInt
+                elif forOptionKey == "dr_next_month":               calculatedTodayInt = offsetMnthTodayInt
+                elif forOptionKey == "dr_yesterday":                calculatedTodayInt = offsetDayTodayInt
+                elif forOptionKey == "dr_today":                    calculatedTodayInt = offsetDayTodayInt
                 else: raise Exception("Error: date range key ('%s') invalid?!" %(forOptionKey))
 
                 calculatedDateRange = MyDateRangeChooser.DateRangeChoice.internalCalculateDateRangeFromKey(forOptionKey, todayInt, calculatedTodayInt, offsetPeriods)
@@ -6461,7 +6477,7 @@ Visit: %s (Author's site)
         @staticmethod
         def createDateRangeChoiceFromKey(dateKey):
             # type: (str) -> MyDateRangeChooser.DateRangeChoice
-            for optionKey, optionName, sortIdx in MyDateRangeChooser.DR_DATE_OPTIONS:
+            for optionKey, optionName, sortIdx, legacyKey in MyDateRangeChooser.DR_DATE_OPTIONS:
                 if optionKey == dateKey: return MyDateRangeChooser.DateRangeChoice(optionKey, optionName, sortIdx)
             return MyDateRangeChooser.DateRangeChoice("unknown", "Unknown Date Range Name", 0)
 
@@ -8640,7 +8656,7 @@ Visit: %s (Author's site)
         todayInt = DateUtil.getStrippedDateInt()
         myPrint("B", "Analysis of default Inc/Exp DateRangeOption(s) used in NAB:")
         myPrint("B", "-----------------------------------------------------------")
-        for drcKey, drcDisplayName in sorted(MyDateRangeChooser.DR_DATE_OPTIONS, key=lambda x: (x[1])):
+        for drcKey, drcDisplayName, drcSort, drcLegacyKey in sorted(MyDateRangeChooser.DR_DATE_OPTIONS, key=lambda x: (x[1])):
             dr = MyDateRangeChooser.DateRangeChoice.getDateRangeFromKey(drcKey, 0)
             start = dr.getStartDateInt()                                                                                # noqa
             end = dr.getEndDateInt()
@@ -10995,6 +11011,10 @@ Visit: %s (Author's site)
                         printResetMessage("savedUseCostBasisTable", self.savedUseCostBasisTable[i], self.useCostBasisDefault(), i)
                         self.savedUseCostBasisTable[i] = self.useCostBasisDefault()
 
+                    # Fix legacy DateRangeOption resource keys (for MD2024 compatibility)
+                    oldKey = self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_DR_KEY_IDX]
+                    self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_DR_KEY_IDX] = MyDateRangeChooser.upgradeLegacyResourceKey(oldKey)
+
                     # Upgrade this parameter with new offsetPeriods field (0=default / no offsetPeriods)....
                     if isinstance(self.savedIncludeRemindersTable[i], list) and len(self.savedIncludeRemindersTable[i]) == 3:
                         oldValue = copy.deepcopy(self.savedIncludeRemindersTable[i])
@@ -11028,6 +11048,10 @@ Visit: %s (Author's site)
                             not MyDateRangeChooser.isValidDateRange(self.savedIncExpDateRangeTable[i]):
                         printResetMessage("savedIncExpDateRangeTable", self.savedIncExpDateRangeTable[i], self.incExpDateRangeDefault(), i)
                         self.savedIncExpDateRangeTable[i] = self.incExpDateRangeDefault()
+
+                    # Fix legacy DateRangeOption resource keys (for MD2024 compatibility)
+                    oldKey = self.savedIncExpDateRangeTable[i][MyDateRangeChooser.DRC_DR_KEY_IDX]
+                    self.savedIncExpDateRangeTable[i][MyDateRangeChooser.DRC_DR_KEY_IDX] = MyDateRangeChooser.upgradeLegacyResourceKey(oldKey)
 
                     if not self.isValidAndFixOperateOnAnotherRowParams(self.savedOperateOnAnotherRowTable[i]):
                         printResetMessage("savedOperateOnAnotherRowTable", self.savedOperateOnAnotherRowTable[i], self.operateOnAnotherRowDefault(), i)
@@ -15521,9 +15545,7 @@ Visit: %s (Author's site)
                     controlPnl.add(NAB.securitiesCGains_LBL, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
                     onCol += 1
 
-                    excludeDRs = [
-                                    "yesterday"
-                                   ]
+                    excludeDRs = ["dr_yesterday"]
 
                     NAB.securitiesCapitalGains_DRC = MyDateRangeChooser(NAB.moneydanceContext.getUI(), MyDateRangeChooser.KEY_DR_YEAR_TO_DATE, excludeDRs)
                     NAB.securitiesCapitalGains_DRC.setName("securitiesCapitalGains_DRC")
@@ -15565,7 +15587,7 @@ Visit: %s (Author's site)
                     controlPnl.add(incExpDateRangeOptionLabel, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
                     onCol += 1
 
-                    excludeDRs = ["yesterday"]
+                    excludeDRs = ["dr_yesterday"]
 
                     NAB.incomeExpenseDateRange_DRC = MyDateRangeChooser(NAB.moneydanceContext.getUI(), MyDateRangeChooser.KEY_DR_ALL_DATES, excludeDRs)
                     NAB.incomeExpenseDateRange_DRC.setName("incomeExpenseDateRange_DRC")
