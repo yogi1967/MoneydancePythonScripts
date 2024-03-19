@@ -3971,7 +3971,7 @@ Visit: %s (Author's site)
 
             if reset or currentSettings is None or currentSettings.isEmpty():
                 newSettings = SyncRecord()
-                newSettings.put(DateRangeOption.CONFIG_KEY, DateRangeChooser.DR_YEAR_TO_DATE)
+                newSettings.put(DateRangeOption.CONFIG_KEY, DateRangeOption.DR_YEAR_TO_DATE.getResourceKey())
                 newSettings.put(self.PARAM_GROUP_BY, "m")
                 return newSettings
 
