@@ -4,7 +4,7 @@
 from __future__ import division    # Has to occur at the beginning of file... Changes division to always produce a float
 assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes that division of integers yields a float! Do you have this statement: 'from __future__ import division'?"
 
-# net_account_balances.py build: 1048 - Jan 2024 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 1049 - March 2024 - Stuart Beesley - StuWareSoftSystems
 # Display Name in MD changed to 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
 
 # Thanks and credit to Dan T Davis and Derek Kent(23) for their suggestions and extensive testing...
@@ -142,8 +142,8 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 # build: 1048 - Tweak MyJLabel() to allow dynamic resizing (e.g. on Summary Page)...; tweak install routines; tweak JLabel getPreferredSize()
 #               Switch code to upgraded CostCalculation core code for 2024(5100) onwards...
 #               NOTE: New FeatureModule::getActionsForContext() method and MDActionContext
-#               Rename 'skipback' periods to 'offset' periods to match the upgraded MD DateRangeChooser, also add new / extra DateRangeOptions.
-#               ... note: I considered switching to the MD upgraded DRC, but still wouldn't work with older versions... So keeping my own...
+# build: 1049 - Rename 'skipback' periods to 'offset' periods to match the upgraded MD DateRangeChooser, also add new / extra DateRangeOptions.
+#               ... note: I considered switching to the MD upgraded DRC. It does work, but keeping my own (for now)...
 #               Switched to latest DateRangeOption resource keys, with behind the scenes method to fix them....
 
 # todo - consider better formula handlers... e.g. com.infinitekind.util.StringUtils.parseFormula(String, char)
@@ -156,7 +156,7 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 
 # SET THESE LINES
 myModuleID = u"net_account_balances"
-version_build = "1048"
+version_build = "1049"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT = False
 
@@ -3126,23 +3126,20 @@ Visit: %s (Author's site)
         return None
 
     GlobalVars.MD_COSTCALCULATION_UPGRADED_BUILD = 5100                                                                 # MD2024(5100)
-    def isCostCalculationUpgradedBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_COSTCALCULATION_UPGRADED_BUILD)                                           # 2023.0(5000)
+    def isCostCalculationUpgradedBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_COSTCALCULATION_UPGRADED_BUILD)
     if isCostCalculationUpgradedBuild():
         from com.infinitekind.moneydance.model import CostCalculation
 
     GlobalVars.MD_DATERANGECHOOSER_UPGRADED_BUILD = 5100                                                                # MD2024(5100)
-    def isDateRangeChooserUpgradedBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_DATERANGECHOOSER_UPGRADED_BUILD)                                           # 2023.0(5000)
-    # if isDateRangeChooserUpgradedBuild():
-    #     from com.moneydance.apps.md.view.gui import DateRangeChooser
-    #     from com.moneydance.apps.md.controller.time import DateRangeOption
+    # def isDateRangeChooserUpgradedBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_DATERANGECHOOSER_UPGRADED_BUILD)
+    def isDateRangeChooserUpgradedBuild(): return False
+    if isDateRangeChooserUpgradedBuild():
+        from com.moneydance.apps.md.view.gui import MDURLUtil
+        from com.moneydance.apps.md.view.gui import DateRangeChooser
+        from com.moneydance.apps.md.controller.time import DateRangeOption
 
-    GlobalVars.MD_CONTEXT_MENU_ENABLED_BUILD = 5100                                                                     # MD2024(5100)
-    def isContextMenuEnabledBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_CONTEXT_MENU_ENABLED_BUILD)                                           # 2023.0(5000)
-    # if isContextMenuEnabledBuild():
-    #     from  com.moneydance.apps.md.controller import MDActionContext                                                  # noqa
-
-    GlobalVars.MD_KOTLIN_COMPILED_BUILD = 5000                                                                          # 2023.0
-    def isKotlinCompiledBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_KOTLIN_COMPILED_BUILD)                                           # 2023.0(5000)
+    GlobalVars.MD_KOTLIN_COMPILED_BUILD = 5000                                                                          # 2023.0(5000)
+    def isKotlinCompiledBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_KOTLIN_COMPILED_BUILD)
 
     def isMDPlusEnabledBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_MDPLUS_BUILD)                         # 2022.0
 
@@ -6653,6 +6650,36 @@ Visit: %s (Author's site)
             self.ignoreDateChanges = False
             self.setDateRange(dr, offsetPeriods)
             self.updateEnabledStatus()
+
+        @staticmethod
+        def convertSettingsToSyncRecord(drSettings):                   # For use with MD2024(5100) enhanced DRC class...
+            if not isDateRangeChooserUpgradedBuild(): raise Exception("Error: convertSettingsToSyncRecord() can only be used on MD2024(5100) onwards!")
+            syncRecord = SyncRecord()
+            drOptionKey = drSettings[MyDateRangeChooser.DRC_DR_KEY_IDX]
+            drStartDateInt = drSettings[MyDateRangeChooser.DRC_DR_START_KEY_IDX]
+            drEndDateInt = drSettings[MyDateRangeChooser.DRC_DR_END_KEY_IDX]
+            offsetPeriods = drSettings[MyDateRangeChooser.DRC_DR_OFFSETPERIODS_IDX]
+            syncRecord.put(DateRangeOption.CONFIG_KEY, drOptionKey)
+            MDURLUtil.putDate(syncRecord, DateRangeChooser.PARAM_START_DATE, Integer(drStartDateInt))
+            MDURLUtil.putDate(syncRecord, DateRangeChooser.PARAM_END_DATE, Integer(drEndDateInt))
+            MDURLUtil.putInt(syncRecord, DateRangeChooser.PARAM_OFFSET_PERIODS, Integer(offsetPeriods))                 # noqa
+            if True or debug: myPrint("B", "convertSettingsToSyncRecord: '%s' converted to: '%s'" %(drSettings, syncRecord))
+            return syncRecord
+
+        @staticmethod
+        def convertSyncRecordToSettings(syncRecord, defaultSettings):  # For use with MD2024(5100) enhanced DRC class...
+            if not isDateRangeChooserUpgradedBuild(): raise Exception("Error: convertSyncRecordToSettings() can only be used on MD2024(5100) onwards!")
+            drOptionKey = syncRecord.getString(DateRangeOption.CONFIG_KEY, defaultSettings[MyDateRangeChooser.DRC_DR_KEY_IDX])
+            drStartDateInt = MDURLUtil.getDate(syncRecord, DateRangeChooser.PARAM_START_DATE, defaultSettings[MyDateRangeChooser.DRC_DR_START_KEY_IDX])
+            drEndDateInt = MDURLUtil.getDate(syncRecord, DateRangeChooser.PARAM_END_DATE, defaultSettings[MyDateRangeChooser.DRC_DR_END_KEY_IDX])
+            offsetPeriods = MDURLUtil.getInt(syncRecord, DateRangeChooser.PARAM_OFFSET_PERIODS, defaultSettings[MyDateRangeChooser.DRC_DR_OFFSETPERIODS_IDX])   # noqa
+            newSettings = copy.deepcopy(defaultSettings)
+            newSettings[MyDateRangeChooser.DRC_DR_KEY_IDX] = drOptionKey
+            newSettings[MyDateRangeChooser.DRC_DR_START_KEY_IDX] = drStartDateInt
+            newSettings[MyDateRangeChooser.DRC_DR_END_KEY_IDX] = drEndDateInt
+            newSettings[MyDateRangeChooser.DRC_DR_OFFSETPERIODS_IDX] = offsetPeriods
+            if True or debug: myPrint("B", "convertSyncRecordToSettings: '%s' converted to: '%s'" %(syncRecord, newSettings))
+            return newSettings
 
         def loadFromParameters(self, drSettings, defaultKey):
             # type: ([bool, str, int, int, int], str) -> bool
@@ -12145,7 +12172,11 @@ Visit: %s (Author's site)
             NAB.includeRemindersChooser_AODC.loadFromParameters(NAB.savedIncludeRemindersTable[selectRowIndex], AsOfDateChooser.KEY_ASOF_END_THIS_MONTH)
 
             myPrint("DB", "..about to set incomeExpenseDateRange_DRC..")
-            NAB.incomeExpenseDateRange_DRC.loadFromParameters(NAB.savedIncExpDateRangeTable[selectRowIndex], MyDateRangeChooser.KEY_DR_ALL_DATES)
+            if isDateRangeChooserUpgradedBuild():
+                settingsAsSyncRecord = MyDateRangeChooser.convertSettingsToSyncRecord(NAB.savedIncExpDateRangeTable[selectRowIndex])
+                NAB.incomeExpenseDateRange_DRC.loadFromParameters(settingsAsSyncRecord, DateRangeOption.DR_ALL_DATES)
+            else:
+                NAB.incomeExpenseDateRange_DRC.loadFromParameters(NAB.savedIncExpDateRangeTable[selectRowIndex], MyDateRangeChooser.KEY_DR_ALL_DATES)
 
             myPrint("DB", "..about to set includeInactive_COMBO..")
             NAB.includeInactive_COMBO.setSelectedIndex(NAB.savedIncludeInactive[selectRowIndex])
@@ -12163,7 +12194,11 @@ Visit: %s (Author's site)
             NAB.useCostBasisCapitalGainsLong_JRB.setSelected(isUseCostBasisCapitalGainsLongSelected(selectRowIndex))
 
             myPrint("DB", "..about to set securitiesCapitalGains_DRC..")
-            NAB.securitiesCapitalGains_DRC.loadFromParameters(NAB.savedUseCostBasisTable[selectRowIndex][GlobalVars.COSTBASIS_DR_ENABLED_IDX:], MyDateRangeChooser.KEY_DR_YEAR_TO_DATE)
+            if isDateRangeChooserUpgradedBuild():
+                settingsAsSyncRecord = MyDateRangeChooser.convertSettingsToSyncRecord(NAB.savedUseCostBasisTable[selectRowIndex][GlobalVars.COSTBASIS_DR_ENABLED_IDX:])
+                NAB.securitiesCapitalGains_DRC.loadFromParameters(settingsAsSyncRecord, DateRangeOption.DR_YEAR_TO_DATE)
+            else:
+                NAB.securitiesCapitalGains_DRC.loadFromParameters(NAB.savedUseCostBasisTable[selectRowIndex][GlobalVars.COSTBASIS_DR_ENABLED_IDX:], MyDateRangeChooser.KEY_DR_YEAR_TO_DATE)
 
             myPrint("DB", "..about to set separatorSelectorNone_JRB, separatorSelectorAbove_JRB, separatorSelectorBelow_JRB, separatorSelectorBoth_JRB..")
             NAB.separatorSelectorNone_JRB.setSelected(  True if NAB.savedRowSeparatorTable[selectRowIndex] == GlobalVars.ROW_SEPARATOR_NEVER else False)
@@ -13416,7 +13451,12 @@ Visit: %s (Author's site)
                         if debug: myPrint("B", "User has changed the income/expense date range option....")
                         _rowIdx = NAB.getSelectedRowIndex()
                         _row = NAB.getSelectedRow()
-                        newDRSettings = event.getSource().returnStoredParameters(NAB.incExpDateRangeDefault())
+                        if isDateRangeChooserUpgradedBuild():
+                            syncRecord = SyncRecord()
+                            event.getSource().storeToParameters(syncRecord)
+                            newDRSettings = MyDateRangeChooser.convertSyncRecordToSettings(syncRecord, NAB.incExpDateRangeDefault())
+                        else:
+                            newDRSettings = event.getSource().returnStoredParameters(NAB.incExpDateRangeDefault())
                         NAB.savedIncExpDateRangeTable[_rowIdx] = newDRSettings
                         if debug: myPrint("B", ".. setting savedIncExpDateRangeTable to: '%s 'for row: %s" %(newDRSettings, _row))
                         NAB.configSaved = False
@@ -13426,7 +13466,12 @@ Visit: %s (Author's site)
                         if debug: myPrint("B", "User has changed the securities capital gains date range option....")
                         _rowIdx = NAB.getSelectedRowIndex()
                         _row = NAB.getSelectedRow()
-                        newDRSettings = event.getSource().returnStoredParameters(NAB.useCostBasisDefault(False)[GlobalVars.COSTBASIS_DR_ENABLED_IDX:])
+                        if isDateRangeChooserUpgradedBuild():
+                            syncRecord = SyncRecord()
+                            event.getSource().storeToParameters(syncRecord)
+                            newDRSettings = MyDateRangeChooser.convertSyncRecordToSettings(syncRecord, NAB.useCostBasisDefault(False)[GlobalVars.COSTBASIS_DR_ENABLED_IDX:])
+                        else:
+                            newDRSettings = event.getSource().returnStoredParameters(NAB.useCostBasisDefault(False)[GlobalVars.COSTBASIS_DR_ENABLED_IDX:])
                         NAB.savedUseCostBasisTable[_rowIdx][GlobalVars.COSTBASIS_DR_ENABLED_IDX:] = newDRSettings
                         if debug: myPrint("B", ".. setting securitiesCapitalGains_DRC to: '%s 'for row: %s" %(newDRSettings, _row))
                         NAB.configSaved = False
@@ -15545,9 +15590,13 @@ Visit: %s (Author's site)
                     controlPnl.add(NAB.securitiesCGains_LBL, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
                     onCol += 1
 
-                    excludeDRs = ["dr_yesterday"]
 
-                    NAB.securitiesCapitalGains_DRC = MyDateRangeChooser(NAB.moneydanceContext.getUI(), MyDateRangeChooser.KEY_DR_YEAR_TO_DATE, excludeDRs)
+                    if isDateRangeChooserUpgradedBuild():
+                        excludeDRs = [DateRangeOption.DR_YESTERDAY]                                                     # noqa
+                        NAB.securitiesCapitalGains_DRC = DateRangeChooser(NAB.moneydanceContext.getUI(), DateRangeOption.DR_YEAR_TO_DATE, True, excludeDRs)
+                    else:
+                        excludeDRs = ["dr_yesterday"]
+                        NAB.securitiesCapitalGains_DRC = MyDateRangeChooser(NAB.moneydanceContext.getUI(), MyDateRangeChooser.KEY_DR_YEAR_TO_DATE, excludeDRs)
                     NAB.securitiesCapitalGains_DRC.setName("securitiesCapitalGains_DRC")
 
                     drc = NAB.securitiesCapitalGains_DRC
@@ -15559,7 +15608,7 @@ Visit: %s (Author's site)
                     NAB.securitiesCapitalGains_DRC.getEndField().setToolTipText("Select the end date for the Securities Capital Gains custom date range")
                     NAB.securitiesCapitalGains_DRC.getOffsetPeriodsField().setToolTipText("Enter the number of period offsets to manipulate the Securities Capital Gains date range (-past, +future)")
                     NAB.securitiesCapitalGains_DRC.addPropertyChangeListener(NAB.savePropertyChangeListener)
-                    controlPnl.add(NAB.securitiesCapitalGains_DRC.getPanel(includeChoiceLabel=False), GridC.getc(onCol, onRow).colspan(3).leftInset(colInsetFiller).topInset(topInset).west())
+                    controlPnl.add(NAB.securitiesCapitalGains_DRC.getPanel(False, True), GridC.getc(onCol, onRow).colspan(3).leftInset(colInsetFiller).topInset(topInset).west())
 
                     onRow += 1
                     # --------------------------------------------------------------------------------------------------
@@ -15587,9 +15636,13 @@ Visit: %s (Author's site)
                     controlPnl.add(incExpDateRangeOptionLabel, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
                     onCol += 1
 
-                    excludeDRs = ["dr_yesterday"]
+                    if isDateRangeChooserUpgradedBuild():
+                        excludeDRs = [DateRangeOption.DR_YESTERDAY]                                                     # noqa
+                        NAB.incomeExpenseDateRange_DRC = DateRangeChooser(NAB.moneydanceContext.getUI(), DateRangeOption.DR_ALL_DATES, True, excludeDRs)
+                    else:
+                        excludeDRs = ["dr_yesterday"]
+                        NAB.incomeExpenseDateRange_DRC = MyDateRangeChooser(NAB.moneydanceContext.getUI(), MyDateRangeChooser.KEY_DR_ALL_DATES, excludeDRs)
 
-                    NAB.incomeExpenseDateRange_DRC = MyDateRangeChooser(NAB.moneydanceContext.getUI(), MyDateRangeChooser.KEY_DR_ALL_DATES, excludeDRs)
                     NAB.incomeExpenseDateRange_DRC.setName("incomeExpenseDateRange_DRC")
 
                     drc = NAB.incomeExpenseDateRange_DRC
@@ -15600,7 +15653,7 @@ Visit: %s (Author's site)
                     NAB.incomeExpenseDateRange_DRC.getEndField().setToolTipText("Select the end date for the I/E custom date range")
                     NAB.incomeExpenseDateRange_DRC.getOffsetPeriodsField().setToolTipText("Enter the number of period offsets to manipulate the I/E date range (-past, +future)")
                     NAB.incomeExpenseDateRange_DRC.addPropertyChangeListener(NAB.savePropertyChangeListener)
-                    controlPnl.add(NAB.incomeExpenseDateRange_DRC.getPanel(includeChoiceLabel=False), GridC.getc(onCol, onRow).colspan(3).leftInset(colInsetFiller).topInset(topInset).west())
+                    controlPnl.add(NAB.incomeExpenseDateRange_DRC.getPanel(False, True), GridC.getc(onCol, onRow).colspan(3).leftInset(colInsetFiller).topInset(topInset).west())
 
                     onRow += 1
                     # --------------------------------------------------------------------------------------------------
