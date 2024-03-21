@@ -146,6 +146,7 @@
 #               Introduced MyCostCalculation...
 #               Added Date Entered, Sync Date, reconciled date, reconciled asof dates into EAR and EIT extracts...
 #               Tweaked MyCostCalculation::getSharesAndCostBasisForAsOf()
+#               Added Delete Reminder option on EFR view
 
 # todo - EAR: Switch to 'proper' usage of DateRangeChooser() (rather than my own 'copy')
 
@@ -8915,10 +8916,17 @@ Visit: %s (Author's site)
                                         def actionPerformed(self, event):												# noqa
                                             myPrint("D", _THIS_EXTRACT_NAME + "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
-                                            if event.getActionCommand().lower().startswith("show reminder"):
+                                            if event.getActionCommand() == "show_raw_details":
                                                 reminders = MD_REF.getCurrentAccountBook().getReminders()
                                                 reminder = reminders.getAllReminders()[GlobalVars.table.getValueAt(GlobalVars.rememberTableRow, 0) - 1]
                                                 MD_REF.getUI().showRawItemDetails(reminder, extract_data_frame_)
+
+                                            if event.getActionCommand() == "delete_reminder":
+                                                reminders = MD_REF.getCurrentAccountBook().getReminders()
+                                                reminder = reminders.getAllReminders()[GlobalVars.table.getValueAt(GlobalVars.rememberTableRow, 0) - 1]
+                                                if myPopupAskQuestion(extract_data_frame_, "DELETE REMINDER", "Delete reminder?", theMessageType=JOptionPane.WARNING_MESSAGE):
+                                                    reminder.deleteItem()
+                                                    RefreshMenuAction().refresh()
 
                                             if event.getActionCommand().lower().startswith("page setup"):
                                                 pageSetup()
@@ -9862,8 +9870,14 @@ Visit: %s (Author's site)
 
                                         popupMenu = JPopupMenu()
                                         showDetails = JMenuItem("Show Reminder's raw details")
+                                        showDetails.setActionCommand("show_raw_details")
                                         showDetails.addActionListener(DoTheMenu())
                                         popupMenu.add(showDetails)
+
+                                        deleteReminder = JMenuItem("Delete Reminder")
+                                        deleteReminder.setActionCommand("delete_reminder")
+                                        deleteReminder.addActionListener(DoTheMenu())
+                                        popupMenu.add(deleteReminder)
 
                                         GlobalVars.table.addMouseListener(ML)
                                         GlobalVars.table.setComponentPopupMenu(popupMenu)
