@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Co-Author Stuart Beesley - StuWareSoftSystems - Feb 2021 (last updated: August 2023)
+# Co-Author Stuart Beesley - StuWareSoftSystems - Feb 2021 (last updated: April 2024)
 # Original Author, thanks & credits to hleofxquotes for the original base script and valuable input and knowledge.
 
 # Shell script: launch-moneydance.sh
@@ -55,7 +55,7 @@ unset md_passphrase
 
 # set to "" for standard app install name (I add the version and build to the app name when installing)
 #md_version=""
-md_version=" 2023.3 (5064)"
+md_version=" 2024 (5100) PRE-ALPHA"
 
 # Download/install OpenAdoptJDK (Hotspot) v15: https://adoptopenjdk.net/?variant=openjdk15&jvmVariant=hotspot
 # Download/install Java FX (allows Moneybot Console) to run: https://gluonhq.com/download/javafx-15-0-1-sdk-mac/
@@ -76,17 +76,20 @@ md_version=" 2023.3 (5064)"
 # https://adoptium.net/temurin/releases/?version=18
 # https://gluonhq.com/products/javafx/
 
+# NOTE:   MD2023.0(5000) Was compiled with Kotlin and built with Gradle... for core Syncing modules
+
+# NOTE:   MD2023.2(5008) Was compiled with Kotlin and built with Gradle... for all the code...
+
 # NOTE:   MD2023.2(5008) Java 20.0.1 on Mac
 # https://adoptium.net/temurin/releases/?version=20
 # https://gluonhq.com/products/javafx/
 
-# NOTE:   MD2023.0(5000) Was compiled with Kotlin and built with Gradle... for core Syncing modules
-# NOTE:   MD2023.2(5008) Was compiled with Kotlin and built with Gradle... for all the code...
-
 # NOTE:   MD2023.2(5047) Java 21 on Mac (and all platforms)
 # NOTE:   MD2023.3(5064) First stable release on Kotlin
 
-# Edit the necessary install locations for JDK and JavaFX below
+# NOTE:   MD2024(5100) Java 21.0.2 on Mac (and javafx was removed)
+
+# Edit the necessary install locations for JDK, JavaFX and Java Native Frameworks below
 # Edit the necessary settings and your folder locations below
 
 clear
@@ -126,14 +129,21 @@ echo "My user path: ${my_user_path}"
 
 # Set your JAVA_HOME
 # On Mac, output of '/usr/libexec/java_home --verbose' can help
-export JAVA_HOME="/Library/Java/JavaVirtualMachines/temurin-20.jdk/Contents/Home"
+export JAVA_HOME="/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home"
 
 # JavaFX modules
 javafx_modules="javafx.swing,javafx.media,javafx.web,javafx.fxml"
-javafx_modulepath="${my_user_path}/Documents/Moneydance/My Python Scripts/javafx-sdk-20.0.2/lib"
-
+javafx_modulepath="${my_user_path}/Documents/Moneydance/My Python Scripts/javafx-sdk-21.0.2/lib"
 export PATH="${JAVA_HOME}/bin:${PATH}"
 java=java
+
+# MacOS only >> Path to the java native framework, required by VAQua.... (you can copy this from a recent MD .app package)
+export DYLD_FRAMEWORK_PATH="./java-native-foundation:/System/Library/Frameworks:/System/Library/Frameworks/JavaVM.framework/Frameworks"
+
+# Copying the packaged launch script - refer: Info.plist
+export LC_CTYPE=UTF-8
+
+# Eliminate 'Failed to load class org.slf4j.impl.StaticLoggerBinder' using slf4j-nop.jar >> refer: https://www.slf4j.org/codes.html#StaticLoggerBinder
 
 # Where are the MD jar files
 md_jars="/Applications/Moneydance${md_version}.app/Contents/Java"
@@ -141,6 +151,13 @@ md_icon="/Applications/Moneydance${md_version}.app/Contents/Resources/desktop_ic
 
 if ! test -d "${md_jars}"; then
   echo "ERROR - directory ${md_jars}/ does not exist!"
+  exit 1
+fi
+
+# This is optional... It just prevents the (harmless) SLF4J unable to bind warning...
+slf4j_noop_path="${my_user_path}/Documents/Moneydance/My Python Scripts/slf4j"
+if ! test -d "${slf4j_noop_path}"; then
+  echo "ERROR - directory '${slf4j_noop_path}/ does not exist!"
   exit 1
 fi
 
@@ -166,13 +183,16 @@ ${java} --version
 
 # NOTE useful to check sometimes...... -Djava.io.tmpdir=
 
+# JavaFX removed from MD2024(5100)... To use, add these two lines after the -cp line below...
+#--module-path "${javafx_modulepath}" \
+#--add-modules "${javafx_modules}" \
+
+
 # shellcheck disable=SC2086
 # shellcheck disable=SC2048
 ${java} \
   -Xdock:icon="${md_icon}" \
-  -cp "${md_jars}/*" \
-  --module-path "${javafx_modulepath}" \
-  --add-modules "${javafx_modules}" \
+  -cp "${md_jars}/*:${slf4j_noop_path}/*" \
   -Djava.library.path="${macos}:${machelper2}" \
   -Dapple.laf.useScreenMenuBar=true \
   -Dcom.apple.macos.use-file-dialog-packages=true \
@@ -202,8 +222,6 @@ ${java} \
   -DMusicDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Music" \
   -DAutosavedInformationDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library/Autosave Information" \
   -Xmx2G \
-  -Ddummyarg1=arg1 \
-  -Ddummyarg2=arg2 \
   Moneydance -d "$1" "$2" "$3" "$4" "$5" &>"$console_file" &
 
 open -a Brackets "$console_file" &
