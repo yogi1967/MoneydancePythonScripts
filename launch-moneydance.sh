@@ -143,8 +143,6 @@ export DYLD_FRAMEWORK_PATH="./java-native-foundation:/System/Library/Frameworks:
 # Copying the packaged launch script - refer: Info.plist
 export LC_CTYPE=UTF-8
 
-# Eliminate 'Failed to load class org.slf4j.impl.StaticLoggerBinder' using slf4j-nop.jar >> refer: https://www.slf4j.org/codes.html#StaticLoggerBinder
-
 # Where are the MD jar files
 md_jars="/Applications/Moneydance${md_version}.app/Contents/Java"
 md_icon="/Applications/Moneydance${md_version}.app/Contents/Resources/desktop_icon.icns"
@@ -154,12 +152,13 @@ if ! test -d "${md_jars}"; then
   exit 1
 fi
 
-# This is optional... It just prevents the (harmless) SLF4J unable to bind warning...
-slf4j_noop_path="${my_user_path}/Documents/Moneydance/My Python Scripts/slf4j"
-if ! test -d "${slf4j_noop_path}"; then
-  echo "ERROR - directory '${slf4j_noop_path}/ does not exist!"
-  exit 1
-fi
+## Eliminate 'Failed to load class org.slf4j.impl.StaticLoggerBinder' using slf4j-nop.jar >> refer: https://www.slf4j.org/codes.html#StaticLoggerBinder
+## This is optional... It just prevents the (harmless) SLF4J unable to bind warning...
+#slf4j_noop_path="${my_user_path}/Documents/Moneydance/My Python Scripts/slf4j"
+#if ! test -d "${slf4j_noop_path}"; then
+#  echo "ERROR - directory '${slf4j_noop_path}/ does not exist!"
+#  exit 1
+#fi
 
 # Other paths....
 macos="/Applications/Moneydance${md_version}.app/Contents/MacOS"
@@ -173,7 +172,6 @@ use_sandbox="-DSandboxEnabled=true"
 use_debugger=""
 use_debugger="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"
 
-
 # NOTE: I set '-Dinstall4j.exeDir=x' to help my Toolbox extension - this is not needed
 
 # Redirect output to the Moneydance console window...
@@ -183,16 +181,17 @@ ${java} --version
 
 # NOTE useful to check sometimes...... -Djava.io.tmpdir=
 
+# change -cp to this to include extra jars... e.g. -cp "${md_jars}/*:${slf4j_noop_path}/*" \
+
 # JavaFX removed from MD2024(5100)... To use, add these two lines after the -cp line below...
 #--module-path "${javafx_modulepath}" \
 #--add-modules "${javafx_modules}" \
-
 
 # shellcheck disable=SC2086
 # shellcheck disable=SC2048
 ${java} \
   -Xdock:icon="${md_icon}" \
-  -cp "${md_jars}/*:${slf4j_noop_path}/*" \
+  -cp "${md_jars}/*" \
   -Djava.library.path="${macos}:${machelper2}" \
   -Dapple.laf.useScreenMenuBar=true \
   -Dcom.apple.macos.use-file-dialog-packages=true \
@@ -230,4 +229,3 @@ open -a Brackets "$console_file" &
 #defaults write -g AppleWindowTabbingMode -string fullscreen
 #
 exit 0
-
