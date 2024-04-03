@@ -4,7 +4,7 @@
 from __future__ import division    # Has to occur at the beginning of file... Changes division to always produce a float
 assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes that division of integers yields a float! Do you have this statement: 'from __future__ import division'?"
 
-# net_account_balances.py build: 1049 - March 2024 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 1049 - April 2024 - Stuart Beesley - StuWareSoftSystems
 # Display Name in MD changed to 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
 
 # Thanks and credit to Dan T Davis and Derek Kent(23) for their suggestions and extensive testing...
@@ -145,6 +145,7 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 # build: 1049 - Rename 'skipback' periods to 'offset' periods to match the upgraded MD DateRangeChooser, also add new / extra DateRangeOptions.
 #               ... note: I considered switching to the MD upgraded DRC. It does work, but keeping my own (for now)...
 #               Switched to latest DateRangeOption resource keys, with behind the scenes method to fix them....
+#               5100 dropped QuickSearchField::setOuterBackground()
 
 # todo - consider better formula handlers... e.g. com.infinitekind.util.StringUtils.parseFormula(String, char)
 # todo - option to show different dpc (e.g. full decimal precision)
@@ -5420,7 +5421,8 @@ Visit: %s (Author's site)
         def updateUI(self):
             super(self.__class__, self).updateUI()
             self.setBackground(GlobalVars.CONTEXT.getUI().getColors().defaultBackground)
-            self.setOuterBackground(GlobalVars.CONTEXT.getUI().getColors().headerBG)
+            try: self.setOuterBackground(GlobalVars.CONTEXT.getUI().getColors().headerBG)   # MD2024(5100) drops this method
+            except: pass
             # self.setForeground(GlobalVars.CONTEXT.getUI().getColors().defaultTextForeground)
             self.setForeground(GlobalVars.CONTEXT.getUI().getColors().reportBlueFG)
 
@@ -5725,7 +5727,8 @@ Visit: %s (Author's site)
         def updateUI(self):
             super(self.__class__, self).updateUI()
             self.setBackground(GlobalVars.CONTEXT.getUI().getColors().defaultBackground)
-            self.setOuterBackground(GlobalVars.CONTEXT.getUI().getColors().headerBG)
+            try: self.setOuterBackground(GlobalVars.CONTEXT.getUI().getColors().headerBG)   # MD2024(5100) drops this method
+            except: pass
             self.setForeground(GlobalVars.CONTEXT.getUI().getColors().defaultTextForeground)
 
         # Avoid width resizes changing the GUI back and forth....
@@ -6501,12 +6504,12 @@ Visit: %s (Author's site)
             clickListener = self.DateRangeClickListener(self)
 
             self.startIntField_JDF = JDateField(mdGUI)
-            self.startIntField_JDF.addPropertyChangeListener(JDateField.PROP_DATE_CHANGED, self)
-            self.startIntField_JDF.addMouseListener(clickListener)
+            self.startIntField_JDF.addPropertyChangeListener(JDateField.PROP_DATE_CHANGED, self)                        # noqa
+            self.startIntField_JDF.addMouseListener(clickListener)                                                      # noqa
 
             self.endIntField_JDF = JDateField(mdGUI)
-            self.endIntField_JDF.addPropertyChangeListener(JDateField.PROP_DATE_CHANGED, self)
-            self.endIntField_JDF.addMouseListener(clickListener)
+            self.endIntField_JDF.addPropertyChangeListener(JDateField.PROP_DATE_CHANGED, self)                          # noqa
+            self.endIntField_JDF.addMouseListener(clickListener)                                                        # noqa
 
             self.offsetPeriods_JTF = MyJTextFieldAsInt(2, self.mdGUI.getPreferences().getDecimalChar())
             self.offsetPeriods_JTF.addPropertyChangeListener(MyJTextFieldAsInt.PROP_OFFSET_PERIODS_CHANGED, self)
@@ -7004,8 +7007,8 @@ Visit: %s (Author's site)
             self.asOfOptions = self.createAsOfDateOptions()                                                             # type: [AsOfDateChooser.AsOfDateChoice]
 
             self.asOfDate_JDF = JDateField(mdGUI)
-            self.asOfDate_JDF.addPropertyChangeListener(JDateField.PROP_DATE_CHANGED, self)
-            self.asOfDate_JDF.addMouseListener(self.AsOfDateClickListener(self))
+            self.asOfDate_JDF.addPropertyChangeListener(JDateField.PROP_DATE_CHANGED, self)                             # noqa
+            self.asOfDate_JDF.addMouseListener(self.AsOfDateClickListener(self))                                        # noqa
 
             self.offsetPeriods_JTF = MyJTextFieldAsInt(2, self.mdGUI.getPreferences().getDecimalChar())
             self.offsetPeriods_JTF.addPropertyChangeListener(MyJTextFieldAsInt.PROP_OFFSET_PERIODS_CHANGED, self)
@@ -15456,7 +15459,7 @@ Visit: %s (Author's site)
                     NAB.asOfDateChooser_AODC = AsOfDateChooser(NAB.moneydanceContext.getUI(), AsOfDateChooser.ASOF_TODAY, excludeAsOfs)
                     NAB.asOfDateChooser_AODC.setName("asOfDateChooser_AODC")
                     NAB.asOfDateChooser_AODC.getChoiceCombo().setToolTipText("Select the balance asof date option")
-                    NAB.asOfDateChooser_AODC.getAsOfDateField().setToolTipText("Select the balance asof custom date")
+                    NAB.asOfDateChooser_AODC.getAsOfDateField().setToolTipText("Select the balance asof custom date")   # noqa
                     NAB.asOfDateChooser_AODC.getOffsetPeriodsField().setToolTipText("Enter the number of period offsets to manipulate the asof date (-past, +future)")
                     NAB.asOfDateChooser_AODC.addPropertyChangeListener(NAB.savePropertyChangeListener)
                     balanceAsOfSelection_pnl.add(NAB.asOfDateChooser_AODC.getPanel(includeChoiceLabel=False), GridC.getc(onBalanceAsOfCol, onBalanceAsOfRow).leftInset(5).west())
@@ -15510,7 +15513,7 @@ Visit: %s (Author's site)
                     NAB.includeRemindersChooser_AODC = AsOfDateChooser(NAB.moneydanceContext.getUI(), AsOfDateChooser.KEY_ASOF_END_THIS_MONTH, excludeAsOfs)
                     NAB.includeRemindersChooser_AODC.setName("includeRemindersChooser_AODC")
                     NAB.includeRemindersChooser_AODC.getChoiceCombo().setToolTipText("Select the include reminders asof date option (when include reminders has been selected)")
-                    NAB.includeRemindersChooser_AODC.getAsOfDateField().setToolTipText("Select the include reminders asof custom date (when include reminders has been selected)")
+                    NAB.includeRemindersChooser_AODC.getAsOfDateField().setToolTipText("Select the include reminders asof custom date (when include reminders has been selected)")      # noqa
                     NAB.includeRemindersChooser_AODC.getOffsetPeriodsField().setToolTipText("Enter the number of period offsets to manipulate the asof date (-past, +future)")
                     NAB.includeRemindersChooser_AODC.addPropertyChangeListener(NAB.savePropertyChangeListener)
                     includeRemindersSelection_pnl.add(NAB.includeRemindersChooser_AODC.getPanel(includeChoiceLabel=False), GridC.getc(onIncludeRemindersCol, onIncludeRemindersRow).leftInset(5).west())
