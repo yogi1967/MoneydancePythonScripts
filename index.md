@@ -2,9 +2,9 @@
 
 _Author: Stuart Beesley - StuWareSoftSystems_
 
-_NOTE: I AM JUST A USER - I HAVE NO AFFILIATION WITH MONEYDANCE! (I do use all my scripts on my own live dataset... ;-> )_
+_NOTE: I AM JUST A USER - I HAVE NO COMMERCIAL AFFILIATION WITH MONEYDANCE_
 
-**DISCLAIMER**: ALWAYS BACKUP YOUR DATA BEFORE MAKING ANY CHANGES - The author cannot accept any responsibility from the use of these scripts
+**DISCLAIMER**: ALWAYS BACKUP YOUR DATA BEFORE MAKING ANY CHANGES - I cannot accept any responsibility from the use of my code
 
 Moneydance allows you to run Python scripts and access its functions via their API.
 This allows you to perform all sorts of 'wonderful' things based on your own financial data.
@@ -13,13 +13,14 @@ Python version is actually Jython 2.7 and accesses the Moneydance Java codebase.
 
 My scripts and extensions are identical(ish). The extension version(s) are simply a 'packaged' script version. 
 InfiniteKind (the creators of Moneydance) have signed my Extensions.
-NOTE: The signed versions hosted by IK/MD may be a few builds behind my latest versions.
-If you require a signed version, then download links are at the bottom of this page (these also appear in the Extensions>Manage Extensions menu))
+
+NOTE: The signed versions hosted at the IK/MD site may be a few builds behind my latest versions.
+If you require a signed version, then download links are towards the bottom of this page (these also appear in the Extensions>Manage Extensions menu))
 
 The Extensions will only run properly on Moneydance version 2021.1 (build 3056 onwards)...
 The minimum version to run as standalone scripts is 2019.4 (build 1904)...
-_(If you have installed the extension, but nothing happens when you click the menu, then check your MD version/build)_
-
+_(if you have installed the extension, but nothing happens when you click the menu, then check your MD version/build)_
+_(if you see 'outdated extension:' in Moneydance's console log, then look for an update, or perhaps I have obsoleted the extension)_
 
 **NOTE: All extensions listed below (except marked with ^^) are listed within the Moneydance Manage Extensions menu - Check there first for updates**
 
@@ -37,7 +38,7 @@ Click a link below to download a ZIP file. The ZIP file contains both the Extens
   - or drag and drop the .mxt file onto the Moneydance left side bar;
   - or Extensions, Manage Extensions, add from file to install.
   - or Menu>Extensions>add from file>choose \<extension_name\>.mxt file, then click open/install;
-  - (Note: The .mxt file must not be renamed. Sometimes downloading/unzipping adds a number to the end of the filename)
+  - (**Note: The .mxt file must not be renamed.** Sometimes downloading/unzipping adds a number to the end of the filename - example: it must be named extensionid.mxt NOT extensionid_2.mxt)
 
 3) Accept any warning(s) that the extension is unsigned (this simply means that Moneydance have not signed / verified my extension). Click Install Extension.
 
@@ -91,15 +92,19 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/extension_tester.zip">**extension_tester**: Demo extension/scripts for coders wanting to build Moneydance Python extensions.
 
 ### Signed Versions (hosted by Moneydance at InfiniteKind - These builds appear in the Extensions/Manage Extensions... menu)
-- <a href="https://infinitekind.com/app/md/extensions/toolbox.mxt">Toolbox (signed) (build: 1063 - 29th Jan 2024) (MD2023 / KOTLIN build(s) (5000+) support...; tweaks / fixes)
-- <a href="https://infinitekind.com/app/md/extensions/extract_data.mxt">Extract Data (signed) (build: 1040 - 18th Nov 2023) (MD2023 support...; more extracts; auto extract features)
-- <a href="https://infinitekind.com/app/md/extensions/list_future_reminders.mxt">List Future Reminders (signed) (build: 1028 - 4th Nov 2023) (MD2023 support...)
-- <a href="https://infinitekind.com/app/md/extensions/net_account_balances.mxt">Custom Balances (net_account_balances) (signed) (build: 1047 - 29th Jan 2024) (MD2023 support...; New asof dates; reminders; cost basis/capital gains; formulas....)
+- <a href="https://infinitekind.com/app/md/extensions/toolbox.mxt">Toolbox (signed)
+- <a href="https://infinitekind.com/app/md/extensions/extract_data.mxt">Extract Data (signed)
+- <a href="https://infinitekind.com/app/md/extensions/list_future_reminders.mxt">List Future Reminders (signed)
+- <a href="https://infinitekind.com/app/md/extensions/net_account_balances.mxt">Custom Balances (net_account_balances) (signed)
 
-### Signed Versions (hosted on this site - i.e. NOT InfiniteKind's site - may be newer than appear (or not available) in Moneydance's Extensions menu)
+### VERY LATEST signed Versions (hosted on this site - i.e. NOT InfiniteKind's site - **may be newer than appear (or not available) in Moneydance's Extensions menu**)
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/tree/master/signed_builds">Directory listing of all current and previously official (IK) signed builds
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/accounts_categories_mega_search_window.mxt">Accounts Categories Mega Search Window (signed) (build: 1012 - 4th Nov 2023) (MD2023 support...) - NOT SUPPORTED POST MD2023.3(5064)
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/security_performance_graph.mxt">Security Performance Graph (signed) (build: 1010 - 29th Jan 2024) - (MD2023 support...)
+- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/toolbox.mxt">Toolbox (signed)
+- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/extract_data.mxt">Extract Data (signed)
+- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/list_future_reminders.mxt">List Future Reminders (signed)
+- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/net_account_balances.mxt">Custom Balances (signed)
+- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/accounts_categories_mega_search_window.mxt">Accounts Categories Mega Search Window (signed) - NOT SUPPORTED POST MD2023.3(5064)
+- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/security_performance_graph.mxt">Security Performance Graph (signed)
 
 ### Other useful ad-hoc scripts (*.py format only) - Very latest code versions
 <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/useful_scripts.zip">**Useful_Scripts**: A zip collection of ad-hoc scripts that can be run individually. Including:
@@ -175,4 +180,4 @@ _Or perhaps just buy me a "beer" (also via PayPal)_<BR>
 
 _<b>If you would like me to code a Moneydance extension, report, script, or fix for you, (for a fee) then contact me: written_drizzle_0v @ icloud.com (no spaces)</b>_<BR>
 
-_(site last updated 25th January 2024)_
+_(site last updated 1st April 2024)_
