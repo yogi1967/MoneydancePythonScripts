@@ -55,7 +55,7 @@ unset md_passphrase
 
 # set to "" for standard app install name (I add the version and build to the app name when installing)
 #md_version=""
-md_version=" 2024 (5106)"
+md_version=" 2024 (5108)"
 
 # Download/install OpenAdoptJDK (Hotspot) v15: https://adoptopenjdk.net/?variant=openjdk15&jvmVariant=hotspot
 # Download/install Java FX (allows Moneybot Console) to run: https://gluonhq.com/download/javafx-15-0-1-sdk-mac/
@@ -187,11 +187,14 @@ ${java} --version
 #--module-path "${javafx_modulepath}" \
 #--add-modules "${javafx_modules}" \
 
+
+use_live_compiled_current_source_jar="$HOME/Documents/Moneydance/moneydance_desktop/app/build/libs/moneydance.jar:"
+
 # shellcheck disable=SC2086
 # shellcheck disable=SC2048
 ${java} \
   -Xdock:icon="${md_icon}" \
-  -cp "${md_jars}/*" \
+  -cp ${use_live_compiled_current_source_jar}"${md_jars}/*" \
   -Djava.library.path="${macos}:${machelper2}" \
   -Dapple.laf.useScreenMenuBar=true \
   -Dcom.apple.macos.use-file-dialog-packages=true \
