@@ -21,16 +21,7 @@
                     }
                     {
                     "build" = "1063"
-                    "disable" = "n"
-                    "news" = "MD2023.2(5008+ KOTLIN) Tweaks/fixes..."
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2023.3"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "5064"
-                    "MD_OFX_BANK_SETTINGS_DIR" = "https://infinitekind.com/app/md/fis/"
-                    "MD_OFX_DEFAULT_SETTINGS_FILE" = "https://infinitekind.com/app/md/fi2004.dict"
-                    "MD_OFX_DEBUG_SETTINGS_FILE" = "https://infinitekind.com/app/md.debug/fi2004.dict"
-                    "MD_EXTENSIONS_DIRECTORY_FILE" = "https://infinitekind.com/app/md/extensions.dct"
-                    "MYPYTHON_DOWNLOAD_URL" = "https://yogi1967.github.io/MoneydancePythonScripts/"
+                    "disable" = "y"
                     }
                     {
                     "build" = "1062"
