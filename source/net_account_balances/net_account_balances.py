@@ -147,7 +147,8 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 #               Switched to latest DateRangeOption resource keys, with behind the scenes method to fix them....
 #               5100 dropped QuickSearchField::setOuterBackground()
 # build: 1050 - Released for MD2024
-# build: 1051 - ???
+# build: 1051 - Fixed some offset periods when not using offset 0 (fixed: DR_LAST_X_MONTHS, DR_LAST_X_YEARS
+# build: 1052 - ???
 
 # todo - consider better formula handlers... e.g. com.infinitekind.util.StringUtils.parseFormula(String, char)
 # todo - option to show different dpc (e.g. full decimal precision)
@@ -6380,7 +6381,7 @@ Visit: %s (Author's site)
                 elif forOptionKey == "this_quarter":                rtnVal = (Util.firstDayInQuarter(calculatedTodayInt), Util.lastDayInQuarter(calculatedTodayInt))
                 elif forOptionKey == "this_month":                  rtnVal = (Util.firstDayInMonth(calculatedTodayInt), Util.lastDayInMonth(calculatedTodayInt))
                 elif forOptionKey == "this_week":                   rtnVal = (Util.firstDayInWeek(calculatedTodayInt), Util.lastDayInWeek(calculatedTodayInt))
-                elif forOptionKey == "last_year":                   rtnVal = (Util.firstDayInYear(Util.decrementYear(calculatedTodayInt)), Util.lastDayInYear(Util.decrementYear(calculatedTodayInt)))
+                elif forOptionKey == "last_year":                   rtnVal = (Util.firstDayInYear(DateUtil.incrementDate(calculatedTodayInt, -1, 0, 0)), Util.lastDayInYear(Util.decrementYear(calculatedTodayInt)))
                 elif forOptionKey == "dr_last_two_years":           rtnVal = (Util.firstDayInYear(DateUtil.incrementDate(calculatedTodayInt, -2, 0, 0)), Util.lastDayInYear(Util.decrementYear(calculatedTodayInt)))
                 elif forOptionKey == "dr_last_three_years":         rtnVal = (Util.firstDayInYear(DateUtil.incrementDate(calculatedTodayInt, -3, 0, 0)), Util.lastDayInYear(Util.decrementYear(calculatedTodayInt)))
                 elif forOptionKey == "dr_last_five_years":          rtnVal = (Util.firstDayInYear(DateUtil.incrementDate(calculatedTodayInt, -5, 0, 0)), Util.lastDayInYear(Util.decrementYear(calculatedTodayInt)))
@@ -6388,8 +6389,8 @@ Visit: %s (Author's site)
                 elif forOptionKey == "last_month":                  rtnVal = (Util.incrementDate(Util.firstDayInMonth(calculatedTodayInt), 0, -1, 0), Util.incrementDate(Util.firstDayInMonth(calculatedTodayInt), 0, 0, -1))
                 elif forOptionKey == "last_week":                   rtnVal = (Util.incrementDate(Util.firstDayInWeek(calculatedTodayInt), 0, 0, -7), Util.incrementDate(Util.firstDayInWeek(calculatedTodayInt), 0, 0, -1))
                 elif forOptionKey == "last_12_months":              rtnVal = (Util.incrementDate(Util.firstDayInMonth(realTodayInt), 0, -12 * (offsetPeriods + 1), 0), Util.incrementDate(Util.firstDayInMonth(realTodayInt), 0, -12 * (offsetPeriods), -1))
-                elif forOptionKey == "dr_last_18_months":           rtnVal = (Util.incrementDate(Util.firstDayInMonth(realTodayInt), 0, -18 * (offsetPeriods + 1), 0), Util.incrementDate(Util.firstDayInMonth(realTodayInt), 0, -12 * (offsetPeriods), -1))
-                elif forOptionKey == "dr_last_24_months":           rtnVal = (Util.incrementDate(Util.firstDayInMonth(realTodayInt), 0, -24 * (offsetPeriods + 1), 0), Util.incrementDate(Util.firstDayInMonth(realTodayInt), 0, -12 * (offsetPeriods), -1))
+                elif forOptionKey == "dr_last_18_months":           rtnVal = (Util.incrementDate(Util.firstDayInMonth(realTodayInt), 0, -18 * (offsetPeriods + 1), 0), Util.incrementDate(Util.firstDayInMonth(realTodayInt), 0, -18 * (offsetPeriods), -1))
+                elif forOptionKey == "dr_last_24_months":           rtnVal = (Util.incrementDate(Util.firstDayInMonth(realTodayInt), 0, -24 * (offsetPeriods + 1), 0), Util.incrementDate(Util.firstDayInMonth(realTodayInt), 0, -24 * (offsetPeriods), -1))
                 elif forOptionKey == "last_1_day":                  rtnVal = (Util.incrementDate(realTodayInt, 0, 0, -1), realTodayInt)
                 elif forOptionKey == "last_30_days":                rtnVal = (Util.incrementDate(realTodayInt, 0, 0, (-29  * (offsetPeriods + 1)) -offsetPeriods), Util.incrementDate(realTodayInt, 0, 0, (-29  * (offsetPeriods)) -offsetPeriods))
                 elif forOptionKey == "dr_last_60_days":             rtnVal = (Util.incrementDate(realTodayInt, 0, 0, (-59  * (offsetPeriods + 1)) -offsetPeriods), Util.incrementDate(realTodayInt, 0, 0, (-59  * (offsetPeriods)) -offsetPeriods))
@@ -6414,11 +6415,20 @@ Visit: %s (Author's site)
 
                 todayInt = Util.getStrippedDateInt()
 
+                multiOffset = 1
+                if forOptionKey ==  "xx_marker_xx":                 pass
+                elif forOptionKey == "dr_last_two_fiscal_years":    multiOffset = 2
+                elif forOptionKey == "dr_last_three_fiscal_years":  multiOffset = 3
+                elif forOptionKey == "dr_last_five_fiscal_years":   multiOffset = 5
+                elif forOptionKey == "dr_last_two_years":           multiOffset = 2
+                elif forOptionKey == "dr_last_three_years":         multiOffset = 3
+                elif forOptionKey == "dr_last_five_years":          multiOffset = 5
+
                 offsetDayTodayInt  = DateUtil.incrementDate(todayInt, 0, 0, -offsetPeriods)
                 offsetWeekTodayInt = DateUtil.incrementDate(todayInt, 0, 0, 7 * -offsetPeriods)
                 offsetMnthTodayInt = DateUtil.incrementDate(todayInt, 0, -offsetPeriods, 0)
                 offsetQrtrTodayInt = DateUtil.incrementDate(todayInt, 0, 3 * -offsetPeriods, 0)
-                offsetYearTodayInt = DateUtil.incrementDate(todayInt, -offsetPeriods, 0, 0)
+                offsetYearTodayInt = DateUtil.incrementDate(todayInt, multiOffset * -offsetPeriods, 0, 0)
 
                 if forOptionKey ==  "custom_date":                  calculatedTodayInt = None
                 elif forOptionKey == "all_dates":                   calculatedTodayInt = None
