@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# extract_data.py - build: 1041 - December 2023 - Stuart Beesley
+# extract_data.py - build: 1042 - April 2024 - Stuart Beesley
 #                   You can auto invoke by launching MD with one of the following:
 #                           '-d [datasetpath] -invoke=moneydance:fmodule:extract_data:autoextract:noquit'
 #                           '-d [datasetpath] -invoke=moneydance:fmodule:extract_data:autoextract:quit'
@@ -147,6 +147,7 @@
 #               Added Date Entered, Sync Date, reconciled date, reconciled asof dates into EAR and EIT extracts...
 #               Tweaked MyCostCalculation::getSharesAndCostBasisForAsOf()
 #               Added Delete Reminder option on EFR view
+# build: 1042 - ???
 
 # todo - EAR: Switch to 'proper' usage of DateRangeChooser() (rather than my own 'copy')
 
@@ -161,7 +162,7 @@
 
 # SET THESE LINES
 myModuleID = u"extract_data"
-version_build = "1041"
+version_build = "1042"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT = True
 

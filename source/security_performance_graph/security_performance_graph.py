@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# security_performance_graph.py build: 1012 - April 2024 - Stuart Beesley StuWareSoftSystems
+# security_performance_graph.py build: 1013 - April 2024 - Stuart Beesley StuWareSoftSystems
 
 # requires: MD 2021.1(3069) due to NPE on SwingUtilities - something to do with 'theGenerator.setInfo(reportSpec)'
 
@@ -47,6 +47,7 @@
 # build: 1010 - Fixed call to .setReportParameters(None) for 5064+ build
 # build: 1011 - Prevent popup jtable column reordering...
 # build: 1012 - jar/class name fixes for MD2024(5100)...
+# build: 1013 - jar/class name fixes for MD2024(5100)...
 
 # todo - hunt down why something retains a reference to MD object..?
 
@@ -59,7 +60,7 @@
 
 # SET THESE LINES
 myModuleID = u"security_performance_graph"
-version_build = "1012"
+version_build = "1013"
 MIN_BUILD_REQD = 3069
 _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT = True
 

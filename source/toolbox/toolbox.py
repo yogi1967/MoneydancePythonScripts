@@ -7,7 +7,7 @@
 # Moneydance Support Tool
 # ######################################################################################################################
 
-# toolbox.py build: 1065 - November 2020 thru 2024 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
+# toolbox.py build: 1066 - November 2020 thru 2024 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
 # Further thanks to Kevin(N), Dan T Davis, and dwg for their testing, input and OFX Bank help/input.....
 # Credit of course to Moneydance(Sean) and IK retain all copyright over Moneydance internal code
@@ -166,6 +166,7 @@
 #               From MD2024(5100) onwards, disable remove_inactive_from_sidebar(); rename 'MoneyBot' references to 'Developer Console'
 #               Add checks for "add_to_sidebar.loc" and "add_to_sidebar.size" window size/location keys (5104)....
 # build: 1065 - Added MD2024(5108) new auto backup save everytime time recognition (etc)... New key, also leverage new UserPreferences.getBackupOption() and class: BackupOption
+# build: 1066 - ???
 
 # NOTE: 'The domain/default pair of (kCFPreferencesAnyApplication, AppleInterfaceStyle) does not exist' means that Dark mode is NOT in force
 
@@ -198,7 +199,7 @@
 
 # SET THESE LINES
 myModuleID = u"toolbox"
-version_build = "1065"
+version_build = "1066"
 MIN_BUILD_REQD = 1915                   # Min build for Toolbox 2020.0(1915)
 _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT = True
 

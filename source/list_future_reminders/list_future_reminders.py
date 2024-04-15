@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# list_future_reminders.py (build: 1029) - Dec 2023
+# list_future_reminders.py (build: 1030) - April 2024
 # Displays Moneydance future dated / scheduled reminders (along with options to auto-record, delete etc)
 
 ###############################################################################
@@ -78,6 +78,7 @@
 # build: 1029 - Common code - FileFilter fix...; Removed java.awt.print.Book import
 # build: 1029 - Tweaked cell renderer(s) for padding and highlighted colour...
 # build: 1029 - Replace look forward days with AsOfDateChooser; Fixed Menu Reset Sort...
+# build: 1030 - ???
 
 # todo - @he "Include subtotals / totals. Would be nice if user could select what to subtotal (by date / by account for sure)"
 # todo - Add the fields from extract_data:extract_reminders, with options future on/off, hide / select columns etc
@@ -88,7 +89,7 @@
 
 # SET THESE LINES
 myModuleID = u"list_future_reminders"
-version_build = "1029"
+version_build = "1030"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT = True
 
