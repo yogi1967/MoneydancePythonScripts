@@ -167,6 +167,8 @@
 #               Add checks for "add_to_sidebar.loc" and "add_to_sidebar.size" window size/location keys (5104)....
 # build: 1065 - Added MD2024(5108) new auto backup save everytime time recognition (etc)... New key, also leverage new UserPreferences.getBackupOption() and class: BackupOption
 # build: 1066 - ???
+# build: 1066 - Tweakek debug on/off code adjusting for the CostCalculation debugger switch after 5118
+# build: 1066 - ???
 
 # NOTE: 'The domain/default pair of (kCFPreferencesAnyApplication, AppleInterfaceStyle) does not exist' means that Dark mode is NOT in force
 
@@ -26500,8 +26502,9 @@ after saving the file, restart Moneydance
                      "com.moneydance.apps.md.view.gui.OnlineUpdateTxnsWindow.DEBUG",
                      "com.infinitekind.util.StreamTable.DEBUG"]
 
-        if isKotlinCompiledBuildAll():
+        if isKotlinCompiledBuildAll() and MD_REF.getBuild() < 5100:
             # Before this build, the field is hidden as the class is not public even tho' field is public....
+            # After 5100, then AppDebug logger is used for this...
             debugKeys.append("com.infinitekind.moneydance.model.CostCalculation.DEBUG_COST")
 
         selectedKey = JOptionPane.showInputDialog(toolbox_frame_,
