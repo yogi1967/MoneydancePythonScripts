@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# list_future_reminders.py (build: 1030) - April 2024
+# list_future_reminders.py (build: 1031) - April 2024
 # Displays Moneydance future dated / scheduled reminders (along with options to auto-record, delete etc)
 
 ###############################################################################
@@ -90,7 +90,7 @@
 
 # SET THESE LINES
 myModuleID = u"list_future_reminders"
-version_build = "1030"
+version_build = "1031"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT = True
 
