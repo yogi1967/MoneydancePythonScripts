@@ -4,7 +4,7 @@
 from __future__ import division    # Has to occur at the beginning of file... Changes division to always produce a float
 assert isinstance(0/1, float), "LOGIC ERROR: This extension assumes that division of integers yields a float! Do you have this statement: 'from __future__ import division'?"
 
-# client_jason_last100txns.py build: 1002 - February 2024 - Stuart Beesley - StuWareSoftSystems
+# client_jason_last100txns.py build: 1003 - April 2024 - Stuart Beesley - StuWareSoftSystems
 
 # "Bespoke for Jason Barrett. Shows last 100 transactions report on the Summary / Home page widget"
 ########################################################################################################################
@@ -38,6 +38,7 @@ assert isinstance(0/1, float), "LOGIC ERROR: This extension assumes that divisio
 # Build: 3 - Various client tweaks...
 # Build: 1000 - Initial release...
 # Build: 1002 - GUI tweaks...
+# Build: 1003 - MyJFrame(v5)
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -45,7 +46,7 @@ assert isinstance(0/1, float), "LOGIC ERROR: This extension assumes that divisio
 
 # SET THESE LINES
 myModuleID = u"client_jason_last100txns"
-version_build = "1002"
+version_build = "1003"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT = False
 
@@ -104,7 +105,7 @@ class MyJFrame(JFrame):
     def __init__(self, frameTitle=None):
         super(JFrame, self).__init__(frameTitle)
         self.disposing = False
-        self.myJFrameVersion = 4
+        self.myJFrameVersion = 5
         self.isActiveInMoneydance = False
         self.isRunTimeExtension = False
         self.MoneydanceAppListener = None
@@ -112,19 +113,25 @@ class MyJFrame(JFrame):
 
     def dispose(self):
         # This removes all content as Java/Swing (often) retains the JFrame reference in memory...
+        # The try/exceptions are needed to ensure we actually get a dispose occurring...
         if self.disposing: return
         try:
             self.disposing = True
-            self.getContentPane().removeAll()
-            if self.getJMenuBar() is not None: self.setJMenuBar(None)
+            try: self.getContentPane().removeAll()
+            except: _msg = "%s: ERROR in .removeAll() WHILST DISPOSING FRAME: %s\n" %(myModuleID, self); print(_msg); System.err.write(_msg)
+            if self.getJMenuBar() is not None:
+                try: self.setJMenuBar(None)
+                except: _msg = "%s: ERROR  in .setJMenuBar(None) WHILST DISPOSING FRAME: %s\n" %(myModuleID, self); print(_msg); System.err.write(_msg)
             rootPane = self.getRootPane()
             if rootPane is not None:
-                rootPane.getInputMap().clear()
-                rootPane.getActionMap().clear()
+                try:
+                    rootPane.getInputMap().clear()
+                    rootPane.getActionMap().clear()
+                except: _msg = "%s: ERROR in .getInputMap().clear() / .getActionMap().clear() WHILST DISPOSING FRAME: %s\n" %(myModuleID, self); print(_msg); System.err.write(_msg)
             super(self.__class__, self).dispose()
+            # if True: _msg = "%s: SUCCESSFULLY DISPOSED FRAME: %s\n" %(myModuleID, self); print(_msg); System.err.write(_msg)
         except:
-            _msg = "%s: ERROR DISPOSING OF FRAME: %s\n" %(myModuleID, self)
-            print(_msg); System.err.write(_msg)
+            _msg = "%s: ERROR DISPOSING OF FRAME: %s\n" %(myModuleID, self); print(_msg); System.err.write(_msg)
         finally:
             self.disposing = False
 

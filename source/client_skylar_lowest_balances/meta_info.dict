@@ -2,7 +2,7 @@
   "id" = "client_skylar_lowest_balances"
   "extension_type" = "python"
   "vendor" = "Stuart Beesley - StuWareSoftSystems"
-  "module_build" = "1002"
+  "module_build" = "1003"
   "minbuild" = "3056"
   "vendor_url" = "https://yogi1967.github.io/MoneydancePythonScripts/"
   "module_name" = "Lowest Balances  (Bespoke for Skylar De'Font)"
