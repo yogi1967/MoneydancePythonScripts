@@ -5973,7 +5973,7 @@ Visit: %s (Author's site)
                 textArray.append(u"Dropbox Folder Migrated:       *** YOU APPEAR TO HAVE A MISSING SYSTEM ALIAS TO NEW DROPBOX LOCATION ***")
 
             # NOTE: If there is a problem with Dropbox, then .getSyncFolder() will crash
-            # MD2021.2 Build 3088 adds iCloud Sync which crashes if launched from command line....
+            # MD2021.2 Build 3088 adds iCloud Sync which will throw an exception unless launched from a IK code-signed package
             syncMethods = SyncFolderUtil.getAvailableFolderConfigurers(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts())
             noSyncOption = SyncFolderUtil.configurerForIDFromList(u"none", syncMethods)
             syncMethod = SyncFolderUtil.getConfigurerForFile(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts(), syncMethods)
