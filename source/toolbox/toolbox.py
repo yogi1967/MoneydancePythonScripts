@@ -170,7 +170,7 @@
 # build: 1066 - Tweak debug on/off code adjusting for the CostCalculation debugger switch after 5118
 #               Tweak MyJFrame to catch individual errors....
 #               Improve 'Shrink Dataset' function to allow user to delete recent UPLOADBUF file....
-#               Add new menu option: quick_security_currency_price_check_report()
+#               Add new menu option: quick_security_currency_price_check_report(); tweak list_security_currency_price_date() to look for 0.0001 near zero too
 # build: 1066 - ???
 
 # NOTE: 'The domain/default pair of (kCFPreferencesAnyApplication, AppleInterfaceStyle) does not exist' means that Dark mode is NOT in force
@@ -9056,11 +9056,11 @@ Visit: %s (Author's site)
                     output += "@@ WARNING: current price hidden 'price_date' field is newer than your latest dated price history date....\n"
                     output += "... latest dated price history date: %s\n" %(convertStrippedIntDateFormattedText(DateUtil.convertDateToInt(newestSnapshotDate)))
 
-                if not isGoodRate(sec_curr.getRelativeRate()):
-                    output += "@@ WARNING: current price/rate is not a valid number: %s\n" %(sec_curr.getRelativeRate())
+                if (not isGoodRate(sec_curr.getRelativeRate()) or not isGoodRateAndNotAlmostZero(1.0 / sec_curr.getRelativeRate())):
+                    output += "@@ WARNING: current price/rate is not a valid number (or <= 0.0001): %s\n" %(sec_curr.getRelativeRate())
 
-                if snap and not isGoodRate(snap.getRate()):
-                    output += "@@ WARNING: Latest dated price history price/rate is not a valid number: %s\n" %(snap.getRate())
+                if snap and (not isGoodRate(snap.getRate()) or not isGoodRateAndNotAlmostZero(1.0 / snap.getRate())):
+                    output += "@@ WARNING: Latest dated price history price/rate is not a valid number (or <= 0.0001): %s\n" %(snap.getRate())
 
                 if lUpdateRequired and snap and sec_curr.getRelativeRate() != snap.getRate():
                     output +=  "... current price/rate %s, latest dated price history price/rate %s\n" %(safeInvertRate(sec_curr.getRelativeRate()), safeInvertRate(snap.getRate()))
@@ -9188,7 +9188,8 @@ Visit: %s (Author's site)
             oldRate = curr.getRelativeRate()
 
             lUpdateThisPrice = lUpdatePricesToo
-            if newRate == 0 or newRate == oldRate or not isGoodRate(newRate):
+            if (newRate == 0 or newRate == oldRate
+                    or (not isGoodRate(newRate) or not isGoodRateAndNotAlmostZero(1.0 / newRate))):
                 lUpdateThisPrice = False
 
             myPrint("B","")
@@ -9235,9 +9236,9 @@ Visit: %s (Author's site)
                               "AUTOFIX CURRENT PRICE HIDDEN 'PRICE_DATE' FIELD",
                               theMessageType=JOptionPane.ERROR_MESSAGE)
 
-    def quick_security_currency_price_check_report(lQuickCheckOnly=False):
+    def quick_security_currency_price_check_report(lQuickCheckOnly=False, lReportAll=False):
 
-        lOnlyShowErrors = True
+        lOnlyShowErrors = not lReportAll
         iWarnings = 0
 
         if MD_REF.getCurrentAccountBook() is None: return iWarnings
@@ -9324,7 +9325,7 @@ Visit: %s (Author's site)
                 lFutureDates = (currRateDate > todayDateInt or latestSnapRateDate > todayDateInt)
 
                 if (lCurrentRateError or lSnapRateError or lRateDatesDiffer or lFutureDates):
-                    iWarnings += 1;
+                    iWarnings += 1
                 else:
                     if lOnlyShowErrors: continue
 
@@ -9350,16 +9351,16 @@ Visit: %s (Author's site)
                 output += pad("", 2)
 
                 output += rpad("" if not isGoodRate(currentRate) else 0.0 if not isGoodRateAndNotAlmostZero(1.0 / currentRate) else safeInvertRate(currentRate), 14)
-                output += pad("<E>" if lCurrentRateError else "", 4)
+                output += pad("<e>" if lCurrentRateError else "", 4)
 
                 output += rpad("" if not isGoodRate(latestSnapRate) else 0.0 if not isGoodRateAndNotAlmostZero(1.0 / latestSnapRate) else safeInvertRate(latestSnapRate), 14)
-                output += pad("<E>" if lSnapRateError else "", 4)
+                output += pad("<e>" if lSnapRateError else "", 4)
 
-                output += pad("???" if currRateDate == 0 else convertStrippedIntDateFormattedText(currRateDate), 12)
+                output += pad("<not set>" if currRateDate == 0 else convertStrippedIntDateFormattedText(currRateDate), 12)
                 output += pad("", 2)
-                output += pad("???" if latestSnapRateDate == 0 else convertStrippedIntDateFormattedText(latestSnapRateDate), 12)
-                output += pad("<?>" if lRateDatesDiffer else "", 4)
-                output += pad("<FUTURE>" if lFutureDates else "", 10)
+                output += pad("<no hist>" if latestSnapRateDate == 0 else convertStrippedIntDateFormattedText(latestSnapRateDate), 12)
+                output += pad("<*>" if lRateDatesDiffer else "", 4)
+                output += pad("<future>" if lFutureDates else "", 10)
                 output += "\n"
 
         if not lQuickCheckOnly:
@@ -9369,7 +9370,15 @@ Visit: %s (Author's site)
                       "- The current rate/price may be different to the latest dated rate/price\n" \
                       "- The hidden 'price_date' date may be different to the latest dated price\n" \
                       "- The rate/price(s) may be future dated\n" \
-                      ">> All these 'errors' may cause reconciling reports (especially Net Worth Report) difficult!\n"
+                      ">> All these 'errors' may cause reconciling reports (especially Net Worth Report) difficult!\n\n" \
+                      "KEY:\n" \
+                      "H         The Currency/Security is hidden from the Summary Page (use Tools/Currencies/Securities/edit 'Show on Summary page' to change)\n" \
+                      "<e>       Current rate/price is invalid, or zero, or near zero (<= 0.0001), or different from latest dated price (rounded to 8 dpc)\n" \
+                      "<e>       Latest rate/price is invalid, or zero, or near zero (<= 0.0001)\n" \
+                      "<not set> The hidden current rate/price date has never been set\n" \
+                      "<no hist> There is no rate/price history\n" \
+                      "<*>       Both dates exist, but they are different\n" \
+                      "<future>  Either the hidden current price date or the latest price history date is future dated\n"
 
             output += "\n<END>"
             QuickJFrame("QUICK SECURITY/CURRENCY PRICE CHECK REPORT", output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
@@ -28395,6 +28404,9 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                     user_quick_check_prices = MenuJRadioButton("DIAG: Produce a quick validation report on Currency rates / Security prices / dates", False)
                     user_quick_check_prices.setToolTipText("Performs a quick check that current/latest prices/date match, and are not future-dated....")
 
+                    user_quick_check_prices_all = MenuJRadioButton("DIAG: Produce a quick report on all Currency rates / Security prices / dates", False)
+                    user_quick_check_prices_all.setToolTipText("Performs a quick check on all current/latest prices/date and outputs all currencies/securities....")
+
                     user_edit_security_decimal_places = MenuJRadioButton("FIX: Edit a Security's (hidden) Decimal Place setting (adjusts related Investment txns & Security balances accordingly) (2021.2(3089) onwards)", False, updateMenu=True, secondaryEnabled=(isRRateCurrencyIssueFixedBuild()))
                     user_edit_security_decimal_places.setToolTipText("This allows you to edit the hidden decimal places setting stored against a security (that you determined when you set the security up)")
 
@@ -28440,7 +28452,7 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                     userFilters = JPanel(GridLayout(0, 1))
 
                     rowHeight = 24
-                    rows = 10
+                    rows = 11
 
                     userFilters.add(ToolboxMode.DEFAULT_MENU_READONLY_TXT_LBL)
                     userFilters.add(user_validateBaseCurr)
@@ -28451,6 +28463,7 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                     userFilters.add(user_show_open_share_lots)
                     userFilters.add(user_diagnose_matched_lot_data)
                     userFilters.add(user_quick_check_prices)
+                    userFilters.add(user_quick_check_prices_all)
                     userFilters.add(user_diag_price_date)
 
                     if GlobalVars.globalShowDisabledMenuItems or ToolboxMode.isUpdateMode():
@@ -28564,6 +28577,7 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                         if user_list_curr_sec_dpc.isSelected():                                         list_security_currency_decimal_places()
                         if user_diag_price_date.isSelected():                                           list_security_currency_price_date()
                         if user_quick_check_prices.isSelected():                                        quick_security_currency_price_check_report(lQuickCheckOnly=False)
+                        if user_quick_check_prices_all.isSelected():                                    quick_security_currency_price_check_report(lQuickCheckOnly=False, lReportAll=True)
                         if user_autofix_price_date.isSelected():                                        list_security_currency_price_date(autofix=True)
                         if user_validateBaseCurr.isSelected():                                          validateAndFixBaseCurrency(validationOnly=True, popupAlert=True, modalPopup=True, adviseNoErrors=True)
                         if user_fixBaseCurr.isSelected():                                               validateAndFixBaseCurrency(validationOnly=False, popupAlert=True, modalPopup=True, adviseNoErrors=True)
