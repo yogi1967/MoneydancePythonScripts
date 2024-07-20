@@ -80,7 +80,7 @@
 # build: 1029 - Replace look forward days with AsOfDateChooser; Fixed Menu Reset Sort...
 # build: 1030 - Fix print button to refresh the JTable reference
 # build: 1031 - ???
-# build: 1031 - MyJFrame(v5)
+# build: 1031 - MyJFrame(v5); _eventNotify rename fix for 5140; switch to MyBasePropertyChangeReporter
 # build: 1031 - ???
 
 # todo - @he "Include subtotals / totals. Would be nice if user could select what to subtotal (by date / by account for sure)"
@@ -420,6 +420,7 @@ else:
     from java.awt.image import BufferedImage
     from java.awt.event import FocusAdapter, MouseAdapter, KeyAdapter, ItemListener, ItemEvent, FocusListener, MouseListener
     from java.beans import PropertyChangeListener
+    from javax.swing.event import SwingPropertyChangeSupport
     from java.util import Comparator
     from javax.swing import SortOrder, ListSelectionModel, JPopupMenu, ImageIcon, RowFilter, RowSorter, BorderFactory
     from javax.swing import DefaultComboBoxModel, SwingConstants, JSeparator
@@ -430,7 +431,6 @@ else:
     from com.infinitekind.util import StringUtils
     from com.moneydance.apps.md.controller import AppEventListener, Util
     from com.moneydance.awt import QuickSearchField
-    from com.moneydance.util import BasePropertyChangeReporter
 
     # from com.moneydance.apps.md.view.gui import EditRemindersWindow
     from com.moneydance.apps.md.view.gui import LoanTxnReminderNotificationWindow
@@ -3454,7 +3454,17 @@ Visit: %s (Author's site)
             super(self.__class__, self).updateUI()
             setJComponentStandardUIDefaults(self)
 
-    class AsOfDateChooser(BasePropertyChangeReporter, ItemListener, PropertyChangeListener):    # Based on: com.moneydance.apps.md.view.gui.DateRangeChooser
+
+    class MyBasePropertyChangeReporter:     # Copies: com.moneydance.util.BasePropertyChangeReporter
+        ALL_PROPERTIES = "UpdateAll"
+        def __init__(self): self.eventNotify = SwingPropertyChangeSupport(self)
+        def addPropertyChangeListener(self, listener): self.eventNotify.addPropertyChangeListener(listener)
+        def removePropertyChangeListener(self, listener): self.eventNotify.removePropertyChangeListener(listener)
+        def notifyPropertyChanged(self, propertyName, oldValue, newValue): self.eventNotify.firePropertyChange(propertyName, oldValue, newValue)
+        def notifyAllListeners(self): self.eventNotify.firePropertyChange(self.ALL_PROPERTIES, None, None)
+
+
+    class AsOfDateChooser(MyBasePropertyChangeReporter, ItemListener, PropertyChangeListener):    # Based on: com.moneydance.apps.md.view.gui.DateRangeChooser
         """Class that allows selection of an AsOf date. Listen to changes using java.beans.PropertyChangeListener() on "asOfChanged
         Version 1 (v1: initial release)"""
 
@@ -3602,6 +3612,7 @@ Visit: %s (Author's site)
 
         def __init__(self, mdGUI, defaultKey, excludeKeys=None):
             # type: (MoneydanceGUI, str, [str]) -> None
+            super(self.__class__, self).__init__()
             if isinstance(excludeKeys, str): excludeKeys = [excludeKeys]
             if excludeKeys is None or not isinstance(excludeKeys, list): excludeKeys = []
             for checkKey in [self.KEY_CUSTOM_ASOF, self.KEY_ASOF_END_FUTURE]:
@@ -3621,8 +3632,8 @@ Visit: %s (Author's site)
             self.asOfOptions = self.createAsOfDateOptions()                                                             # type: [AsOfDateChooser.AsOfDateChoice]
 
             self.asOfDate_JDF = JDateField(mdGUI)
-            self.asOfDate_JDF.addPropertyChangeListener(JDateField.PROP_DATE_CHANGED, self)
-            self.asOfDate_JDF.addMouseListener(self.AsOfDateClickListener(self))
+            self.asOfDate_JDF.addPropertyChangeListener(JDateField.PROP_DATE_CHANGED, self)                             # noqa
+            self.asOfDate_JDF.addMouseListener(self.AsOfDateClickListener(self))                                        # noqa
 
             self.skipBackPeriods_JTF = MyJTextFieldAsInt(2, self.mdGUI.getPreferences().getDecimalChar())
             self.skipBackPeriods_JTF.addPropertyChangeListener(MyJTextFieldAsInt.PROP_SKIPBACK_PERIODS_CHANGED, self)
@@ -3644,7 +3655,7 @@ Visit: %s (Author's site)
         def getName(self): return self.name
         def getActionListeners(self): return []
         def getFocusListeners(self): return []
-        def getPropertyChangeListeners(self): return getFieldByReflection(self, "_eventNotify").getPropertyChangeListeners()
+        def getPropertyChangeListeners(self): return self.eventNotify.getPropertyChangeListeners()
 
         def createAsOfDateOptions(self):
             choices = [AsOfDateChooser.AsOfDateChoice(choice[0], choice[1], choice[2]) for choice in sorted(self.ASOF_DATE_OPTIONS, key=lambda x: (x[2])) if choice[0] not in self.excludeKeys]
@@ -3810,15 +3821,15 @@ Visit: %s (Author's site)
                 if asOfDateInt != oldAsOfDateInt:
                     # if debug:
                     #     myPrint("B", "@@ AsOfDateChooser:%s:setAsOfDateResult(%s).firePropertyChange(%s) >> asof date changed (from: %s to %s) <<" %(self.getName(), asOfDateInt, self.PROP_ASOF_CHANGED, oldAsOfDateInt, asOfDateInt))
-                    getFieldByReflection(self, "_eventNotify").firePropertyChange(self.PROP_ASOF_CHANGED, oldAsOfDateInt, asOfDateInt)
+                    self.eventNotify.firePropertyChange(self.PROP_ASOF_CHANGED, oldAsOfDateInt, asOfDateInt)
                 elif selectedOptionKey != oldSelectedKey:
                     # if debug:
                     #     myPrint("B", "@@ AsOfDateChooser:%s:setAsOfDateResult(%s).firePropertyChange(%s) >> selected key changed (from: '%s' to '%s') <<" %(self.getName(), asOfDateInt, self.PROP_ASOF_CHANGED, oldSelectedKey, selectedOptionKey))
-                    getFieldByReflection(self, "_eventNotify").firePropertyChange(self.PROP_ASOF_CHANGED, oldSelectedKey, selectedOptionKey)
+                    self.eventNotify.firePropertyChange(self.PROP_ASOF_CHANGED, oldSelectedKey, selectedOptionKey)
                 elif skipBackPeriods != oldSkipBackPeriods:
                     # if debug:
                     #     myPrint("B", "@@ AsOfDateChooser:%s:setAsOfDateResult(%s).firePropertyChange(%s) >> selected key changed (from: '%s' to '%s') <<" %(self.getName(), asOfDateInt, self.PROP_ASOF_CHANGED, oldSkipBackPeriods, skipBackPeriods))
-                    getFieldByReflection(self, "_eventNotify").firePropertyChange(self.PROP_ASOF_CHANGED, oldSkipBackPeriods, skipBackPeriods)
+                    self.eventNotify.firePropertyChange(self.PROP_ASOF_CHANGED, oldSkipBackPeriods, skipBackPeriods)
 
         def setEnabled(self, isEnabled, shouldHide=False):
             self.isEnabled = isEnabled
@@ -3858,7 +3869,7 @@ Visit: %s (Author's site)
                     if debug:
                         myPrint("B", "@@ %s:%s:itemStateChanged(%s).firePropertyChange(%s) >> selection changed (from: '%s' to '%s') (paramString: '%s') <<"
                                 %(myClazzName, self.getName(), state, propKey, lastDeselected, newSelected, paramString))
-                    getFieldByReflection(self, "_eventNotify").firePropertyChange(propKey,  lastDeselected, newSelected)
+                    self.eventNotify.firePropertyChange(propKey,  lastDeselected, newSelected)
                     onSelectionMethod()
                     self.lastDeselectedOptionKey = None
 
@@ -3938,7 +3949,7 @@ Visit: %s (Author's site)
             GlobalVars.lookForwardAsOfDateCutoff_AODC = AsOfDateChooser(MD_REF.getUI(), AsOfDateChooser.KEY_ASOF_END_THIS_MONTH, excludeAsOfs)
             GlobalVars.lookForwardAsOfDateCutoff_AODC.setName("lookForwardAsOfDateCutoff_AODC")
             GlobalVars.lookForwardAsOfDateCutoff_AODC.getChoiceCombo().setToolTipText("Select reminders look forward asof date cutoff")
-            GlobalVars.lookForwardAsOfDateCutoff_AODC.getAsOfDateField().setToolTipText("Select reminders look forward asof cutoff custom date")
+            GlobalVars.lookForwardAsOfDateCutoff_AODC.getAsOfDateField().setToolTipText("Select reminders look forward asof cutoff custom date")        # noqa
             GlobalVars.lookForwardAsOfDateCutoff_AODC.getSkipBackPeriodsField().setToolTipText("[OPTIONAL] Enter the number of period offsets to manipulate the asof cutoff date (-past, +future)")
             # lookForwardAsOfDateCutoff_AODC.addPropertyChangeListener(MyPropertyChangeListener())
 
