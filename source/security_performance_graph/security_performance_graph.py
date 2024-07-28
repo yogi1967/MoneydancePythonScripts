@@ -48,11 +48,15 @@
 # build: 1011 - Prevent popup jtable column reordering...
 # build: 1012 - jar/class name fixes for MD2024(5100)...
 # build: 1013 - ???
-# build: 1013 - MyJFrame(v5)
+# build: 1013 - MyJFrame(v5); tweaks to cope with MD2024.2(5141) RepGen changes that impact GrapReportGenerator protected fields
 # build: 1013 - ???
 
-# todo - hunt down why something retains a reference to MD object..?
+#######
+# NOTE: You cannot access protected fields on a subclassed class from python, only protected methods!
+# https://stackoverflow.com/questions/52823524/access-protected-java-attribute-from-jython
+#######
 
+# todo - hunt down why something retains a reference to MD object..?
 # todo - Memorise (save versions) along with choose/delete etc saved versions
 # todo - add markers for splits, buy/sells
 
@@ -3614,12 +3618,12 @@ Visit: %s (Author's site)
             # type: (Main, CurrencyTable, SecurityFilterPanel) -> None
             self.moneydanceContext = moneydanceContext
             self.securityFilter = securityFilter
-            self.ctable = ctable
+            self._ctable = ctable
 
             super(self.__class__, self).__init__()
 
             self.saveSelectedSecUUIDList = None                                                                         # type: SyncRecord
-            self.baseSecurityList = []                                                                                  # type: [CurrencyType]
+            self._baseSecurityList = []                                                                                  # type: [CurrencyType]
             self.securityJCheckBoxList = []                                                                             # type: [SecurityChooser.SecurityJCheckBox]
 
             self.pnlJCheckBoxList = JPanel(GridBagLayout())
@@ -3647,17 +3651,17 @@ Visit: %s (Author's site)
 
         def recreateJCheckBoxList(self):
             self.securityJCheckBoxList = []
-            for sec in self.baseSecurityList:
+            for sec in self._baseSecurityList:
                 self.securityJCheckBoxList.append(self.__class__.SecurityJCheckBox(sec, self.securityFilter))
 
         def loadDataModel(self):
             securityList = []
-            for curSec in sorted(self.ctable.getAllCurrencies(), key=lambda x: (0 if not (x.getHideInUI()) else 1, safeStr(x.getName()).upper())):
+            for curSec in sorted(self._ctable.getAllCurrencies(), key=lambda x: (0 if not (x.getHideInUI()) else 1, safeStr(x.getName()).upper())):
                 # noinspection PyUnresolvedReferences
                 if curSec.getCurrencyType() != CurrencyType.Type.SECURITY: continue
                 # if curSec.getHideInUI() and not self.securityFilter.getIncludeHiddenSecurities(): continue
                 securityList.append(curSec)
-            self.baseSecurityList = securityList
+            self._baseSecurityList = securityList
 
             self.recreateJCheckBoxList()
             self.recreateJCheckBoxListPnl()
@@ -3665,7 +3669,7 @@ Visit: %s (Author's site)
         def selectSecurities(self, lForceAll=False):
 
             if len(self.saveSelectedSecUUIDList) < 1 and not lForceAll: return False
-            listModel = self.baseSecurityList
+            listModel = self._baseSecurityList
             if len(listModel) < 1: return False
             securitiesToSelect = []
 
@@ -3851,14 +3855,14 @@ Visit: %s (Author's site)
     # class MyCurrencyType:
     #     def __init__(self, name, decimalPlaces, prefix, suffix, specialLabel, dec):
     #         self.name = name
-    #         self.decimalPlaces = decimalPlaces
+    #         self._decimalPlaces = decimalPlaces
     #         self.prefix = prefix
     #         self.suffix = suffix
     #         self.specialLabel = specialLabel
-    #         self.dec = dec
+    #         self._dec = dec
     #
     #     def getComma(self):
-    #         if self.dec != ".": return "."
+    #         if self._dec != ".": return "."
     #         return ","
     #
     #         specialFormat = "#,##0.00%"      # Gets used by DecimalFormat()
@@ -3900,8 +3904,8 @@ Visit: %s (Author's site)
             FORMATS =  ["str",       "val_long",            "val_long",          "pct",                 "pct",                   "price",           "price",         "pct"]
 
             def __init__(self, base, dec):
-                self.base = base
-                self.dec = dec
+                self._base = base
+                self._dec = dec
                 self.startDate = None
                 self.endDate = None
                 self.startPrice = None
@@ -3911,8 +3915,8 @@ Visit: %s (Author's site)
                 self.portfolioValueChange = None
                 self.securityObjs = []                                                                                  # type: [MySecurityPerformanceGraph.StoreSecurityRow]
 
-            def getPortfolioStartValueFancy(self): return self.base.formatFancy(self.portfolioStartValue, self.dec)
-            def getPortfolioEndValueFancy(self): return self.base.formatFancy(self.portfolioEndValue, self.dec)
+            def getPortfolioStartValueFancy(self): return self._base.formatFancy(self.portfolioStartValue, self._dec)
+            def getPortfolioEndValueFancy(self): return self._base.formatFancy(self.portfolioEndValue, self._dec)
 
             def storeSecurityRow(self, secObj):
                 # type: (MySecurityPerformanceGraph.StoreSecurityRow) -> None
@@ -3955,7 +3959,7 @@ Visit: %s (Author's site)
         def __init__(self, title=None):
             super(self.__class__, self).__init__()
             self.renamedConfigPanel = None                                                                              # type: JPanel
-            self.dateRanger = None                                                                                      # type: MyDateRangeChooser
+            self._dateRanger = None                                                                                     # type: MyDateRangeChooser
             self.intervalChoice = None                                                                                  # type: IntervalChooser
             self.displayDataChoice = None                                                                               # type: DisplayDataOptionChooser
             self.rebaseChoice = None                                                                                    # type: RebasePerformanceChooser
@@ -3966,10 +3970,10 @@ Visit: %s (Author's site)
             self.securityFilter = None                                                                                  # type: SecurityFilterPanel
             self.securityListChoiceJCB = None                                                                           # type: SecurityChooser
             self.suppressMessages = False
-            self.book = MySecurityPerformanceGraph.moneydanceContext.getCurrentAccountBook()
-            self.ctable = self.book.getCurrencies()
-            self.base = self.book.getCurrencies().getBaseType()
-            self.dec = MySecurityPerformanceGraph.moneydanceContext.getPreferences().getDecimalChar()
+            self._book = MySecurityPerformanceGraph.moneydanceContext.getCurrentAccountBook()
+            self._ctable = self._book.getCurrencies()
+            self._base = self._book.getCurrencies().getBaseType()
+            self._dec = MySecurityPerformanceGraph.moneydanceContext.getPreferences().getDecimalChar()
             if title is not None: MySecurityPerformanceGraph.setTitle(title)
 
         def getName(self): return MySecurityPerformanceGraph.getTitle()
@@ -3999,7 +4003,7 @@ Visit: %s (Author's site)
 
             myPrint("DB","Loaded settings now: %s" %(loadedSettings))
 
-            self.dateRanger.loadFromParameters(loadedSettings)
+            self._dateRanger.loadFromParameters(loadedSettings)
 
             if loadedSettings.containsKey(self.PARAM_GROUP_BY):
                 self.intervalChoice.selectFromParams(loadedSettings.getStr(self.PARAM_GROUP_BY, ""))
@@ -4036,7 +4040,7 @@ Visit: %s (Author's site)
                 self.renamedConfigPanel = JPanel(GridBagLayout())
                 self.renamedConfigPanel.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8))
 
-            self.dateRanger = MyDateRangeChooser(MySecurityPerformanceGraph.moneydanceContext.getUI())
+            self._dateRanger = MyDateRangeChooser(MySecurityPerformanceGraph.moneydanceContext.getUI())
             self.loadSettingsFromPreferences()
 
         def getConfigPanel(self, reset):
@@ -4057,9 +4061,9 @@ Visit: %s (Author's site)
 
             self.securityFilter = SecurityFilterPanel(MySecurityPerformanceGraph.moneydanceContext, self)
 
-            self.securityListChoiceJCB = SecurityChooser(MySecurityPerformanceGraph.moneydanceContext, self.ctable, self.securityFilter)
+            self.securityListChoiceJCB = SecurityChooser(MySecurityPerformanceGraph.moneydanceContext, self._ctable, self.securityFilter)
 
-            # self.securityListChoice = MyJList(MySecurityPerformanceGraph.moneydanceContext, self.ctable, self.includeHiddenSecuritiesChoice, [])
+            # self.securityListChoice = MyJList(MySecurityPerformanceGraph.moneydanceContext, self._ctable, self.includeHiddenSecuritiesChoice, [])
             # self.securityListChoice.setBackground(MySecurityPerformanceGraph.moneydanceContext.getUI().getColors().listBackground)
             # self.securityListChoice.setCellRenderer(MyJListRenderer())
             # self.securityListChoice.setFixedCellHeight(self.securityListChoice.getFixedCellHeight()+30)
@@ -4072,12 +4076,12 @@ Visit: %s (Author's site)
 
             y = 0
             if isinstance(self.renamedConfigPanel, JPanel): pass
-            self.renamedConfigPanel.add(self.dateRanger.getChoiceLabel(), GridC.getc(1, y).label())
-            self.renamedConfigPanel.add(self.dateRanger.getChoice(), GridC.getc(2, y).field());        y += 1
-            self.renamedConfigPanel.add(self.dateRanger.getStartLabel(), GridC.getc(1, y).label())
-            self.renamedConfigPanel.add(self.dateRanger.getStartField(), GridC.getc(2, y).field());    y += 1
-            self.renamedConfigPanel.add(self.dateRanger.getEndLabel(), GridC.getc(1, y).label())
-            self.renamedConfigPanel.add(self.dateRanger.getEndField(), GridC.getc(2, y).field());      y += 1
+            self.renamedConfigPanel.add(self._dateRanger.getChoiceLabel(), GridC.getc(1, y).label())
+            self.renamedConfigPanel.add(self._dateRanger.getChoice(), GridC.getc(2, y).field());        y += 1
+            self.renamedConfigPanel.add(self._dateRanger.getStartLabel(), GridC.getc(1, y).label())
+            self.renamedConfigPanel.add(self._dateRanger.getStartField(), GridC.getc(2, y).field());    y += 1
+            self.renamedConfigPanel.add(self._dateRanger.getEndLabel(), GridC.getc(1, y).label())
+            self.renamedConfigPanel.add(self._dateRanger.getEndField(), GridC.getc(2, y).field());      y += 1
 
             self.renamedConfigPanel.add(JLabel(UiUtil.getLabelText((MySecurityPerformanceGraph.moneydanceContext.getUI()), "graph_groupby")), GridC.getc(1, y).label())
             self.renamedConfigPanel.add(self.intervalChoice, GridC.getc(2, y).field());                y += 1
@@ -4154,7 +4158,7 @@ Visit: %s (Author's site)
                     #     self.filterSecurity.setSelectedIndex(-1)
 
             myActionListener = MyActionListener(self)
-            self.dateRanger.setSpecialListener(myActionListener)
+            self._dateRanger.setSpecialListener(myActionListener)
             for c in self.renamedConfigPanel.getComponents():
                 if isinstance(c, (JComboBox, JCheckBox)): c.addActionListener(myActionListener)
                 if isinstance(c, (JPanel)):
@@ -4195,7 +4199,7 @@ Visit: %s (Author's site)
 
             self.securityListChoiceJCB.storeToParameters(graphParameters)
 
-            self.dateRanger.storeToParameters(graphParameters)
+            self._dateRanger.storeToParameters(graphParameters)
 
             graphParameters.put(DisplayDataOptionChooser.KEY, self.displayDataChoice.getSelectedItem())
             graphParameters.put(RebasePerformanceChooser.KEY, self.rebaseChoice.getSelectedItem())
@@ -4203,14 +4207,14 @@ Visit: %s (Author's site)
 
             GraphDataSet.resetColors()
             graphData = MySecurityPerformanceGraph.generateGraph(MySecurityPerformanceGraph.moneydanceContext.getUI(),
-                                                                      self.dec,
+                                                                      self._dec,
                                                                       self.includeHiddenSecuritiesChoice,
                                                                       self.displayDataChoice,
                                                                       self.rebaseChoice,
                                                                       self.percentageChoice,
                                                                       self.securityListChoiceJCB.getSelectedValues(),
                                                                       self.intervalChoice.getSelectedInterval(),
-                                                                      self.dateRanger)
+                                                                      self._dateRanger)
             if graphData is None:
                 if not self.suppressMessages:
                     MySecurityPerformanceGraph.moneydanceContext.getUI().showErrorMessage(MySecurityPerformanceGraph.moneydanceContext.getUI().getStr("nothing_to_graph"))
@@ -5169,12 +5173,12 @@ Visit: %s (Author's site)
             def __init__(self, callingClass):
                 super(self.__class__, self).__init__()
                 self.callingClass = callingClass
-                self.base = self.callingClass.moneydanceContext.getCurrentAccount().getBook().getCurrencies().getBaseType()
-                self.dec = self.callingClass.moneydanceContext.getPreferences().getDecimalChar()
+                self._base = self.callingClass.moneydanceContext.getCurrentAccount().getBook().getCurrencies().getBaseType()
+                self._dec = self.callingClass.moneydanceContext.getPreferences().getDecimalChar()
 
             def setValue(self, value):
                 if value is None: return
-                self.setText(self.base.formatFancy(value, self.dec))
+                self.setText(self._base.formatFancy(value, self._dec))
                 if value < 0.0:
                     self.setForeground(self.callingClass.mdGUI.getColors().budgetAlertColor)
                 else:
@@ -5185,8 +5189,8 @@ Visit: %s (Author's site)
             def __init__(self, callingClass):
                 super(self.__class__, self).__init__()
                 self.callingClass = callingClass
-                self.base = self.callingClass.moneydanceContext.getCurrentAccount().getBook().getCurrencies().getBaseType()
-                self.dec = self.callingClass.moneydanceContext.getPreferences().getDecimalChar()
+                self._base = self.callingClass.moneydanceContext.getCurrentAccount().getBook().getCurrencies().getBaseType()
+                self._dec = self.callingClass.moneydanceContext.getPreferences().getDecimalChar()
 
             def setValue(self, value):
                 if value is None: return
@@ -5197,8 +5201,8 @@ Visit: %s (Author's site)
             def __init__(self, callingClass):
                 super(self.__class__, self).__init__()
                 self.callingClass = callingClass
-                self.base = self.callingClass.moneydanceContext.getCurrentAccount().getBook().getCurrencies().getBaseType()
-                self.dec = self.callingClass.moneydanceContext.getPreferences().getDecimalChar()
+                self._base = self.callingClass.moneydanceContext.getCurrentAccount().getBook().getCurrencies().getBaseType()
+                self._dec = self.callingClass.moneydanceContext.getPreferences().getDecimalChar()
 
             def setValue(self, value):
                 if value is None: return
@@ -5275,7 +5279,7 @@ Visit: %s (Author's site)
                     currency = lgs.wr_currency.get()                                                                    # type: CurrencyType
                     if currency is not None:
                         extraTxt = currency.getParameter(MySecurityPerformanceGraph.CURRENCY_LABEL_KEY, "")
-                        sb.append(extraTxt + " " + currency.formatFancy(Math.round(dataset.getYValue(series, item)), self.callingClass.dec))
+                        sb.append(extraTxt + " " + currency.formatFancy(Math.round(dataset.getYValue(series, item)), self.callingClass._dec))
                     else:
                         sb.append(self.callingClass.rateFormat.format(dataset.getYValue(series, item)))
                     return sb.toString()
@@ -5303,11 +5307,11 @@ Visit: %s (Author's site)
                 if toAppendTo is None:
                     toAppendTo = StringBuffer()
                 if isinstance(number, long):
-                    toAppendTo.append(curr.formatFancy(number, self.callingClass.dec))
-                    # toAppendTo.append(curr.formatSemiFancy(number, self.callingClass.dec))
+                    toAppendTo.append(curr.formatFancy(number, self.callingClass._dec))
+                    # toAppendTo.append(curr.formatSemiFancy(number, self.callingClass._dec))
                 elif isinstance(number, float):
-                    toAppendTo.append(curr.formatFancy(Math.round(number), self.callingClass.dec))
-                    # toAppendTo.append(curr.formatSemiFancy(Math.round(number), self.callingClass.dec))
+                    toAppendTo.append(curr.formatFancy(Math.round(number), self.callingClass._dec))
+                    # toAppendTo.append(curr.formatSemiFancy(Math.round(number), self.callingClass._dec))
                 else:
                     raise Exception("CHECK DATA TYPES")
                 return toAppendTo
@@ -5323,7 +5327,7 @@ Visit: %s (Author's site)
             self.mainChartPanel = None                                                                                  # type: ChartPanel
             self.graphSet = None                                                                                        # type: MyGraphSet
 
-            self.dec = mdGUI.getPreferences().getDecimalChar()
+            self._dec = mdGUI.getPreferences().getDecimalChar()
             self.dateFormat = mdGUI.getPreferences().getShortDateFormatter()
             self.colors = mdGUI.getColors()
 
@@ -5331,14 +5335,14 @@ Visit: %s (Author's site)
             self.setOpaque(True)
             self.setBackground((mdGUI.getColors()).defaultBackground)
             self.graphGridColor = GradientPaint(0.0, 0.0, self.colors.homePageBG, 0.0, 700.0, self.colors.homePageAltBG)
-            self.rateFormat = DecimalFormat("#" + self.dec + "######")
+            self.rateFormat = DecimalFormat("#" + self._dec + "######")
             self.xyToolTipGenerator = self.TimeSeriesToolTipGenerator(self)
 
         def setGraph(self, graphSet):
             # type: (MyGraphSet) -> None
             self.graphSet = graphSet
 
-            overrideFormatString = graphSet.getRateFormatString(self.dec)
+            overrideFormatString = graphSet.getRateFormatString(self._dec)
             if overrideFormatString is not None:
                 self.rateFormat = DecimalFormat(overrideFormatString)
 
@@ -6078,7 +6082,7 @@ Visit: %s (Author's site)
 
                 reportSpec = MyReportSpec(book)                                                                         # type: ReportSpec
                 reportSpec.setName(GlobalVars.Strings.GRAPH_NAME)
-                reportSpec.setReportID(myModuleID)
+                #reportSpec.setReportID(myModuleID)
                 reportSpec.setMemorized(False)
 
                 theParams = SyncRecord()
