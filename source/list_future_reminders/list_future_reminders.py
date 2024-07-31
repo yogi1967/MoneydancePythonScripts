@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# list_future_reminders.py (build: 1031) - April 2024
+# list_future_reminders.py (build: 1032) - April 2024
 # Displays Moneydance future dated / scheduled reminders (along with options to auto-record, delete etc)
 
 ###############################################################################
@@ -79,9 +79,8 @@
 # build: 1029 - Tweaked cell renderer(s) for padding and highlighted colour...
 # build: 1029 - Replace look forward days with AsOfDateChooser; Fixed Menu Reset Sort...
 # build: 1030 - Fix print button to refresh the JTable reference
-# build: 1031 - ???
 # build: 1031 - MyJFrame(v5); _eventNotify rename fix for 5140; switch to MyBasePropertyChangeReporter
-# build: 1031 - ???
+# build: 1032 - MD2024.2(5142) - moneydance_extension_loader was nuked and moneydance_this_fm with getResourceAsStream() was provided.
 
 # todo - @he "Include subtotals / totals. Would be nice if user could select what to subtotal (by date / by account for sure)"
 # todo - Add the fields from extract_data:extract_reminders, with options future on/off, hide / select columns etc
@@ -92,11 +91,11 @@
 
 # SET THESE LINES
 myModuleID = u"list_future_reminders"
-version_build = "1031"
+version_build = "1032"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT = True
 
-global moneydance, moneydance_ui, moneydance_extension_loader, moneydance_extension_parameter
+global moneydance, moneydance_ui, moneydance_extension_loader, moneydance_extension_parameter, moneydance_this_fm
 
 global MD_REF, MD_REF_UI
 if "moneydance" in globals(): MD_REF = moneydance           # Make my own copy of reference as MD removes it once main thread ends.. Don't use/hold on to _data variable
@@ -133,10 +132,14 @@ def checkObjectInNameSpace(objectName):
 
 
 if MD_REF is None: raise Exception(u"CRITICAL ERROR - moneydance object/variable is None?")
-if checkObjectInNameSpace(u"moneydance_extension_loader"):
-    MD_EXTENSION_LOADER = moneydance_extension_loader
+
+if checkObjectInNameSpace(u"moneydance_this_fm"):
+    MD_EXTENSION_LOADER = moneydance_this_fm
 else:
-    MD_EXTENSION_LOADER = None
+    if checkObjectInNameSpace(u"moneydance_extension_loader"):
+        MD_EXTENSION_LOADER = moneydance_extension_loader
+    else:
+        MD_EXTENSION_LOADER = None
 
 if (u"__file__" in globals() and __file__.startswith(u"bootstrapped_")): del __file__       # Prevent bootstrapped loader setting this....
 
@@ -268,8 +271,9 @@ elif not _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT and u"__file__" in globals():
     try: MD_REF_UI.showInfoMessage(msg)
     except: raise Exception(msg)
 
-elif not _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT and not checkObjectInNameSpace(u"moneydance_extension_loader"):
-    msg = "%s: Error - moneydance_extension_loader seems to be missing? Must be on build: %s onwards. Now exiting script!\n" %(myModuleID, MIN_BUILD_REQD)
+elif not _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT and not checkObjectInNameSpace(u"moneydance_extension_loader")\
+        and not checkObjectInNameSpace(u"moneydance_this_fm"):
+    msg = "%s: Error - moneydance_extension_loader or moneydance_this_fm seems to be missing? Must be on build: %s onwards. Now exiting script!\n" %(myModuleID, MIN_BUILD_REQD)
     print(msg); System.err.write(msg)
     try: MD_REF_UI.showInfoMessage(msg)
     except: raise Exception(msg)

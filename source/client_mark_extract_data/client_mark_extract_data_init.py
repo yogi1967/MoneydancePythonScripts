@@ -169,7 +169,7 @@ def _saveExtensionGlobalPreferences(newExtnPrefs):
 # definitions unique to this script
 
 
-global moneydance_extension_loader
+global moneydance_extension_loader, moneydance_this_fm
 
 import threading
 from com.moneydance.apps.md.view import HomePageView
@@ -232,7 +232,10 @@ class _HomePageExtension(FeatureModule):
 
         self.moneydanceExtensionLoader = None
         if float(self.moneydanceContext.getBuild()) >= 3051:
-            self.moneydanceExtensionLoader = moneydance_extension_loader  # This is the class loader for the whole extension
+            if "moneydance_this_fm" in globals() and moneydance_this_fm is not None:
+                self.moneydanceExtensionLoader = moneydance_this_fm  # This is the class loader (actually FeatureModule instance) for this extension
+            elif "moneydance_extension_loader" in globals() and moneydance_extension_loader is not None:
+                self.moneydanceExtensionLoader = moneydance_extension_loader  # This is the class loader for the whole extension
 
         self.alreadyClosed = False
         self.saveMyHomePageViews = []
@@ -261,6 +264,10 @@ class _HomePageExtension(FeatureModule):
 
     def handleEvent(self, appEvent):
         if debug: _specialPrint("@@ HomePageExtension: .handleEvent('%s')" %(appEvent))
+        if self.alreadyClosed: return
+
+    def handle_event(self, appEvent):
+        if debug: _specialPrint("@@ HomePageExtension: .handleEventhandle_event('%s')" %(appEvent))
         if self.alreadyClosed: return
 
     def unload(self):

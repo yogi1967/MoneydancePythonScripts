@@ -4,7 +4,7 @@
 from __future__ import division    # Has to occur at the beginning of file... Changes division to always produce a float
 assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes that division of integers yields a float! Do you have this statement: 'from __future__ import division'?"
 
-# net_account_balances.py build: 1053 - April 2024 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 1054 - July 2024 - Stuart Beesley - StuWareSoftSystems
 # Display Name in MD changed to 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
 
 # Thanks and credit to Dan T Davis and Derek Kent(23) for their suggestions and extensive testing...
@@ -46,27 +46,6 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 
 # Built to operate on Moneydance 2021.1 build 3056 onwards (as this is when the Py Extensions became fully functional)
 
-# build: 1020 - Bold'ified [sic] blinking cells...
-# build: 1020 - MAJOR 'upgrade' to (re)code to cope with multiple home screens (that caused 'disappearing' widgets)
-#               There is a design fault when opening a new MD HomeScreen (so you have multiple running) whereby
-#               the custom_balances widget would disappear from the previous home screen.. This was because MD's 'internal' home
-#               screen widgets are NEW instances per home screen. I.e. Each RootAccountDetailPanel (instance) creates new
-#               ViewFactory() instance(s) which calls .reloadViews() which creates/adds NEW instances of all 'internal' views,
-#               but for extensions it ONLY adds a reference to the same/original 'external' view(s).
-#               I.e. extension's external view(s) are single instance, whereas internal views are multi instances...
-#               Swing objects cannot exist in two places, hence the last place wins and previous locations disappear...
-#               NOTE: This issue affects all extension / external views...
-#               This code-fix deals with this issue by generating a new panel on every call of .getGUIView() and maintains
-#               internal knowledge of its views with special code to detect whether they are still alive/valid.
-#               When the view(s) are refreshed the code iterates all known views and simply builds a new view from the same data.
-# build: 1020 - Changed refresh time delay to 3 seconds (was 10 seconds)....
-# build: 1020 - Added capability for other extensions to request the last set of results using invoke "net_account_balances:customevent:returnLastResults"
-# build: 1020 - Added bootstrap to execute compiled version of extension (faster to load)....
-# build: 1021 - MD2023 fixes to common code...
-# build: 1022 - More MD2023 fixes; launch - configuring StreamVector lefties/righties etc...
-#               Tweak isSwingComponentInvalid() to ignore .isValid()....
-#               Added config to allow row name to contain <xxx> configuration variables..... (also html)
-#               Switch html_strip_chars() to use StringEscapeUtils.escapeHtml4()
 # build: 1024 - Added ability to divide by another row and produce a percentage - known as Use Other Row (UOR)
 #               Moved divide by maths into core calculation engine (rather than on display component(s))
 #               Added CMD-SHIFT-B and R to backup / restore config file
@@ -155,7 +134,8 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 # build: 1053 - Fix DRC date transformation for fiscal periods and leap years...
 # build: 1053 - _eventNotify rename for 5140 - implement MyBasePropertyChangeReporter; added do nothing getActionsForContext() to stop MD console warnings...
 # build: 1053 - added the extra_code module (script now too large)...
-# build: 1053 - ???
+# build: 1054 - upgraded printing to MDPrinter using the getattr() tricks... Removed the usage of classloader for this and special java class...
+# build: 1054 - MD2024.2(5142) - moneydance_extension_loader was nuked and moneydance_this_fm with getResourceAsStream() was provided.
 
 # todo - bug. Ref: https://github.com/yogi1967/MoneydancePythonScripts/issues/31 - magic @tags for securities don't handle tickers with dots - e.g. @shop.to
 # todo - ... this is deliberate... Python variables cannot contain dots.. So the regex would need to be changed along with some string replacements..
@@ -170,11 +150,11 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 
 # SET THESE LINES
 myModuleID = u"net_account_balances"
-version_build = "1053"
+version_build = "1054"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT = False
 
-global moneydance, moneydance_ui, moneydance_extension_loader, moneydance_extension_parameter
+global moneydance, moneydance_ui, moneydance_extension_loader, moneydance_extension_parameter, moneydance_this_fm
 
 global MD_REF, MD_REF_UI
 if "moneydance" in globals(): MD_REF = moneydance           # Make my own copy of reference as MD removes it once main thread ends.. Don't use/hold on to _data variable
@@ -211,10 +191,14 @@ def checkObjectInNameSpace(objectName):
 
 
 if MD_REF is None: raise Exception(u"CRITICAL ERROR - moneydance object/variable is None?")
-if checkObjectInNameSpace(u"moneydance_extension_loader"):
-    MD_EXTENSION_LOADER = moneydance_extension_loader
+
+if checkObjectInNameSpace(u"moneydance_this_fm"):
+    MD_EXTENSION_LOADER = moneydance_this_fm
 else:
-    MD_EXTENSION_LOADER = None
+    if checkObjectInNameSpace(u"moneydance_extension_loader"):
+        MD_EXTENSION_LOADER = moneydance_extension_loader
+    else:
+        MD_EXTENSION_LOADER = None
 
 if (u"__file__" in globals() and __file__.startswith(u"bootstrapped_")): del __file__       # Prevent bootstrapped loader setting this....
 
@@ -346,8 +330,9 @@ elif not _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT and u"__file__" in globals():
     try: MD_REF_UI.showInfoMessage(msg)
     except: raise Exception(msg)
 
-elif not _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT and not checkObjectInNameSpace(u"moneydance_extension_loader"):
-    msg = "%s: Error - moneydance_extension_loader seems to be missing? Must be on build: %s onwards. Now exiting script!\n" %(myModuleID, MIN_BUILD_REQD)
+elif not _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT and not checkObjectInNameSpace(u"moneydance_extension_loader")\
+        and not checkObjectInNameSpace(u"moneydance_this_fm"):
+    msg = "%s: Error - moneydance_extension_loader or moneydance_this_fm seems to be missing? Must be on build: %s onwards. Now exiting script!\n" %(myModuleID, MIN_BUILD_REQD)
     print(msg); System.err.write(msg)
     try: MD_REF_UI.showInfoMessage(msg)
     except: raise Exception(msg)
@@ -498,6 +483,7 @@ else:
     # >>> THIS SCRIPT'S IMPORTS ############################################################################################
     import re
     import copy
+    import importlib
     import threading
     #from com.moneydance.util import BasePropertyChangeReporter
     from com.moneydance.awt import GridC, JLinkListener, JLinkLabel, AwtUtil, QuickSearchField, JRateField
@@ -545,8 +531,6 @@ else:
 
     # >>> THIS SCRIPT'S GLOBALS ############################################################################################
     GlobalVars.specialDebug = False
-
-    GlobalVars.Strings.SWSS_COMMON_CODE_NAME = "StuWareSoftSystems_CommonCode"
 
     GlobalVars.MD_KOTLIN_COMPILED_BUILD_ALL = 5008                          # 2023.2 (Entire codebase compiled in Kotlin)
 
@@ -3508,68 +3492,40 @@ Visit: %s (Author's site)
                 self.run()
 
         def run(self):                                                                                                  # noqa
-            NAB = NetAccountBalancesExtension.getNAB()
-            if NAB.SWSS_CC is None:
-                myPrint("B", "@@@ PRINTING DISABLED AS BUNDLED JAVA CODE NOT PRESENT IN MEMORY!? @@")
-            else:
-                printerPrinter = NAB.SWSS_CC.PrintWidgetPrinter(self.getPanel())
+            printableModule = importlib.import_module("java.awt.print.Printable")
+            printerModuleMD = importlib.import_module("com.moneydance.apps.md.view.gui.print.MDPrinter")
+            printableModuleMD = importlib.import_module("com.moneydance.apps.md.view.gui.print.MDPrintable")
 
-                # The more simple way.....
-                # printerJob = PrinterJob.getPrinterJob()
-                # printerJob.setPrintable(printerPrinter)
-                # if printerJob.printDialog():
-                #     try:
-                #         NAB.SWSS_CC.sudoPrinterJobPrint(printerJob)
-                #         myPrint("B", "Home / Summary screen widget successfully printed!")
-                #     except:
-                #         myPrint("B", "@@ Error - the widget did NOT successfully print?")
+            class PrintWidgetPrinter(printableModuleMD):
+                def __init__(self, printComponent, thisTitle):
+                    self.thisTitle = thisTitle
+                    self.printComponent = printComponent
 
-                title = "Custom Balances - Home / Summary Screen widget (as of: %s)" %(convertStrippedIntDateFormattedText(DateUtil.getStrippedDateInt()))
+                def printPage(self, graphics, pageIndex, width, height, resolution):                                    # noqa
+                    if (pageIndex > 0): return printableModule.NO_SUCH_PAGE                                             # noqa
+                    g2d = graphics
+                    originalTransform = g2d.getTransform()
+                    scaleX = width / self.printComponent.getWidth()
+                    scaleY = height / self.printComponent.getHeight()
+                    scale = Math.min(scaleX, scaleY)  # Maintain aspect ratio
+                    #g2d.translate(pageFormat.getImageableX(), pageFormat.getImageableY()); - this was used with the special java class
+                    #g2d = g2d.create(xmargin, ymargin, newwidth, newheight) - use this with MDPrinter to create margins
+                    if (scale < 1.0): g2d.scale(scale, scale)
+                    self.printComponent.printAll(g2d)
+                    g2d.setTransform(originalTransform)
+                    return printableModule.PAGE_EXISTS                                                                  # noqa
 
-                printerJob = PrinterJob.getPrinterJob()
-                if GlobalVars.defaultPrintService is not None:
-                    printerJob.setPrintService(GlobalVars.defaultPrintService)
+                def getTitle(self): return self.thisTitle
+                def usesWholePage(self): return False
+                def isLandscape(self): return False
+                def getSettingsKey(self): return None
 
-                if GlobalVars.defaultPrinterAttributes is not None:
-                    pAttrs = attribute.HashPrintRequestAttributeSet(GlobalVars.defaultPrinterAttributes)
-                else:
-                    pAttrs = loadDefaultPrinterAttributes(None)
-
-                pAttrs.remove(attribute.standard.JobName)
-                pAttrs.add(attribute.standard.JobName(title, None))
-
-                if GlobalVars.defaultDPI != 72:
-                    pAttrs.remove(attribute.standard.PrinterResolution)
-                    pAttrs.add(attribute.standard.PrinterResolution(GlobalVars.defaultDPI, GlobalVars.defaultDPI, attribute.standard.PrinterResolution.DPI))
-
-                if not printerJob.printDialog(pAttrs):
-                    myPrint("DB", "User aborted the Print Dialog setup screen, so exiting...")
-                    return
-
-                selectedPrintService = printerJob.getPrintService()
-
-                toFile = pAttrs.containsKey(attribute.standard.Destination)
-
-                if toFile:
-                    printURI = pAttrs.get(attribute.standard.Destination).getURI()
-                    myPrint("B", "User has selected to print to destination: %s" %(printURI))
-                else:
-                    if debug: myPrint("DB", "User selected print service:", selectedPrintService)
-
-                thePageFormat = printerJob.getPageFormat(pAttrs)
-
-                # header = MessageFormat(title)
-                # footer = MessageFormat("- page {0} -")
-
-                printerJob.setPrintable(printerPrinter, thePageFormat)
-                NAB.SWSS_CC.sudoPrinterJobPrint(printerJob, pAttrs)
-
-                while pAttrs.containsKey(attribute.standard.JobName): pAttrs.remove(attribute.standard.JobName)
-                while pAttrs.containsKey(attribute.standard.Destination): pAttrs.remove(attribute.standard.Destination)
-
-                if debug: myPrint("DB", "Saving current print service:", printerJob.getPrintService())
-                GlobalVars.defaultPrinterAttributes = attribute.HashPrintRequestAttributeSet(pAttrs)
-                GlobalVars.defaultPrintService = printerJob.getPrintService()
+            title = "Custom Balances - Home / Summary Screen widget (as of: %s)" %(convertStrippedIntDateFormattedText(DateUtil.getStrippedDateInt()))
+            printerPrinter = PrintWidgetPrinter(self.getPanel(), title)
+            mdPrinter = printerModuleMD.createPrinter(GlobalVars.CONTEXT.getUI())                                       # noqa
+            printer = getattr(mdPrinter, "print")
+            printer(printerPrinter, None)
+            myPrint("B", "Output sent to printer....")
 
     def isSyncTaskSyncing(checkMainTask=False, checkAttachmentsTask=False):
         if ((not checkMainTask and not checkAttachmentsTask) or (checkMainTask and checkAttachmentsTask)):
@@ -7202,16 +7158,16 @@ Visit: %s (Author's site)
 
     def loadPrinterIcon(reloadPrinterIcon=False):
         NAB = NetAccountBalancesExtension.getNAB()
-        if NAB.SWSS_CC is None:
-            myPrint("B", "@@ SWSS_CC is None, so cannot (re)load printerIcon:", NAB.printIcon)
+        if NAB.moneydanceExtensionLoader is None:
+            myPrint("B", "@@ moneydanceExtensionLoader is None, so cannot (re)load printerIcon:", NAB.printIcon)
         else:
             if NAB.printIcon is None or reloadPrinterIcon:
                 NAB.printIcon = loadScaleColorImageToIcon(NAB.moneydanceExtensionLoader, "/print64icon.png", Dimension(17, 17), NAB.moneydanceContext.getUI().getColors().secondaryTextFG)
 
     def loadDebugIcon(reloadDebugIcon=False):
         NAB = NetAccountBalancesExtension.getNAB()
-        if NAB.SWSS_CC is None:
-            myPrint("B", "@@ SWSS_CC is None, so cannot (re)load debugIcon:", NAB.debugIcon)
+        if NAB.moneydanceExtensionLoader is None:
+            myPrint("B", "@@ moneydanceExtensionLoader is None, so cannot (re)load debugIcon:", NAB.debugIcon)
         else:
             if NAB.debugIcon is None or reloadDebugIcon:
                 # NAB.debugIcon = loadScaleColorImageToIcon(NAB.moneydanceExtensionLoader, "/debug16icon.png", None, NAB.moneydanceContext.getUI().getColors().secondaryTextFG)
@@ -7219,8 +7175,8 @@ Visit: %s (Author's site)
 
     def loadWarningIcon(reloadWarningIcon=False):
         NAB = NetAccountBalancesExtension.getNAB()
-        if NAB.SWSS_CC is None:
-            myPrint("B", "@@ SWSS_CC is None, so cannot (re)load warningIcon:", NAB.warningIcon)
+        if NAB.moneydanceExtensionLoader is None:
+            myPrint("B", "@@ moneydanceExtensionLoader is None, so cannot (re)load warningIcon:", NAB.warningIcon)
         else:
             if NAB.warningIcon is None or reloadWarningIcon:
                 mdImages = NAB.moneydanceContext.getUI().getImages()
@@ -7228,8 +7184,8 @@ Visit: %s (Author's site)
 
     def loadSelectorIcon(reloadSelectorIcon=False):
         NAB = NetAccountBalancesExtension.getNAB()
-        if NAB.SWSS_CC is None:
-            myPrint("B", "@@ SWSS_CC is None, so cannot (re)load selectorIcon:", NAB.selectorIcon)
+        if NAB.moneydanceExtensionLoader is None:
+            myPrint("B", "@@ moneydanceExtensionLoader is None, so cannot (re)load selectorIcon:", NAB.selectorIcon)
         else:
             if NAB.selectorIcon is None or reloadSelectorIcon:
                 mdImages = NAB.moneydanceContext.getUI().getImages()
@@ -7238,8 +7194,8 @@ Visit: %s (Author's site)
 
     def loadFormatCodePickerIcon(reloadFormatCodePickerIcon=False):
         NAB = NetAccountBalancesExtension.getNAB()
-        if NAB.SWSS_CC is None:
-            myPrint("B", "@@ SWSS_CC is None, so cannot (re)load formatCodePickerIcon:", NAB.formatCodePickerIcon)
+        if NAB.moneydanceExtensionLoader is None:
+            myPrint("B", "@@ moneydanceExtensionLoader is None, so cannot (re)load formatCodePickerIcon:", NAB.formatCodePickerIcon)
         else:
             if NAB.formatCodePickerIcon is None or reloadFormatCodePickerIcon:
                 mdImages = NAB.moneydanceContext.getUI().getImages()
@@ -7247,8 +7203,8 @@ Visit: %s (Author's site)
 
     def loadTagPickerIcon(reloadTagPickerIcon=False):
         NAB = NetAccountBalancesExtension.getNAB()
-        if NAB.SWSS_CC is None:
-            myPrint("B", "@@ SWSS_CC is None, so cannot (re)load tagPickerIcon:", NAB.tagPickerIcon)
+        if NAB.moneydanceExtensionLoader is None:
+            myPrint("B", "@@ moneydanceExtensionLoader is None, so cannot (re)load tagPickerIcon:", NAB.tagPickerIcon)
         else:
             if NAB.tagPickerIcon is None or reloadTagPickerIcon:
                 mdImages = NAB.moneydanceContext.getUI().getImages()
@@ -7580,18 +7536,16 @@ Visit: %s (Author's site)
             self.comma = None
             self.themeID = None
 
-            self.SWSS_CC = None     # StuWareSoftSystems special java common code (currently for java/swing .print() type methods
-
-            if float(self.moneydanceContext.getBuild()) >= 3051:
-                self.moneydanceExtensionLoader = moneydance_extension_loader  # This is the class loader for the whole extension
-                myPrint("DB", "... Build is >= 3051 so using moneydance_extension_loader: %s" %(self.moneydanceExtensionLoader))
-
-                try:
-                    self.SWSS_CC = MD_EXTENSION_LOADER.loadClass(GlobalVars.Strings.SWSS_COMMON_CODE_NAME)
-                    self.SWSS_CC.DEBUG = False
-                    myPrint("DB", "... (class)loaded bundled java code '%s' into memory too... (%s)" %(GlobalVars.Strings.SWSS_COMMON_CODE_NAME, self.SWSS_CC))
-                except:
-                    myPrint("B", "@@@ FAILED to load bundled java code class '%s' into memory! Printing disabled....!" %(GlobalVars.Strings.SWSS_COMMON_CODE_NAME))
+            #self.SWSS_CC = None     # StuWareSoftSystems special java common code (currently for java/swing .print() type methods
+            if float(self.moneydanceContext.getBuild()) >= 3051 and MD_EXTENSION_LOADER is not None:
+                self.moneydanceExtensionLoader = MD_EXTENSION_LOADER  # This is the class loader (or later actually FeatureModule instance) for the whole extension
+                myPrint("DB", "... Build is >= 3051 so using moneydance_extension_loader or moneydance_this_fm: %s" %(self.moneydanceExtensionLoader))
+                # try:
+                #     self.SWSS_CC = MD_EXTENSION_LOADER.loadClass(GlobalVars.Strings.SWSS_COMMON_CODE_NAME)
+                #     self.SWSS_CC.DEBUG = False
+                #     myPrint("DB", "... (class)loaded bundled java code '%s' into memory too... (%s)" %(GlobalVars.Strings.SWSS_COMMON_CODE_NAME, self.SWSS_CC))
+                # except:
+                #     myPrint("B", "@@@ FAILED to load bundled java code class '%s' into memory! Printing disabled....!" %(GlobalVars.Strings.SWSS_COMMON_CODE_NAME))
             else:
                 self.moneydanceExtensionLoader = None
 
@@ -17184,7 +17138,7 @@ Visit: %s (Author's site)
 
                 self.collapsableIconLbl.addMouseListener(self)
 
-                if NAB.SWSS_CC is not None:
+                if NAB.moneydanceExtensionLoader is not None:
                     self.printIconLbl.addMouseListener(self)
                     self.warningIconLbl.addMouseListener(self)
                     self.selectorIconLbl.addMouseListener(self)

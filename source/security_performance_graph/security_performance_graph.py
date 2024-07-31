@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# security_performance_graph.py build: 1013 - April 2024 - Stuart Beesley StuWareSoftSystems
+# security_performance_graph.py build: 1014 - July 2024 - Stuart Beesley StuWareSoftSystems
 
 # requires: MD 2021.1(3069) due to NPE on SwingUtilities - something to do with 'theGenerator.setInfo(reportSpec)'
 
@@ -47,9 +47,8 @@
 # build: 1010 - Fixed call to .setReportParameters(None) for 5064+ build
 # build: 1011 - Prevent popup jtable column reordering...
 # build: 1012 - jar/class name fixes for MD2024(5100)...
-# build: 1013 - ???
 # build: 1013 - MyJFrame(v5); tweaks to cope with MD2024.2(5141) RepGen changes that impact GrapReportGenerator protected fields
-# build: 1013 - ???
+# build: 1014 - MD2024.2(5142) - moneydance_extension_loader was nuked and moneydance_this_fm with getResourceAsStream() was provided.
 
 #######
 # NOTE: You cannot access protected fields on a subclassed class from python, only protected methods!
@@ -66,11 +65,11 @@
 
 # SET THESE LINES
 myModuleID = u"security_performance_graph"
-version_build = "1013"
+version_build = "1014"
 MIN_BUILD_REQD = 3069
 _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT = True
 
-global moneydance, moneydance_ui, moneydance_extension_loader, moneydance_extension_parameter
+global moneydance, moneydance_ui, moneydance_extension_loader, moneydance_extension_parameter, moneydance_this_fm
 
 global MD_REF, MD_REF_UI
 if "moneydance" in globals(): MD_REF = moneydance           # Make my own copy of reference as MD removes it once main thread ends.. Don't use/hold on to _data variable
@@ -107,10 +106,14 @@ def checkObjectInNameSpace(objectName):
 
 
 if MD_REF is None: raise Exception(u"CRITICAL ERROR - moneydance object/variable is None?")
-if checkObjectInNameSpace(u"moneydance_extension_loader"):
-    MD_EXTENSION_LOADER = moneydance_extension_loader
+
+if checkObjectInNameSpace(u"moneydance_this_fm"):
+    MD_EXTENSION_LOADER = moneydance_this_fm
 else:
-    MD_EXTENSION_LOADER = None
+    if checkObjectInNameSpace(u"moneydance_extension_loader"):
+        MD_EXTENSION_LOADER = moneydance_extension_loader
+    else:
+        MD_EXTENSION_LOADER = None
 
 if (u"__file__" in globals() and __file__.startswith(u"bootstrapped_")): del __file__       # Prevent bootstrapped loader setting this....
 
@@ -242,8 +245,9 @@ elif not _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT and u"__file__" in globals():
     try: MD_REF_UI.showInfoMessage(msg)
     except: raise Exception(msg)
 
-elif not _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT and not checkObjectInNameSpace(u"moneydance_extension_loader"):
-    msg = "%s: Error - moneydance_extension_loader seems to be missing? Must be on build: %s onwards. Now exiting script!\n" %(myModuleID, MIN_BUILD_REQD)
+elif not _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT and not checkObjectInNameSpace(u"moneydance_extension_loader")\
+        and not checkObjectInNameSpace(u"moneydance_this_fm"):
+    msg = "%s: Error - moneydance_extension_loader or moneydance_this_fm seems to be missing? Must be on build: %s onwards. Now exiting script!\n" %(myModuleID, MIN_BUILD_REQD)
     print(msg); System.err.write(msg)
     try: MD_REF_UI.showInfoMessage(msg)
     except: raise Exception(msg)
@@ -5717,8 +5721,8 @@ Visit: %s (Author's site)
             self._saveLocKey = None
 
             if float(self.moneydanceContext.getBuild()) >= 3051 and MD_EXTENSION_LOADER is not None:
-                self.moneydanceExtensionLoader = MD_EXTENSION_LOADER  # This is the class loader for the whole extension
-                myPrint("DB", "... Build is >= 3051 so using moneydance_extension_loader: %s" %(self.moneydanceExtensionLoader))
+                self.moneydanceExtensionLoader = MD_EXTENSION_LOADER  # This is the class loader (or later actually FeatureModule instance) for the whole extension
+                myPrint("DB", "... Build is >= 3051 so using moneydance_extension_loader or moneydance_this_fm: %s" %(self.moneydanceExtensionLoader))
             else:
                 self.moneydanceExtensionLoader = None
 
