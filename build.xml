@@ -755,15 +755,14 @@ http://jakarta.apache.org/ant/index.html
             create-zip-bundle-too="create_zip_bundle_too_true"
             include-py-files-in-zip="include_py_files_in_zip_false"
             include-dict-files-in-zip="include_dict_files_in_zip_false"
-            bundle-own-java-too="bundle_own_java_too_true"
+            bundle-own-java-too="bundle_own_java_too_false"
     />
   </target>
 
   <target name="push_net_account_balances" depends="init,net_account_balances" description="Push 'Custom Balances' Python(Jython2.7) Extension to IK Open Site">
     <push-python-mxt
-            feature="net_account_balances"
-            bundle-java="${OWN_JAVA_PACKAGE_NAME}"
-    />
+            feature="net_account_balances"/>
+<!--            bundle-java="${OWN_JAVA_PACKAGE_NAME}"-->
   </target>
 
   <target name="security_performance_graph" depends="init" description="Build 'Security Performance Graph' Python(Jython2.7) Extension (by Stuart Beesley StuWareSoftSystems)">
