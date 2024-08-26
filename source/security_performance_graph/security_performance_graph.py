@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# security_performance_graph.py build: 1014 - July 2024 - Stuart Beesley StuWareSoftSystems
+# security_performance_graph.py build: 1015 - July 2024 - Stuart Beesley StuWareSoftSystems
 
 # requires: MD 2021.1(3069) due to NPE on SwingUtilities - something to do with 'theGenerator.setInfo(reportSpec)'
 
@@ -50,6 +50,7 @@
 # build: 1013 - MyJFrame(v5); tweaks to cope with MD2024.2(5141) RepGen changes that impact GrapReportGenerator protected fields
 # build: 1014 - MD2024.2(5142) - moneydance_extension_loader was nuked and moneydance_this_fm with getResourceAsStream() was provided.
 # build: 1014 - Switching to CurrencyUtil.convertValue()
+# build: 1015 - ???
 
 #######
 # NOTE: You cannot access protected fields on a subclassed class from python, only protected methods!
@@ -66,7 +67,7 @@
 
 # SET THESE LINES
 myModuleID = u"security_performance_graph"
-version_build = "1014"
+version_build = "1015"
 MIN_BUILD_REQD = 3069
 _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT = True
 

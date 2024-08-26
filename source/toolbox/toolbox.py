@@ -7,7 +7,7 @@
 # Moneydance Support Tool
 # ######################################################################################################################
 
-# toolbox.py build: 1066 - November 2020 thru 2024 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
+# toolbox.py build: 1067 - November 2020 thru 2024 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
 # Further thanks to Kevin(N), Dan T Davis, and dwg for their testing, input and OFX Bank help/input.....
 # Credit of course to Moneydance(Sean) and IK retain all copyright over Moneydance internal code
@@ -173,9 +173,8 @@
 #               Update licensing keys for MD2023/24 etc...
 #               Added Moneyforesight disabled status to main toolbox diagnostics screen....
 # build: 1066 - MD2024.2(5142) - moneydance_extension_loader was nuked and moneydance_this_fm with getResourceAsStream() was provided.
-# build: 1066 - ???
 # build: 1066 - Tweaked wherever graphs/reports (default/memorized) are retrieved for to detect 'unknown' report generators et al...
-# build: 1066 - ???
+# build: 1067 - ???
 
 # NOTE: 'The domain/default pair of (kCFPreferencesAnyApplication, AppleInterfaceStyle) does not exist' means that Dark mode is NOT in force
 
@@ -208,7 +207,7 @@
 
 # SET THESE LINES
 myModuleID = u"toolbox"
-version_build = "1066"
+version_build = "1067"
 MIN_BUILD_REQD = 1915                   # Min build for Toolbox 2020.0(1915)
 _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT = True
 
