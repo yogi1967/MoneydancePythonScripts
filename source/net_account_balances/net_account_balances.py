@@ -4,7 +4,7 @@
 from __future__ import division    # Has to occur at the beginning of file... Changes division to always produce a float
 assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes that division of integers yields a float! Do you have this statement: 'from __future__ import division'?"
 
-# net_account_balances.py build: 1055 - July 2024 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 1055 - September 2024 - Stuart Beesley - StuWareSoftSystems
 # Display Name in MD changed to 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
 
 # Thanks and credit to Dan T Davis and Derek Kent(23) for their suggestions and extensive testing...
@@ -137,6 +137,8 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 # build: 1054 - upgraded printing to MDPrinter using the getattr() tricks... Removed the usage of classloader for this and special java class...
 # build: 1054 - MD2024.2(5142) - moneydance_extension_loader was nuked and moneydance_this_fm with getResourceAsStream() was provided.
 # build: 1055 - NOTE: MD2024.2(5153-5154) changes getUI() - now does not try to launch the GUI if not loaded.. Just returns null...
+# build: 1055 - ???
+# build: 1055 - Added useifeq() useifneq() useifgt() useifgte() useiflt() useiflte() to formula capability...
 # build: 1055 - ???
 
 # todo - bug. Ref: https://github.com/yogi1967/MoneydancePythonScripts/issues/31 - magic @tags for securities don't handle tickers with dots - e.g. @shop.to
@@ -491,7 +493,7 @@ else:
     from com.moneydance.awt import GridC, JLinkListener, JLinkLabel, AwtUtil, QuickSearchField, JRateField
 
     # from com.moneydance.awt import CollapsibleRefresher
-    from com.moneydance.apps.md.controller import Util
+    # from com.moneydance.apps.md.controller import Util
     # from com.moneydance.apps.md.view.gui import MDURLUtil
     from com.moneydance.apps.md.view import HomePageView
     # from com.moneydance.apps.md.view.gui import SearchFieldBorder
@@ -7620,8 +7622,8 @@ Visit: %s (Author's site)
             self.FILTER_FORMULA_EXPR_REGEX_WORDS = re.compile(r"\b(\w+[\(\[])", (re.IGNORECASE | re.UNICODE | re.LOCALE))               # noqa
             self.FILTER_FORMULA_EXPR_REGEX_SPECIALVARS = re.compile(r"(?:^|\s)(\@\w+)", (re.IGNORECASE | re.UNICODE | re.LOCALE))       # noqa
             self.FILTER_FORMULA_EXPR_REGEX_FREEVARS = re.compile(r"\b([a-z]\w*[a-z0-9]*)", (re.IGNORECASE | re.UNICODE | re.LOCALE))    # noqa
-            self.FILTER_FORMULA_EXPR_ALLOWED_WORDS = ["sum", "abs", "min", "max", "round", "float", "random"]
-            self.FILTER_FORMULA_EXPR_FORMULA_DESCRIBED = ["sum(a,b[,...])", "abs(n)", "min(a,b[,...])", "max(a,b[,...])", "round(a[,n])", "float(a)", "random()"]
+            self.FILTER_FORMULA_EXPR_ALLOWED_WORDS = ["sum", "abs", "min", "max", "round", "float", "random", "useifeq", "useifneq", "useifgt", "useifgte", "useiflt", "useiflte"]
+            self.FILTER_FORMULA_EXPR_FORMULA_DESCRIBED = ["sum(a,b[,...])", "abs(n)", "min(a,b[,...])", "max(a,b[,...])", "round(a[,n])", "float(a)", "random()", "useifeq(a,x)", "useifneq(a,x)", "useifgt(a,x)", "useifgte(a,x)", "useiflt(a,x)", "useiflte(a,x)"]
             self.FILTER_FORMULA_EXPR_DEFAULT_TAGS = ["@this"]
 
             self.savedFormulaTable = None
@@ -9614,12 +9616,90 @@ Visit: %s (Author's site)
                 # myPrint("B", "_random() result: %s" %(_result));
                 return _result
 
+            def _useifeq(*args):                                                                                        # noqa
+                if len(args) != 2: raise TypeError("CB's useifeq() takes exactly two arguments (%s given)" %(len(args)))
+                value = args[0]
+                compare = args[1]
+                if not isinstance(value, (int, float, long)): raise TypeError("CB's useifeq() requires int, long, float value 1st parameter (%s given)" %(type(value)))
+                if not isinstance(value, (int, float, long)): raise TypeError("CB's useifeq() requires int, long, float compare 2nd parameter (%s given)" %(type(compare)))
+                value = float(value)
+                compare = float(compare)
+                _result = value if (value == compare) else 0.0
+                # myPrint("B", "_useifeq() result: %s" %(_result));
+                return _result
+
+            def _useifneq(*args):                                                                                        # noqa
+                if len(args) != 2: raise TypeError("CB's useifneq() takes exactly two arguments (%s given)" %(len(args)))
+                value = args[0]
+                compare = args[1]
+                if not isinstance(value, (int, float, long)): raise TypeError("CB's useifneq() requires int, long, float value 1st parameter (%s given)" %(type(value)))
+                if not isinstance(value, (int, float, long)): raise TypeError("CB's useifneq() requires int, long, float compare 2nd parameter (%s given)" %(type(compare)))
+                value = float(value)
+                compare = float(compare)
+                _result = value if (value != compare) else 0.0
+                # myPrint("B", "_useifneq() result: %s" %(_result));
+                return _result
+
+            def _useifgt(*args):                                                                                        # noqa
+                if len(args) != 2: raise TypeError("CB's useifgt() takes exactly two arguments (%s given)" %(len(args)))
+                value = args[0]
+                compare = args[1]
+                if not isinstance(value, (int, float, long)): raise TypeError("CB's useifgt() requires int, long, float value 1st parameter (%s given)" %(type(value)))
+                if not isinstance(value, (int, float, long)): raise TypeError("CB's useifgt() requires int, long, float compare 2nd parameter (%s given)" %(type(compare)))
+                value = float(value)
+                compare = float(compare)
+                _result = value if (value > compare) else 0.0
+                # myPrint("B", "_useifgt() result: %s" %(_result));
+                return _result
+
+            def _useifgte(*args):                                                                                        # noqa
+                if len(args) != 2: raise TypeError("CB's useifgte() takes exactly two arguments (%s given)" %(len(args)))
+                value = args[0]
+                compare = args[1]
+                if not isinstance(value, (int, float, long)): raise TypeError("CB's useifgte() requires int, long, float value 1st parameter (%s given)" %(type(value)))
+                if not isinstance(value, (int, float, long)): raise TypeError("CB's useifgte() requires int, long, float compare 2nd parameter (%s given)" %(type(compare)))
+                value = float(value)
+                compare = float(compare)
+                _result = value if (value >= compare) else 0.0
+                # myPrint("B", "_useifgte() result: %s" %(_result));
+                return _result
+
+            def _useiflt(*args):                                                                                        # noqa
+                if len(args) != 2: raise TypeError("CB's useiflt() takes exactly two arguments (%s given)" %(len(args)))
+                value = args[0]
+                compare = args[1]
+                if not isinstance(value, (int, float, long)): raise TypeError("CB's useiflt() requires int, long, float value 1st parameter (%s given)" %(type(value)))
+                if not isinstance(value, (int, float, long)): raise TypeError("CB's useiflt() requires int, long, float compare 2nd parameter (%s given)" %(type(compare)))
+                value = float(value)
+                compare = float(compare)
+                _result = value if (value < compare) else 0.0
+                # myPrint("B", "_useifeq() result: %s" %(_result));
+                return _result
+
+            def _useiflte(*args):                                                                                        # noqa
+                if len(args) != 2: raise TypeError("CB's useiflte() takes exactly two arguments (%s given)" %(len(args)))
+                value = args[0]
+                compare = args[1]
+                if not isinstance(value, (int, float, long)): raise TypeError("CB's useiflte() requires int, long, float value 1st parameter (%s given)" %(type(value)))
+                if not isinstance(value, (int, float, long)): raise TypeError("CB's useiflte() requires int, long, float compare 2nd parameter (%s given)" %(type(compare)))
+                value = float(value)
+                compare = float(compare)
+                _result = value if (value <= compare) else 0.0
+                # myPrint("B", "_useiflte() result: %s" %(_result));
+                return _result
+
             TAG_VARIABLES["sum"] = _sum
             TAG_VARIABLES["min"] = _min
             TAG_VARIABLES["max"] = _max
             TAG_VARIABLES["abs"] = _abs
             TAG_VARIABLES["round"] = _round
             TAG_VARIABLES["random"] = _random
+            TAG_VARIABLES["useifeq"] = _useifeq
+            TAG_VARIABLES["useifneq"] = _useifneq
+            TAG_VARIABLES["useifgt"] = _useifgt
+            TAG_VARIABLES["useifgte"] = _useifgte
+            TAG_VARIABLES["useiflt"] = _useiflt
+            TAG_VARIABLES["useiflte"] = _useiflte
             # No need to touch round() as it always provides a float back!
 
             ############################################################################################################

@@ -1,4 +1,4 @@
-Author: Stuart Beesley - StuWareSoftSystems (March 2021 - a lockdown project) - Last updated January 2024
+Author: Stuart Beesley - StuWareSoftSystems (March 2021 - a lockdown project) - Last updated September 2024
 Credit: (slack: @dtd) aka Dan T Davis for his input, testing and suggestions to make a (MUCH) better product......
 
 Custom Balances works with 2021.1(3056) and newer.
@@ -303,7 +303,16 @@ MATH ON CALCULATED BALANCES:
                    management, you should probably only use (RMC, UOR, PUM) -OR- formulas,
                    ... not both (but it's up to you)!
 
+                 SPECIAL FORMULAS: The following special formulas are available to you:
+                   useifeq(value, compare)      - uses the supplied value if value is equal to compare, else 0
+                   useifneq(value, compare)     - uses the supplied value if value is not equal to compare, else 0
+                   useifgt(value, compare)      - uses the supplied value if value is greater than compare, else 0
+                   useifgte(value, compare)     - uses the supplied value if value is greater than or equal to compare, else 0
+                   useiflt(value, compare)      - uses the supplied value if value is less than compare, else 0
+                   useiflte(value, compare)     - uses the supplied value if value is less than or equal to compare, else 0
+
                  NOTE: Currently, the only functions allowed are: sum(), abs(), min(), max(), round(), float(), random()
+                       as well as the special ones listed above....
                        ** if these do not work properly for you, please contact the author
 
                  WARNING: You can enter an FORMULA with no accounts selected in the picklist. The formula will
