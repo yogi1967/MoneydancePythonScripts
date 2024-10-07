@@ -9,5 +9,5 @@
   "module_name.en-GB" = "List Future Reminders"
   "module_desc" = "Lists future reminders on screen - Allows you to specify how far forward you look...."
   "mac_sandbox_friendly" = "true"
-  "news" = "MD2023 fixes to common code...; fix QuickSearch() field; Added 'Extract Reminders' Menu and CMD-E keystroke; Ensure on EDT...."
+  "news" = "MD2024 compatible build"
 }
