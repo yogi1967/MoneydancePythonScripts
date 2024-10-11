@@ -139,6 +139,7 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 # build: 1055 - NOTE: MD2024.2(5153-5154) changes getUI() - now does not try to launch the GUI if not loaded.. Just returns null...
 # build: 1055 - ???
 # build: 1055 - Added useifeq() useifneq() useifgt() useifgte() useiflt() useiflte() to formula capability...
+# build: 1055 - Added menu option: 'Disable gray text info'
 # build: 1055 - ???
 
 # todo - bug. Ref: https://github.com/yogi1967/MoneydancePythonScripts/issues/31 - magic @tags for securities don't handle tickers with dots - e.g. @shop.to
@@ -603,6 +604,7 @@ else:
     GlobalVars.extn_param_NEW_showPrintIcon_NAB              = None
     GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB   = None
     GlobalVars.extn_param_NEW_disableWarningIcon_NAB         = None
+    GlobalVars.extn_param_NEW_disableGrayTextInfo_NAB        = None
     GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB    = None
     GlobalVars.extn_param_NEW_useIndianNumberFormat_NAB      = None
     GlobalVars.extn_param_NEW_useTaxDates_NAB                = None
@@ -7650,6 +7652,7 @@ Visit: %s (Author's site)
             self.savedDisableWidgetTitle            = None
             self.savedShowDashesInsteadOfZeros      = None
             self.savedDisableWarningIcon            = None
+            self.savedDisableGrayTextInfo           = None
             self.savedTreatSecZeroBalInactive       = None
             self.savedUseIndianNumberFormat         = None
             self.savedUseTaxDates                   = None
@@ -7669,6 +7672,7 @@ Visit: %s (Author's site)
             self.menuItemShowDashesInsteadOfZeros = None
             self.menuItemTreatSecZeroBalInactive = None
             self.menuItemDisableWarningIcon = None
+            self.menuItemDisableGrayTextInfo = None
             self.menuItemUseIndianNumberFormat = None
             self.menuItemUseTaxDates = None
 
@@ -8187,6 +8191,7 @@ Visit: %s (Author's site)
             GlobalVars.extn_param_NEW_disableWidgetTitle_NAB         = copy.deepcopy(NAB.savedDisableWidgetTitle)
             GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB   = copy.deepcopy(NAB.savedShowDashesInsteadOfZeros)
             GlobalVars.extn_param_NEW_disableWarningIcon_NAB         = copy.deepcopy(NAB.savedDisableWarningIcon)
+            GlobalVars.extn_param_NEW_disableGrayTextInfo_NAB        = copy.deepcopy(NAB.savedDisableGrayTextInfo)
             GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB    = copy.deepcopy(NAB.savedTreatSecZeroBalInactive)
             GlobalVars.extn_param_NEW_useIndianNumberFormat_NAB      = copy.deepcopy(NAB.savedUseIndianNumberFormat)
             GlobalVars.extn_param_NEW_useTaxDates_NAB                = copy.deepcopy(NAB.savedUseTaxDates)
@@ -8861,6 +8866,7 @@ Visit: %s (Author's site)
         def disableWidgetTitleDefault(self):            return False
         def showDashesInsteadOfZerosDefault(self):      return False
         def disableWarningIconDefault(self):            return False
+        def disableGrayTextInfoDefault(self):           return False
         def treatSecZeroBalInactiveDefault(self):       return False
         def useIndianNumberFormatDefault(self):         return False
         def useTaxDatesDefault(self):                   return False
@@ -9047,6 +9053,8 @@ Visit: %s (Author's site)
                 self.resetParameters(44)
             elif self.savedDisableWarningIcon is None or not isinstance(self.savedDisableWarningIcon, bool):
                 self.resetParameters(45)
+            elif self.savedDisableGrayTextInfo is None or not isinstance(self.savedDisableGrayTextInfo, bool):
+                self.resetParameters(46)
             elif self.savedDisableWidgetTitle is None or not isinstance(self.savedDisableWidgetTitle, bool):
                 self.resetParameters(47)
             elif self.savedTreatSecZeroBalInactive is None or not isinstance(self.savedTreatSecZeroBalInactive, bool):
@@ -9955,6 +9963,7 @@ Visit: %s (Author's site)
                 self.savedDisableWidgetTitle            = self.disableWidgetTitleDefault()
                 self.savedShowDashesInsteadOfZeros      = self.showDashesInsteadOfZerosDefault()
                 self.savedDisableWarningIcon            = self.disableWarningIconDefault()
+                self.savedDisableGrayTextInfo           = self.disableGrayTextInfoDefault()
                 self.savedTreatSecZeroBalInactive       = self.treatSecZeroBalInactiveDefault()
                 self.savedUseIndianNumberFormat         = self.useIndianNumberFormatDefault()
                 self.savedUseTaxDates                   = self.useTaxDatesDefault()
@@ -10640,6 +10649,7 @@ Visit: %s (Author's site)
                 myPrint("B", ".....savedShowDashesInsteadOfZeros: %s"           %(NAB.savedShowDashesInsteadOfZeros))
                 myPrint("B", ".....savedTreatSecZeroBalInactive: %s"            %(NAB.savedTreatSecZeroBalInactive))
                 myPrint("B", ".....savedDisableWarningIcon: %s"                 %(NAB.savedDisableWarningIcon))
+                myPrint("B", ".....savedDisableGrayTextInfo: %s"                %(NAB.savedDisableGrayTextInfo))
                 myPrint("B", ".....savedUseIndianNumberFormat: %s"              %(NAB.savedUseIndianNumberFormat))
                 myPrint("B", ".....savedUseTaxDates: %s"                        %(NAB.savedUseTaxDates))
                 myPrint("B", ".....savedDisplayVisualUnderDots: %s"             %(NAB.savedDisplayVisualUnderDots))
@@ -11023,6 +11033,7 @@ Visit: %s (Author's site)
             myPrint("B", " %s" %(pad("savedShowDashesInsteadOfZeros",30)),      NAB.savedShowDashesInsteadOfZeros)
             myPrint("B", " %s" %(pad("savedTreatSecZeroBalInactive",30)),       NAB.savedTreatSecZeroBalInactive)
             myPrint("B", " %s" %(pad("savedDisableWarningIcon",30)),            NAB.savedDisableWarningIcon)
+            myPrint("B", " %s" %(pad("savedDisableGrayTextInfo",30)),           NAB.savedDisableGrayTextInfo)
             myPrint("B", " %s" %(pad("savedUseIndianNumberFormat",30)),         NAB.savedUseIndianNumberFormat)
             myPrint("B", " %s" %(pad("savedUseTaxDates",30)),                   NAB.savedUseTaxDates)
             myPrint("B", " %s" %(pad("savedDisplayVisualUnderDots",30)),        NAB.savedDisplayVisualUnderDots)
@@ -11544,19 +11555,20 @@ Visit: %s (Author's site)
                             NAB.simulateTotal_label.setFont(tdfsc.getValueFont())
                             NAB.simulateTotal_label.setForeground(tdfsc.getValueColor(balanceOrAverageLong))
 
-                            resultTxt = wrap_HTML_BIG_small(theFormattedValue + theDecimalPrecisionFormattedValue,
-                                                            showCurrText
-                                                            + showAverageText
-                                                            + showRowMathsCalcText
-                                                            + showFinalMathsCalcText
-                                                            + showFormulaText
-                                                            + showFinalDisplayAdjustText
-                                                            + showUseTaxDatesText
-                                                            + showBalanceAsOfText
-                                                            + showIncludeRemindersText
-                                                            + showCostBasisText
-                                                            + showUsesOtherRowTxt,
-                                                            altFG)
+                            _grayInfoText = "" if NAB.savedDisableGrayTextInfo else (""
+                                                                                     + showCurrText
+                                                                                     + showAverageText
+                                                                                     + showRowMathsCalcText
+                                                                                     + showFinalMathsCalcText
+                                                                                     + showFormulaText
+                                                                                     + showFinalDisplayAdjustText
+                                                                                     + showUseTaxDatesText
+                                                                                     + showBalanceAsOfText
+                                                                                     + showIncludeRemindersText
+                                                                                     + showCostBasisText
+                                                                                     + showUsesOtherRowTxt)
+
+                            resultTxt = wrap_HTML_BIG_small(theFormattedValue + theDecimalPrecisionFormattedValue, _grayInfoText, altFG)
                             NAB.simulateTotal_label.setText(resultTxt)
 
                             if NAB.savedBlinkTable[i]:
@@ -12318,6 +12330,12 @@ Visit: %s (Author's site)
                     NAB.configSaved = False
 
                 # ######################################################################################################
+                if event.getActionCommand() == "disable_gray_text_info":
+                    NAB.savedDisableGrayTextInfo = not NAB.savedDisableGrayTextInfo
+                    myPrint("B", "User has changed 'Disable gray text info' to: %s" %(NAB.savedDisableGrayTextInfo))
+                    NAB.configSaved = False
+
+                # ######################################################################################################
                 if event.getActionCommand() == "use_indian_number_format":
                     NAB.savedUseIndianNumberFormat = not NAB.savedUseIndianNumberFormat
                     myPrint("B", "User has changed 'Use Indian number format' to: %s" %(NAB.savedUseIndianNumberFormat))
@@ -12762,6 +12780,7 @@ Visit: %s (Author's site)
                 GlobalVars.extn_param_NEW_disableWidgetTitle_NAB            = NAB.disableWidgetTitleDefault()
                 GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB      = NAB.showDashesInsteadOfZerosDefault()
                 GlobalVars.extn_param_NEW_disableWarningIcon_NAB            = NAB.disableWarningIconDefault()
+                GlobalVars.extn_param_NEW_disableGrayTextInfo_NAB           = NAB.disableGrayTextInfoDefault()
                 GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB       = NAB.treatSecZeroBalInactiveDefault()
                 GlobalVars.extn_param_NEW_useIndianNumberFormat_NAB         = NAB.useIndianNumberFormatDefault()
                 GlobalVars.extn_param_NEW_useTaxDates_NAB                   = NAB.useTaxDatesDefault()
@@ -12829,6 +12848,7 @@ Visit: %s (Author's site)
                         self.savedDisableWidgetTitle            = copy.deepcopy(GlobalVars.extn_param_NEW_disableWidgetTitle_NAB)
                         self.savedShowDashesInsteadOfZeros      = copy.deepcopy(GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB)
                         self.savedDisableWarningIcon            = copy.deepcopy(GlobalVars.extn_param_NEW_disableWarningIcon_NAB)
+                        self.savedDisableGrayTextInfo           = copy.deepcopy(GlobalVars.extn_param_NEW_disableGrayTextInfo_NAB)
                         self.savedTreatSecZeroBalInactive       = copy.deepcopy(GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB)
                         self.savedUseIndianNumberFormat         = copy.deepcopy(GlobalVars.extn_param_NEW_useIndianNumberFormat_NAB)
                         self.savedUseTaxDates                   = copy.deepcopy(GlobalVars.extn_param_NEW_useTaxDates_NAB)
@@ -13053,6 +13073,12 @@ Visit: %s (Author's site)
             NAB.menuItemDisableWarningIcon.setToolTipText("Prevents the warning icon from appearing on the widget's title bar...")
             menuO.add(NAB.menuItemDisableWarningIcon)
 
+            NAB.menuItemDisableGrayTextInfo = MyJCheckBoxMenuItem("Disable gray text info")
+            NAB.menuItemDisableGrayTextInfo.setActionCommand("disable_gray_text_info")
+            NAB.menuItemDisableGrayTextInfo.addActionListener(NAB.saveActionListener)
+            NAB.menuItemDisableGrayTextInfo.setToolTipText("Prevents extra little gray info text from appearing...")
+            menuO.add(NAB.menuItemDisableGrayTextInfo)
+
             NAB.menuItemDeactivate = MyJMenuItem("Deactivate Extension")
             NAB.menuItemDeactivate.setActionCommand("deactivate_extension")
             NAB.menuItemDeactivate.addActionListener(NAB.saveActionListener)
@@ -13144,6 +13170,7 @@ Visit: %s (Author's site)
             NAB.menuItemShowDashesInsteadOfZeros.setSelected(NAB.savedShowDashesInsteadOfZeros)
             NAB.menuItemTreatSecZeroBalInactive.setSelected(NAB.savedTreatSecZeroBalInactive)
             NAB.menuItemDisableWarningIcon.setSelected(NAB.savedDisableWarningIcon)
+            NAB.menuItemDisableGrayTextInfo.setSelected(NAB.savedDisableGrayTextInfo)
             NAB.menuItemUseIndianNumberFormat.setSelected(NAB.savedUseIndianNumberFormat)
             NAB.menuItemUseTaxDates.setSelected(NAB.savedUseTaxDates)
             NAB.menuDisplayVisualUnderDots.setSelected(NAB.savedDisplayVisualUnderDots)
@@ -16828,22 +16855,22 @@ Visit: %s (Author's site)
                                                                                          NAB.savedUseCostBasisTable[i],
                                                                                          NAB.savedIncExpDateRangeTable[i])
 
-                                    tdfsc = TextDisplayForSwingConfig(("[%s] " %(i+1) if debug else "") + NAB.savedWidgetName[i],
-                                                                      balanceObj.getExtraRowTxt()
-                                                                      + showCurrText
-                                                                      + showAverageText
-                                                                      + showRowMathsCalcText
-                                                                      + showFinalMathsCalcText
-                                                                      + showFormulaText
-                                                                      + showFinalDisplayAdjustText
-                                                                      + showUseTaxDatesText
-                                                                      + showBalanceAsOfText
-                                                                      + showIncludeRemindersText
-                                                                      + showCostBasisText
-                                                                      + showUsesOtherRowTxt
-                                                                      + uuidTxt,
-                                                                      altFG,
-                                                                      insertVars=insertVars)
+                                    _grayInfoText = "" if NAB.savedDisableGrayTextInfo else (""
+                                                                                              + balanceObj.getExtraRowTxt()
+                                                                                              + showCurrText
+                                                                                              + showAverageText
+                                                                                              + showRowMathsCalcText
+                                                                                              + showFinalMathsCalcText
+                                                                                              + showFormulaText
+                                                                                              + showFinalDisplayAdjustText
+                                                                                              + showUseTaxDatesText
+                                                                                              + showBalanceAsOfText
+                                                                                              + showIncludeRemindersText
+                                                                                              + showCostBasisText
+                                                                                              + showUsesOtherRowTxt)
+                                                                                              # + uuidTxt)
+
+                                    tdfsc = TextDisplayForSwingConfig(("[%s] " %(i+1) if debug else "") + NAB.savedWidgetName[i], _grayInfoText, altFG, insertVars=insertVars)
 
                                     nameLabel = SpecialJLinkLabel(tdfsc.getSwingComponentText(), "showConfig?%s" %(str(onRow)), tdfsc.getJustification(), tdfsc=tdfsc, allowDynamicSizing=True)
 
@@ -16968,7 +16995,7 @@ Visit: %s (Author's site)
                                     _view.listPanel.add(nameLabel, GridC.getc().xy(0, self.widgetOnPnlRow).wx(1.0).fillboth().west().pady(2))
                                     self.widgetOnPnlRow += 1
 
-                                if NAB.isPreview or debug:
+                                if (not NAB.savedDisableGrayTextInfo and NAB.isPreview) or debug:
                                     self.widgetOnPnlRow += 1
                                     previewText = "" if not NAB.isPreview else "*PREVIEW(%s)* " %(version_build)
                                     debugText = "" if not debug else "*DEBUG* "

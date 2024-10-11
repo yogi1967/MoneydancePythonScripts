@@ -440,7 +440,7 @@ OPTIONS MENU:
                             - reminders,  cost basis / ur-gains / capital gains, or when using 'balance asof dates'.
                             ... as such, the 'normal' transaction date will be used.
   - Display underline dots: Display 'underline' dots that fill the blank space between row names and values
-  - Disable Warning Icon: Removes Warning Icon from the Widget
+  - Disable gray text info: Prevents extra little gray info text from appearing... (eg "(for) appended to the row name")
 
 
 BACKUP/RESTORE:
@@ -605,9 +605,10 @@ NOTE: Click the little "<" icon to the right of the row name field to view/inser
 
   NOTE: You may see little gray words in (brackets) appended to each row name. These provide extra information about the
         configuration of that row. These can appear when things other than straightforward accounts have been selected.
-        At this time, it is not possible to turn these off. When debug is turned on, these can get more descriptive:
+        When debug is turned on, these are more descriptive. To disable use the menu option: 'Disable gray text info'...
 
         (currencyID) - when not using the base currency - e.g. '(USD)'
+        (securities) - when including security balances
         (avg/by: n)  - when using average by feature
         (balasof)    - when using balance asof date. With debug '(balasof: <date>)'
         (rems)       - when including reminders. With debug '(incl. reminders asof: <date>)'
