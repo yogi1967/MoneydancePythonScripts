@@ -1,4 +1,4 @@
-Author: Stuart Beesley - StuWareSoftSystems (March 2021 - a lockdown project) - Last updated September 2024
+Author: Stuart Beesley - StuWareSoftSystems (March 2021 - a lockdown project) - Last updated: October 2024
 Credit: (slack: @dtd) aka Dan T Davis for his input, testing and suggestions to make a (MUCH) better product......
 
 Custom Balances works with 2021.1(3056) and newer.
@@ -602,6 +602,28 @@ NOTE: Click the little "<" icon to the right of the row name field to view/inser
 
    HTML EXAMPLE:
    <#html><b><font color=#0000ff>Expenses </font></b>Last month <small><u><font color=#bb0000>OVERDUE</font></u></small>
+
+  NOTE: You may see little gray words in (brackets) appended to each row name. These provide extra information about the
+        configuration of that row. These can appear when things other than straightforward accounts have been selected.
+        At this time, it is not possible to turn these off. When debug is turned on, these can get more descriptive:
+
+        (currencyID) - when not using the base currency - e.g. '(USD)'
+        (avg/by: n)  - when using average by feature
+        (balasof)    - when using balance asof date. With debug '(balasof: <date>)'
+        (rems)       - when including reminders. With debug '(incl. reminders asof: <date>)'
+        (cb)         - when showing the cost basis of securities. With debug '(costbasis)'
+        (cb-c)       - when showing the cost basis including cash balances. With debug '(costbasis incl. cash)'
+        (urg)        - when showing security's unrealised gains. With debug '(u/r gains)'
+        (cg)         - when calculating capital gains. With debug '(capital gains - simple)'
+        (cg-s)       - when calculating capital gains 'short-term holding'. With debug '(capital gains - short)'
+        (cg-l)       - when calculating capital gains 'long-term holding'. With debug '(capital gains - long)'
+        (rmc)        - when using Row maths calculation. With debug '(rmc: 'x')' - x shows the detail of the RMC
+        (pum)        - when using Post UOR maths calculation. With debug '(pum: 'x')' - x shows the detail of the PUM
+        (for)        - when using a formula
+        (fda)        - when using Format Display Adjust
+        (txd)        - when tax dates are being used
+        (uor: n)     - when using another row; where n = the other row
+        (uuid: x)    - with debug enabled... shows the internal UUID reference.
 
 
 USING CATEGORIES (DATE RANGE)
