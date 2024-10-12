@@ -11555,18 +11555,18 @@ Visit: %s (Author's site)
                             NAB.simulateTotal_label.setFont(tdfsc.getValueFont())
                             NAB.simulateTotal_label.setForeground(tdfsc.getValueColor(balanceOrAverageLong))
 
-                            _grayInfoText = "" if NAB.savedDisableGrayTextInfo else (""
-                                                                                     + showCurrText
-                                                                                     + showAverageText
-                                                                                     + showRowMathsCalcText
-                                                                                     + showFinalMathsCalcText
-                                                                                     + showFormulaText
-                                                                                     + showFinalDisplayAdjustText
-                                                                                     + showUseTaxDatesText
-                                                                                     + showBalanceAsOfText
-                                                                                     + showIncludeRemindersText
-                                                                                     + showCostBasisText
-                                                                                     + showUsesOtherRowTxt)
+                            _grayInfoText = "" if (not debug and NAB.savedDisableGrayTextInfo) else (""
+                                                                                                     + showCurrText
+                                                                                                     + showAverageText
+                                                                                                     + showRowMathsCalcText
+                                                                                                     + showFinalMathsCalcText
+                                                                                                     + showFormulaText
+                                                                                                     + showFinalDisplayAdjustText
+                                                                                                     + showUseTaxDatesText
+                                                                                                     + showBalanceAsOfText
+                                                                                                     + showIncludeRemindersText
+                                                                                                     + showCostBasisText
+                                                                                                     + showUsesOtherRowTxt)
 
                             resultTxt = wrap_HTML_BIG_small(theFormattedValue + theDecimalPrecisionFormattedValue, _grayInfoText, altFG)
                             NAB.simulateTotal_label.setText(resultTxt)
@@ -16855,20 +16855,20 @@ Visit: %s (Author's site)
                                                                                          NAB.savedUseCostBasisTable[i],
                                                                                          NAB.savedIncExpDateRangeTable[i])
 
-                                    _grayInfoText = "" if NAB.savedDisableGrayTextInfo else (""
-                                                                                              + balanceObj.getExtraRowTxt()
-                                                                                              + showCurrText
-                                                                                              + showAverageText
-                                                                                              + showRowMathsCalcText
-                                                                                              + showFinalMathsCalcText
-                                                                                              + showFormulaText
-                                                                                              + showFinalDisplayAdjustText
-                                                                                              + showUseTaxDatesText
-                                                                                              + showBalanceAsOfText
-                                                                                              + showIncludeRemindersText
-                                                                                              + showCostBasisText
-                                                                                              + showUsesOtherRowTxt)
-                                                                                              # + uuidTxt)
+                                    _grayInfoText = "" if (not debug and NAB.savedDisableGrayTextInfo) else (""
+                                                                                                              + balanceObj.getExtraRowTxt()
+                                                                                                              + showCurrText
+                                                                                                              + showAverageText
+                                                                                                              + showRowMathsCalcText
+                                                                                                              + showFinalMathsCalcText
+                                                                                                              + showFormulaText
+                                                                                                              + showFinalDisplayAdjustText
+                                                                                                              + showUseTaxDatesText
+                                                                                                              + showBalanceAsOfText
+                                                                                                              + showIncludeRemindersText
+                                                                                                              + showCostBasisText
+                                                                                                              + showUsesOtherRowTxt)
+                                                                                                              # + uuidTxt)
 
                                     tdfsc = TextDisplayForSwingConfig(("[%s] " %(i+1) if debug else "") + NAB.savedWidgetName[i], _grayInfoText, altFG, insertVars=insertVars)
 
