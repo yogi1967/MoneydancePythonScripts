@@ -4019,7 +4019,7 @@ Visit: %s (Author's site)
 
         def getBalance(self):
             # if not self.shouldIncludeInactive() and not isAccountActive(self.getAccount(),GlobalVars.BALTYPE_BALANCE, self): return 0
-            return (self.getStartBalance() + self.balance)
+            return (self.getStartBalance() + self.balance)  # fixme - "TypeError: unsupported operand type(s) for +: 'int' and 'NoneType'"
 
         def getCurrentBalance(self):
             # if not self.shouldIncludeInactive() and not isAccountActive(self.getAccount(),GlobalVars.BALTYPE_CURRENTBALANCE, self): return 0
@@ -6592,6 +6592,12 @@ Visit: %s (Author's site)
                 balanceObj.setStartBalance(0)       # Do this last!
 
                 # for debug...
+                if (balanceObj.getStartBalance() is None or balanceObj.balance is None):
+                    # trap a strange NPE....
+                    myPrint("B", "*** LOGIC ERROR >> row: %s acct: '%s' getStartBalance(): %s balance: %s - dumping balanceObj..:"
+                            %(iRowIdx+1, acct, balanceObj.getStartBalance(), balanceObj.balance))
+                    myPrint("B", "    " + balanceObj.toString())
+                    myPrint("B", "----------------------------------------")
                 balanceObj.balAsOf_balance = balanceObj.getBalance()
                 balanceObj.balAsOf_currentBalance = balanceObj.getCurrentBalance()
                 balanceObj.balAsOf_clearedBalance = balanceObj.getClearedBalance()
