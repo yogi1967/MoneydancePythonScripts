@@ -16850,7 +16850,7 @@ Visit: %s (Author's site)
                                         else:
                                             showUsesOtherRowTxt = " (uor: %s)" %(newTargetIdx+1)
 
-                                    uuidTxt = "" if not debug else " (uuid: %s)" %(NAB.savedUUIDTable[i])
+                                    # uuidTxt = "" if not debug else " (uuid: %s)" %(NAB.savedUUIDTable[i])
 
 
                                     insertVars = TextDisplayForSwingConfig.buildVarsDict(i+1,
@@ -16873,8 +16873,7 @@ Visit: %s (Author's site)
                                                                                                               + showBalanceAsOfText
                                                                                                               + showIncludeRemindersText
                                                                                                               + showCostBasisText
-                                                                                                              + showUsesOtherRowTxt)
-                                                                                                              # + uuidTxt)
+                                                                                                              + showUsesOtherRowTxt)  # + uuidTxt)
 
                                     tdfsc = TextDisplayForSwingConfig(("[%s] " %(i+1) if debug else "") + NAB.savedWidgetName[i], _grayInfoText, altFG, insertVars=insertVars)
 
