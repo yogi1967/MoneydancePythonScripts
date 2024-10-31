@@ -7,7 +7,7 @@
 # Moneydance Support Tool
 # ######################################################################################################################
 
-# toolbox.py build: 1067 - November 2020 thru 2024 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
+# toolbox.py build: 1067 - 2020 thru 2024 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
 # Further thanks to Kevin(N), Dan T Davis, and dwg for their testing, input and OFX Bank help/input.....
 # Credit of course to Moneydance(Sean) and IK retain all copyright over Moneydance internal code
@@ -177,6 +177,8 @@
 # build: 1067 - NOTE: MD2024.2(5152) brings new Syncer.getCurrentSyncStats() etc...
 # build: 1067 - NOTE: MD2024.2(5153) brings new ConsoleWindow(...) utilities for promote/demote primary/secondary, along with push/pull sync data to/from remote
 # build: 1067 - NOTE: MD2024.2(5153-5154) changes getUI() - now does not try to launch the GUI if not loaded.. Just returns null...
+# build: 1067 - ???
+# build: 1067 - Tweak clone dataset as the manual methods of loading a dataset/model changed!
 # build: 1067 - ???
 
 # NOTE: 'The domain/default pair of (kCFPreferencesAnyApplication, AppleInterfaceStyle) does not exist' means that Dark mode is NOT in force
