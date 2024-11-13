@@ -139,7 +139,7 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 # build: 1055 - NOTE: MD2024.2(5153-5154) changes getUI() - now does not try to launch the GUI if not loaded.. Just returns null...
 # build: 1055 - ???
 # build: 1055 - Added useifeq() useifneq() useifgt() useifgte() useiflt() useiflte() to formula capability...
-# build: 1055 - Added menu option: 'Disable gray text info'
+# build: 1055 - Added menu option: 'Disable gray text info'; prevent html rowname code from truncating with dots...
 # build: 1055 - ???
 
 # todo - bug. Ref: https://github.com/yogi1967/MoneydancePythonScripts/issues/31 - magic @tags for securities don't handle tickers with dots - e.g. @shop.to
@@ -396,6 +396,7 @@ else:
     from com.infinitekind.tiksync import SyncRecord                                                                     # noqa
     from com.infinitekind.util import StreamTable                                                                       # noqa
 
+    from javax.swing.plaf.basic import BasicHTML
     from javax.swing import JButton, JScrollPane, WindowConstants, JLabel, JPanel, JComponent, KeyStroke, JDialog, JComboBox
     from javax.swing import JOptionPane, JTextArea, JMenuBar, JMenu, JMenuItem, AbstractAction, JCheckBoxMenuItem, JFileChooser
     from javax.swing import JTextField, JPasswordField, Box, UIManager, JTable, JCheckBox, JRadioButton, ButtonGroup
@@ -5288,7 +5289,8 @@ Visit: %s (Author's site)
                 self.forceUnderlineDots = True
                 self.noUnderlineDots = False
 
-            if len(_rowText) > maxLenRowText: _rowText = padTruncateWithDots(_rowText, maxLenRowText, padString=False)
+            if not self.html:
+                if len(_rowText) > maxLenRowText: _rowText = padTruncateWithDots(_rowText, maxLenRowText, padString=False)
 
             if self.getJustification() == JLabel.CENTER:
                 self.noUnderlineDots = True                                # These don't work properly when centered....
@@ -5306,6 +5308,11 @@ Visit: %s (Author's site)
                                                           _bold=self.bold,
                                                           _underline=self.underline,
                                                           _html=self.html)
+            # if self.html:
+            #     maxLenPix = self.getRenderedTextWidth(JLabel("W" * maxLenRowText))
+            #     calcTextWidthPix = self.getRenderedTextWidth(JLabel(self.swingComponentText))
+            #     if calcTextWidthPix > maxLenPix:
+            #         dunno what to do anyway!
 
         def clone(self, tdfsc, prependBigText, appendBigText):
             newTDFSC = TextDisplayForSwingConfig(prependBigText + tdfsc.originalRowText + appendBigText,
@@ -5350,6 +5357,10 @@ Visit: %s (Author's site)
                     font = font.deriveFont(fa)
             return font
 
+        def getRenderedTextWidth(self, label):
+            view = BasicHTML.createHTMLView(label, label.getText())     # Create an HTML view for the JLabel text
+            width = int(view.getPreferredSpan(0))                       # Get the preferred width of the HTML view - 0 is for the X-axis (width)
+            return width
 
     # if isKotlinCompiledBuild():
     #     from okio import BufferedSource, Buffer, Okio                                                                   # noqa
