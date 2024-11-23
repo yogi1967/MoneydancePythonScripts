@@ -600,8 +600,12 @@ NOTE: Click the little "<" icon to the right of the row name field to view/inser
                                                     default MD foreground color(black-ish): #4a4a4a
                                         Refer: https://www.rapidtables.com/web/color/RGB_Color.html
 
-   HTML EXAMPLE:
+   HTML EXAMPLES:
    <#html><b><font color=#0000ff>Expenses </font></b>Last month <small><u><font color=#bb0000>OVERDUE</font></u></small>
+   <#html><font size="5">Networth</font>
+
+   ... NOTE: row name length checking is not performed on html formatted rows. If the row name ends up too long
+             (i.e. too wide on the summary screen), then you'll have to manually edit/tweak your html coding...
 
   NOTE: You may see little gray words in (brackets) appended to each row name. These provide extra information about the
         configuration of that row. These can appear when things other than straightforward accounts have been selected.
