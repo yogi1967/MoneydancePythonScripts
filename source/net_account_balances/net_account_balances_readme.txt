@@ -1,8 +1,8 @@
-Author: Stuart Beesley - StuWareSoftSystems (March 2021 - a lockdown project) - Last updated: October 2024
-Credit: (slack: @dtd) aka Dan T Davis for his input, testing and suggestions to make a (MUCH) better product......
+Author: Stuart Beesley - StuWareSoftSystems (March 2021 - a lockdown project) - Last updated: January 2025
+Credit: (slack: @dtd) aka Dan T Davis for his input, testing, patience and suggestions to make a (much) better product..
 
 Custom Balances works with 2021.1(3056) and newer.
-DISCLAIMER: THIS EXTENSION IS READONLY (IT DOES NOT CHANGE DATA) >> BUT YOU USE AT YOUR OWN RISK!
+DISCLAIMER: THIS EXTENSION IS READONLY (IT DOES NOT CHANGE DATA) >> YOU USE AT YOUR OWN RISK!
 
 DEFINITIONS:
 - CB means this extension / Custom Balances
@@ -32,26 +32,6 @@ This extension creates a 'widget' that calculates / displays totals on the Money
 - You can change the name of each row, the balance type, and the currency to display. Also Active/Inactive items.
 
 ------------------------------------------------------------------------------------------------------------------------
-UPGRADE NOTES:
-If you have been using recent PREVIEW builds (since 1038 / November 2023) then you may have configured
-'Final Maths Calculation' (FMC), and also come across 'absorbed into other UORs' and also 'not absorbed'. These settings
-have gone, and have been migrated into:
-a) 'Post UOR maths calculation' (PUM) (replacing FMC absorbed), or...
-b) 'Format Display Adjust' (FDA)      (replacing FMC non-absorbed).
-
-DEFINITION: 'absorbed' in this context means that the math takes place before being rolled upwards into other
-UORs that refer to this row... I.e. 'non-absorbed' means the impact of the maths stays on this row alone.
-
-There is a new exciting Formula (FOR) capability from build 1046+. This in effect can replace RMC, UOR, PUM. You can
-continue to use these, or use the new superior formula capability. You can actually combine all these, but this is
-NOT RECOMMENDED as it's duplicative and confusing to understand. RECOMMENDATION: if you want to use formulas, then
-manually update your settings to only use formula. Average by is not affected by this change. FDA and *100 can remain,
-or be replaced by formula - your choice.
-
-Formula gives you the ability to add multiple rows together, or perhaps subtract one row from another (for example).
-These types of calculations are quite tricky to perform using the 'old' UOR maths.
-------------------------------------------------------------------------------------------------------------------------
-
 LET'S GET STARTED:
 
 The GUI config screen utilises a split screen to show you the main settings (top) and the accounts picklist (bottom).
@@ -834,10 +814,30 @@ in both short-term and long-term pools (however this data is only shown in conso
 >> MD can report this same data in the Capital Gains report when the 'Show double-category average cost data' option is
    enabled. However, this does not affect the cost basis or gains calculation, and is incorrect when the security has
    stock splits....
+
+
 ------------------------------------------------------------------------------------------------------------------------
+HISTORICAL UPGRADE NOTES:
+If you have been using more recent PREVIEW builds (since 1038 / November 2023) then you may have configured
+'Final Maths Calculation' (FMC), and also come across 'absorbed into other UORs' and also 'not absorbed'. These settings
+have gone, and were migrated into:
+a) 'Post UOR maths calculation' (PUM) (replacing FMC absorbed), or...
+b) 'Format Display Adjust' (FDA)      (replacing FMC non-absorbed).
+
+DEFINITION: 'absorbed' in this context means that the math takes place before being rolled upwards into other
+UORs that refer to this row... I.e. 'non-absorbed' means the impact of the maths stays on this row alone.
+
+There is a new exciting Formula (FOR) capability from build 1046+. This in effect can replace RMC, UOR, PUM. You can
+continue to use these, or use the new superior formula capability. You can actually combine all these, but this is
+NOT RECOMMENDED as it's duplicative and confusing to understand. RECOMMENDATION: if you want to use formulas, then
+manually update your settings to only use formula. Average by is not affected by this change. FDA and *100 can remain,
+or be replaced by formula - your choice.
+
+Formula gives you the ability to add multiple rows together, or perhaps subtract one row from another (for example).
+These types of calculations are quite tricky to perform using the 'old' UOR maths.
 
 
-
+------------------------------------------------------------------------------------------------------------------------
 TECHNICAL/HISTORICAL NOTES:
 - My original concept was to add balances to target zero. Thus a positive number is 'good', a negative is 'bad'
 - The idea was that you net cash and debt to get back to zero every month (but you can do so much more than this now)!
