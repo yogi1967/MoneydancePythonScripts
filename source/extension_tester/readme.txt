@@ -1,6 +1,6 @@
 InfiniteKind - Moneydance Python extensions
 
-Documented by Stuart Beesley - StuWareSoftSystems 2024 - https://yogi1967.github.io/MoneydancePythonScripts/
+Documented by Stuart Beesley - StuWareSoftSystems 2025 - https://yogi1967.github.io/MoneydancePythonScripts/
 
 NOTES ABOUT PYTHON EXTENSIONS:
 

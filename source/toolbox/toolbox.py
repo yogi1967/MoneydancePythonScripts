@@ -7,7 +7,7 @@
 # Moneydance Support Tool
 # ######################################################################################################################
 
-# toolbox.py build: 1067 - 2020 thru 2024 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
+# toolbox.py build: 1067 - 2020 thru 2025 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
 # Further thanks to Kevin(N), Dan T Davis, and dwg for their testing, input and OFX Bank help/input.....
 # Credit of course to Moneydance(Sean) and IK retain all copyright over Moneydance internal code
@@ -56,7 +56,7 @@
 ###############################################################################
 # MIT License
 #
-# Copyright (c) 2021-2024 Stuart Beesley - StuWareSoftSystems & Infinite Kind (Moneydance)
+# Copyright (c) 2021-2025 Stuart Beesley - StuWareSoftSystems & Infinite Kind (Moneydance)
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -2971,7 +2971,7 @@ Visit: %s (Author's site)
             _label1.setForeground(getColorBlue())
             aboutPanel.add(_label1)
 
-            _label2 = JLabel(pad("StuWareSoftSystems (2020-2024)", 800))
+            _label2 = JLabel(pad("StuWareSoftSystems (2020-2025)", 800))
             _label2.setForeground(getColorBlue())
             aboutPanel.add(_label2)
 
