@@ -1654,7 +1654,36 @@ try:
 
         setDisplayStatus(txt, "B")
         jif = QuickJFrame(_THIS_METHOD_NAME.upper(), output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
-        if fix: myPopupInformationBox(jif, "%s accounts with invalid 'start dates' repaired" %(countInvalid), theMessageType=JOptionPane.WARNING_MESSAGE)
+        if fix:
+            logToolboxUpdates("validate_account_start_dates", txt)
+            myPopupInformationBox(jif, "%s accounts with invalid 'start dates' repaired" %(countInvalid), theMessageType=JOptionPane.WARNING_MESSAGE)
+
+    def reset_all_inbuilt_report_params_defaults():
+        if MD_REF.getCurrentAccountBook() is None: return
+
+        _THIS_METHOD_NAME = "FIX: RESET all inbuilt report parameters to defaults"
+
+        if not myPopupAskQuestion(toolbox_frame_, theQuestion="Do you want to RESET all inbuilt report parameters to defaults?", theTitle=_THIS_METHOD_NAME):
+            txt = "%s: User decided not to erase all inbuilt report parameters - no changes made.." %(_THIS_METHOD_NAME)
+            setDisplayStatus(txt, "B")
+            return
+
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_, _THIS_METHOD_NAME.upper(), "RESET all inbuilt report parameters?"):
+            return False
+
+        ls = MD_REF.getCurrentAccountBook().getLocalStorage()
+        erasedKeys = {}
+        for key in sorted(ls.keys()):
+            value = ls.getStr(key, None)
+            if (value is not None and key.startswith("report_params.")):
+                erasedKeys[key] = value
+                ls.put(key, None)
+                myPrint("B", "ERASED inbuilt report key: '%s' value: '%s'" %(key, value))
+
+        txt = "%s: %s inbuilt report parameter settings erased (review console for details)" %(_THIS_METHOD_NAME, len(erasedKeys))
+        setDisplayStatus(txt, "B")
+        logToolboxUpdates("reset_all_inbuilt_report_params_defaults", txt)
+        myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
 
     def view_networthCalculations():
         if MD_REF.getCurrentAccountBook() is None: return

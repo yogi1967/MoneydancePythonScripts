@@ -210,6 +210,7 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
         - FIX - Set/Change Default Moneydance FONTS                                                                     >> 2021.1 onwards
         - FIX - Delete Custom Theme file
         - FIX - Delete Orphaned/Outdated Extensions (from config.dict and .mxt files)
+        - FIX - RESET all inbuilt report parameters to defaults (does not touch Memorized Reports)
 
     - MENU: Online (OFX) Banking Tools:
         - Forget OFX Banking Import Link (so it asks which account when importing ofx files) (remove_ofx_account_bindings.py) (MD versions < 2022)

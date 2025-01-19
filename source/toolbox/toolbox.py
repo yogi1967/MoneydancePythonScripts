@@ -182,6 +182,7 @@
 # build: 1067 - Add Account Menu options to validate / fix account start dates (based on earliest txn dates)...
 # build: 1067 - Fixes as the shouldBeIncludedInNetWorth() was renamed in MD2024.3(5204) to get/setIncludeInNetWorth()
 # build: 1067 - BUGFIX read_preferences_file() .readFromFile() was calling str(file)... switched to pass the File reference.
+# build: 1067 - Added menu options for Reset inbuilt report parameters (to defaults), and Delete all memorized reports...
 # build: 1067 - ???
 
 # NOTE: 'The domain/default pair of (kCFPreferencesAnyApplication, AppleInterfaceStyle) does not exist' means that Dark mode is NOT in force
@@ -3477,6 +3478,7 @@ Visit: %s (Author's site)
         global advanced_options_decrypt_file_from_dataset, advanced_options_decrypt_file_from_sync
         global advanced_options_decrypt_dataset, advanced_show_encryption_keys
         global CollectTheGarbage, getDropboxSyncFolderForBasePath, advanced_options_force_reset_sync_settings
+        global reset_all_inbuilt_report_params_defaults
         global advanced_clone_dataset
         global advanced_options_DEBUG, advanced_options_other_DEBUG
         global validate_account_start_dates, fix_account_start_dates
@@ -28675,6 +28677,9 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                     user_reset_window_display_settings = MenuJRadioButton("RESET Window Display Settings (disabled when script)", False, updateMenu=True, secondaryEnabled=(GlobalVars.i_am_an_extension_so_run_headless))
                     user_reset_window_display_settings.setToolTipText("This tells MD to 'forget' window display settings. CLOSE ALL REGISTER WINDOWS FIRST! The beauty is it keeps all other settings intact! THIS CHANGES DATA!")
 
+                    user_reset_all_inbuilt_report_params_defaults = MenuJRadioButton("RESET all inbuilt report parameters to defaults", False, updateMenu=True)
+                    user_reset_all_inbuilt_report_params_defaults.setToolTipText("Erases any settings saved against inbuilt reports (does not touch Memorized Reports). THIS CHANGES DATA!")
+
                     userFilters = JPanel(GridLayout(0, 1))
 
                     rowHeight = 24
@@ -28691,7 +28696,7 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                     userFilters.add(user_convert_timestamp)
 
                     if GlobalVars.globalShowDisabledMenuItems or ToolboxMode.isUpdateMode():
-                        rows += 14
+                        rows += 15
                         userFilters.add(JLabel(" "))
                         userFilters.add(ToolboxMode.DEFAULT_MENU_UPDATE_TXT_LBL)
 
@@ -28711,6 +28716,7 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                         userFilters.add(user_change_moneydance_fonts)
                         userFilters.add(user_delete_custom_theme_file)
                         userFilters.add(user_delete_orphan_extensions)
+                        userFilters.add(user_reset_all_inbuilt_report_params_defaults)
 
                     bg = setupMenuRadioButtons(userFilters)
 
@@ -28737,27 +28743,28 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
 
                         selectHomeScreen()      # Stops the LOT Control box popping up..... Get back to home screen....
 
-                        if user_display_passwords.isSelected():                     display_passwords()
-                        if user_view_searchable_console_log.isSelected():           ViewFileButtonAction(MD_REF.getLogFile(), "MD Console Log").actionPerformed(None)
-                        if user_view_MD_config_file.isSelected():                   ViewFileButtonAction(Common.getPreferencesFile(), "MD Config").actionPerformed(None)
-                        if user_view_MD_custom_theme_file.isSelected():             ViewFileButtonAction(ThemeInfo.customThemeFile, "MD Custom Theme").actionPerformed(None)
-                        if user_view_extensions_details.isSelected():               view_extensions_details()
-                        if user_view_memorised_reports.isSelected():                get_list_memorised_reports()
-                        # if user_find_sync_password_in_ios_backups.isSelected():     find_IOS_sync_data()
-                        if user_import_QIF.isSelected():                            import_QIF()
-                        if user_convert_timestamp.isSelected():                     convert_timestamp_readable_date()
-                        if user_disable_moneyforesight.isSelected():                disable_moneyforesight()
-                        if user_close_dataset.isSelected():                         close_dataset()
-                        if user_rename_dataset.isSelected():                        rename_relocate_dataset(lRelocateDataset=False)
-                        if user_relocate_dataset_internal.isSelected():             rename_relocate_dataset(lRelocateDataset=True, lRelocateToInternal=True)
-                        if user_relocate_dataset_external.isSelected():             rename_relocate_dataset(lRelocateDataset=True, lRelocateToInternal=False)
-                        if user_cleanup_external_files.isSelected():                cleanup_external_files_setting()
-                        if user_advanced_delete_int_ext_files.isSelected():         remove_int_external_files_settings()
-                        if user_remove_inactive_from_sidebar.isSelected():          remove_inactive_from_sidebar()
-                        if user_change_moneydance_fonts.isSelected():               change_fonts()
-                        if user_delete_custom_theme_file.isSelected():              delete_theme_file()
-                        if user_delete_orphan_extensions.isSelected():              force_remove_extension()
-                        if user_reset_window_display_settings.isSelected():         reset_window_positions()
+                        if user_display_passwords.isSelected():                         display_passwords()
+                        if user_view_searchable_console_log.isSelected():               ViewFileButtonAction(MD_REF.getLogFile(), "MD Console Log").actionPerformed(None)
+                        if user_view_MD_config_file.isSelected():                       ViewFileButtonAction(Common.getPreferencesFile(), "MD Config").actionPerformed(None)
+                        if user_view_MD_custom_theme_file.isSelected():                 ViewFileButtonAction(ThemeInfo.customThemeFile, "MD Custom Theme").actionPerformed(None)
+                        if user_view_extensions_details.isSelected():                   view_extensions_details()
+                        if user_view_memorised_reports.isSelected():                    get_list_memorised_reports()
+                        # if user_find_sync_password_in_ios_backups.isSelected():         find_IOS_sync_data()
+                        if user_import_QIF.isSelected():                                import_QIF()
+                        if user_convert_timestamp.isSelected():                         convert_timestamp_readable_date()
+                        if user_disable_moneyforesight.isSelected():                    disable_moneyforesight()
+                        if user_close_dataset.isSelected():                             close_dataset()
+                        if user_rename_dataset.isSelected():                            rename_relocate_dataset(lRelocateDataset=False)
+                        if user_relocate_dataset_internal.isSelected():                 rename_relocate_dataset(lRelocateDataset=True, lRelocateToInternal=True)
+                        if user_relocate_dataset_external.isSelected():                 rename_relocate_dataset(lRelocateDataset=True, lRelocateToInternal=False)
+                        if user_cleanup_external_files.isSelected():                    cleanup_external_files_setting()
+                        if user_advanced_delete_int_ext_files.isSelected():             remove_int_external_files_settings()
+                        if user_remove_inactive_from_sidebar.isSelected():              remove_inactive_from_sidebar()
+                        if user_change_moneydance_fonts.isSelected():                   change_fonts()
+                        if user_delete_custom_theme_file.isSelected():                  delete_theme_file()
+                        if user_delete_orphan_extensions.isSelected():                  force_remove_extension()
+                        if user_reset_window_display_settings.isSelected():             reset_window_positions()
+                        if user_reset_all_inbuilt_report_params_defaults.isSelected():  reset_all_inbuilt_report_params_defaults()
 
                         for button in bg.getElements():
                             if button.isSelected(): return      # Quit the menu system after running something....
