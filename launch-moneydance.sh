@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Co-Author Stuart Beesley - StuWareSoftSystems - Feb 2021 (last updated: April 2024)
+# Co-Author Stuart Beesley - StuWareSoftSystems - Feb 2021 (last updated: Jan 2025)
 # Original Author, thanks & credits to hleofxquotes for the original base script and valuable input and knowledge.
 
 # Shell script: launch-moneydance.sh
@@ -55,7 +55,7 @@ unset md_passphrase
 
 # set to "" for standard app install name (I add the version and build to the app name when installing)
 #md_version=""
-md_version=" 2024.2 (5132)"
+md_version=" 2024.3 (5211)"
 
 # Download/install OpenAdoptJDK (Hotspot) v15: https://adoptopenjdk.net/?variant=openjdk15&jvmVariant=hotspot
 # Download/install Java FX (allows Moneybot Console) to run: https://gluonhq.com/download/javafx-15-0-1-sdk-mac/
@@ -87,7 +87,10 @@ md_version=" 2024.2 (5132)"
 # NOTE:   MD2023.2(5047) Java 21 on Mac (and all platforms)
 # NOTE:   MD2023.3(5064) First stable release on Kotlin
 
-# NOTE:   MD2024(5100) Java 21.0.2 on Mac (and javafx was removed)
+# NOTE:   MD2024(5100) Java 21.0.2 on Mac (>> and javafx was removed <<)
+
+# NOTE:   MD2024.3(5211) Java 23.0.1+11
+# https://adoptium.net/en-GB/temurin/releases/?version=23
 
 # Edit the necessary install locations for JDK, JavaFX and Java Native Frameworks below
 # Edit the necessary settings and your folder locations below
@@ -130,8 +133,9 @@ echo "My user path: ${my_user_path}"
 # Set your JAVA_HOME
 # On Mac, output of '/usr/libexec/java_home --verbose' can help
 export JAVA_HOME="/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home"
+export JAVA_HOME="/Library/Java/JavaVirtualMachines/temurin-23.jdk/Contents/Home"
 
-# JavaFX modules
+# JavaFX modules (no longer used)
 javafx_modules="javafx.swing,javafx.media,javafx.web,javafx.fxml"
 javafx_modulepath="${my_user_path}/Documents/Moneydance/My Python Scripts/javafx-sdk-21.0.2/lib"
 export PATH="${JAVA_HOME}/bin:${PATH}"
