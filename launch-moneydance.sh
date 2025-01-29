@@ -55,7 +55,7 @@ unset md_passphrase
 
 # set to "" for standard app install name (I add the version and build to the app name when installing)
 #md_version=""
-md_version=" 2024.3 (5212)"
+md_version=" 2024.3 (5214)"
 
 # Download/install OpenAdoptJDK (Hotspot) v15: https://adoptopenjdk.net/?variant=openjdk15&jvmVariant=hotspot
 # Download/install Java FX (allows Moneybot Console) to run: https://gluonhq.com/download/javafx-15-0-1-sdk-mac/
@@ -134,6 +134,8 @@ echo "My user path: ${my_user_path}"
 
 # Set your JAVA_HOME
 # On Mac, output of '/usr/libexec/java_home --verbose' can help
+#         export JAVA_HOME=$(/usr/libexec/java_home -v xx) to change java versions
+#         java -version to verify current version
 export JAVA_HOME="/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home"
 
 # JavaFX modules (no longer used)
