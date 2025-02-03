@@ -100,6 +100,8 @@
 # build: 1067 - Added menu options for Reset inbuilt report/graph parameters (to defaults), and Delete all memorized reports/graphs...
 # build: 1067 - BUGFIX issue referencing PlaidConection - use isMDPlusGetPlaidClientEnabledBuild() instead.
 # build: 1068 - ???
+# build: 1068 - Tweak validate account start dates to look for future dates.
+# build: 1068 - ???
 
 # NOTE: 'The domain/default pair of (kCFPreferencesAnyApplication, AppleInterfaceStyle) does not exist' means that Dark mode is NOT in force
 
