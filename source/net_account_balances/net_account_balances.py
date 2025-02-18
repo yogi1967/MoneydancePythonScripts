@@ -3171,7 +3171,7 @@ Visit: %s (Author's site)
     if isNetWorthUpgradedBuild():
         from com.infinitekind.moneydance.model import NetWorthCalculator
 
-    GlobalVars.MD_ANCESTORS_UPGRADED_BUILD = 5220                                                                       # MD2025.0(5220)
+    GlobalVars.MD_ANCESTORS_UPGRADED_BUILD = 5252                                                                       # MD2025.0(5252)
     def isAncestorsUpgradedBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_ANCESTORS_UPGRADED_BUILD)
 
     GlobalVars.MD_POPUP_CONTEXT_MENU_UPGRADED_BUILD = 5202                                                              # MD2024.3(5202)
