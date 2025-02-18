@@ -220,7 +220,7 @@ print("data folder last modified: %s" %(last_modded_long))
 # Fire up Moneydance and initialize key stuff...
 mdMain = Main()
 mdMain.DEBUG = True
-mdMain.initializeApp()
+mdMain.initializeApp()      # this needs changing post MD2024.3(5219) - from build 5252
 # mdMain.startApplication()
 
 ###################################################################

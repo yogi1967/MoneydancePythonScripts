@@ -147,7 +147,7 @@ class MySecret(SecretKeyCallback):
 theMain = Main()
 theMain.main(["-d", "-v"])
 theMain.DEBUG = True
-theMain.initializeApp()
+theMain.initializeApp()      # this needs changing post MD2024.3(5219) - from build 5252
 
 wrapper = AccountBookWrapper.wrapperForFolder(mdFileJava)  # wrapper is of java type 'AccountBookWrapper'
 theMain.setCurrentBook(wrapper)

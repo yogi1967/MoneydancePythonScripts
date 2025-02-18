@@ -115,7 +115,7 @@ print("data folder last modified: %s" %(last_modded_long))
 theMain = Main()
 theMain.main(["-d", "-v"])
 theMain.DEBUG = True
-theMain.initializeApp()
+theMain.initializeApp()      # this needs changing post MD2024.3(5219) - from build 5252
 # theMain.startApplication()
 
 wrapper = AccountBookWrapper.wrapperForFolder(mdFileJava)  # type: AccountBookWrapper

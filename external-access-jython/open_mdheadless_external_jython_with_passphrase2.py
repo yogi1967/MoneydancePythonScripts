@@ -159,7 +159,7 @@ class MdMainNoGui(Main):
         self.ui = None
 
         Main.DEBUG = debug
-        self.initializeApp()
+        self.initializeApp()      # this needs changing post MD2024.3(5219) - from build 5252
         self.accountBookWrapper = AccountBookWrapper.wrapperForFolder(folderName)  # wrapper is of java type 'AccountBookWrapper'
         self.setCurrentBook(self.accountBookWrapper)
 

@@ -137,7 +137,7 @@ class MySecret(object):
 ###################################################################
 # Fire up Moneydance and initialize key stuff...
 mdMain = Main()
-mdMain.initializeApp()
+mdMain.initializeApp()      # this needs changing post MD2024.3(5219) - from build 5252
 # mdMain.startApplication()
 
 ###################################################################
