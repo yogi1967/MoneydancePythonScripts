@@ -146,7 +146,7 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 # build: 1056 - Tweak the Account type selector so that all accounts and categories is first/selected (for @dtd)
 # build: 1056 - Fix for 2025.x(5220) onwards... Account::getAncestors() changed to a Kotlin Sequence
 # build: 1057 - ???
-# build: 1057 - ???
+# build: 1057 - Added row value formatting tag: <#cvde> = Value colour: default foreground
 # build: 1057 - ???
 
 # todo - tweak getConvertXBalanceRecursive() and getXBalance() to also exclude inactives from recursive balances (like apply networth rules)
@@ -5041,6 +5041,7 @@ Visit: %s (Author's site)
         WIDGET_ROW_VALUE_RED            = "<#cvre>";   WIDGET_ROW_VALUE_RED_DISPLAY            = "value colour: red"
         WIDGET_ROW_VALUE_BLUE           = "<#cvbl>";   WIDGET_ROW_VALUE_BLUE_DISPLAY           = "value colour: blue"
         WIDGET_ROW_VALUE_LIGHTGREY      = "<#cvgr>";   WIDGET_ROW_VALUE_LIGHTGREY_DISPLAY      = "value colour: light grey"
+        WIDGET_ROW_VALUE_DEFAULT        = "<#cvde>";   WIDGET_ROW_VALUE_DEFAULT_DISPLAY        = "value colour: default foreground"
         WIDGET_ROW_VALUE_BOLD           = "<#fvbo>";   WIDGET_ROW_VALUE_BOLD_DISPLAY           = "value font: bold"
         WIDGET_ROW_VALUE_ITALICS        = "<#fvit>";   WIDGET_ROW_VALUE_ITALICS_DISPLAY        = "value font: italics"
         WIDGET_ROW_VALUE_UNDERLINE      = "<#fvun>";   WIDGET_ROW_VALUE_UNDERLINE_DISPLAY      = "value font: underline"
@@ -5074,6 +5075,7 @@ Visit: %s (Author's site)
                                 [WIDGET_ROW_VALUE_RED,                 WIDGET_ROW_VALUE_RED_DISPLAY           ],
                                 [WIDGET_ROW_VALUE_BLUE,                WIDGET_ROW_VALUE_BLUE_DISPLAY          ],
                                 [WIDGET_ROW_VALUE_LIGHTGREY,           WIDGET_ROW_VALUE_LIGHTGREY_DISPLAY     ],
+                                [WIDGET_ROW_VALUE_DEFAULT,             WIDGET_ROW_VALUE_DEFAULT_DISPLAY       ],
                                 [WIDGET_ROW_VALUE_BOLD,                WIDGET_ROW_VALUE_BOLD_DISPLAY          ],
                                 [WIDGET_ROW_VALUE_ITALICS,             WIDGET_ROW_VALUE_ITALICS_DISPLAY       ],
                                 [WIDGET_ROW_VALUE_UNDERLINE,           WIDGET_ROW_VALUE_UNDERLINE_DISPLAY     ],
@@ -5157,6 +5159,7 @@ Visit: %s (Author's site)
             if insertVars is None: insertVars = {}
             self.ui = GlobalVars.CONTEXT.getUI()
             self.mono = self.ui.getFonts().mono
+            self.defaultTextForeground = self.ui.getColors().defaultTextForeground
             self.originalRowText = _rowText
             self.originalSmallText = _smallText
             self.originalSmallColor = _smallColor
@@ -5248,6 +5251,10 @@ Visit: %s (Author's site)
             if (self.__class__.WIDGET_ROW_VALUE_LIGHTGREY in _rowText):
                 _rowText = _rowText.replace(self.__class__.WIDGET_ROW_VALUE_LIGHTGREY, "")
                 self.valueColor = GlobalVars.CONTEXT.getUI().getColors().tertiaryTextFG
+
+            if (self.__class__.WIDGET_ROW_VALUE_DEFAULT in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_VALUE_DEFAULT, "")
+                self.valueColor = self.defaultTextForeground
 
             if (self.__class__.WIDGET_ROW_VALUE_BOLD in _rowText):
                 _rowText = _rowText.replace(self.__class__.WIDGET_ROW_VALUE_BOLD, "")
