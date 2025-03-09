@@ -102,7 +102,7 @@
 # build: 1068 - diag screen tweaks for 5252 -nobackup and no splash screen options. Also 5252 Account::ancestors
 # build: 1068 - Add feature so that users can quickly remove inactive accounts from Net Worth
 # build: 1069 - ???
-# build: 1069 - ???
+# build: 1069 - switch to call NetworthCalculator off the EDT...
 # build: 1069 - ???
 
 # NOTE: 'The domain/default pair of (kCFPreferencesAnyApplication, AppleInterfaceStyle) does not exist' means that Dark mode is NOT in force
@@ -3337,6 +3337,11 @@ Visit: %s (Author's site)
     def isAppDebugEnabledBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_APPDEBUG_ENABLED_BUILD)
     if isAppDebugEnabledBuild():
         from com.infinitekind.util import AppDebug                                                                      # noqa
+
+    GlobalVars.MD_APPTIMER_UPGRADED_BUILD = 5121                                                                        # MD2024.1(5121)
+    def isAppTimerUpgradedBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_APPTIMER_UPGRADED_BUILD)
+    if isAppTimerUpgradedBuild():
+        from com.infinitekind.util import AppTimer
 
     GlobalVars.MD_ENHANCED_SIDEBAR_BUILD = 5100                                                                         # MD2024(5100)
     def isEnhancedSidebarBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_ENHANCED_SIDEBAR_BUILD)
