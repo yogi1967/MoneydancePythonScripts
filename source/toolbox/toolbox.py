@@ -102,7 +102,7 @@
 # build: 1068 - diag screen tweaks for 5252 -nobackup and no splash screen options. Also 5252 Account::ancestors
 # build: 1068 - Add feature so that users can quickly remove inactive accounts from Net Worth
 # build: 1069 - ???
-# build: 1069 - switch to call NetworthCalculator off the EDT...
+# build: 1069 - switch to call NetworthCalculator off the EDT...; add warning to DisplayUUID when uuid not found.
 # build: 1069 - ???
 
 # NOTE: 'The domain/default pair of (kCFPreferencesAnyApplication, AppleInterfaceStyle) does not exist' means that Dark mode is NOT in force
@@ -27387,7 +27387,9 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                 if obj is None: obj = MD_REF.getCurrentAccountBook().getTransactionSet().getTxnByID(uuid.lower()) # noqa
                 if obj is None: obj = TxnUtil.getTxnByID(MD_REF.getCurrentAccountBook().getTransactionSet(), uuid)
 
-                if obj is None: return
+                if obj is None:
+                    myPopupInformationBox(self.theFrame, "uuid: '%s' not found?!" %(uuid), "DISPLAY OBJECT FOR UUID", JOptionPane.WARNING_MESSAGE)
+                    return
 
                 if isinstance(obj, AbstractTxn):
                     MD_REF.getUI().showTxnXML(obj, self.theFrame)
