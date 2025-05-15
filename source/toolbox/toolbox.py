@@ -3314,10 +3314,10 @@ Visit: %s (Author's site)
     if isNetWorthUpgradedBuild():
         GlobalVars.Strings.MD_KEY_PARAM_APPLIES_TO_NW = Account.PARAM_INCLUDE_IN_NET_WORTH
 
-    GlobalVars.MD_ANCESTORS_UPGRADED_BUILD = 5252                                                                       # MD2025.0(5252)
+    GlobalVars.MD_ANCESTORS_UPGRADED_BUILD = 5252                                                                       # MD2024.3(5252)
     def isAncestorsUpgradedBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_ANCESTORS_UPGRADED_BUILD)
 
-    GlobalVars.MD_NOSPLASHSCREEN_OPTION_BUILD = 5253                                                                    # MD2025.0(5253)
+    GlobalVars.MD_NOSPLASHSCREEN_OPTION_BUILD = 5253                                                                    # MD2024.4(5253)
     def isNoSplashScreenOptionsBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_NOSPLASHSCREEN_OPTION_BUILD)
 
     GlobalVars.MD_SUPPRESS_BACKUPS_OPTION_BUILD = 5047                                                                  # 2023.2(5047)
