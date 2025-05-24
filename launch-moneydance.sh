@@ -199,41 +199,49 @@ use_live_compiled_current_source_jar="$HOME/Documents/Moneydance/moneydance_desk
 
 # shellcheck disable=SC2086
 # shellcheck disable=SC2048
-${java} \
-  -Xdock:icon="${md_icon}" \
-  -cp ${use_live_compiled_current_source_jar}"${md_jars}/*" \
-  -Djava.library.path="${macos}:${machelper2}" \
-  -Dapple.laf.useScreenMenuBar=true \
-  -Dcom.apple.macos.use-file-dialog-packages=true \
-  -Dcom.apple.macos.useScreenMenuBar=true \
-  -Dcom.apple.mrj.application.apple.menu.about.name=Moneydance \
-  -Dapple.awt.application.name=Moneydance \
-  -Dcom.apple.smallTabs=true \
-  -Dapple.awt.application.appearance=system \
-  -Dfile.encoding=UTF-8 \
-  -DUserHome=${my_user_path} \
-  ${use_sandbox} \
-  ${use_debugger} \
-  -Dinstall4j.exeDir="${md_jars}" \
-  -Duser.dir="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data" \
-  -Duser.home="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data" \
-  -DApplicationSupportDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library/Application Support" \
-  -DLibraryDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library" \
-  -DDownloadsDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Downloads" \
-  -DDesktopDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Desktop" \
-  -DPicturesDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Pictures" \
-  -DDocumentsDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents" \
-  -DCachesDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library/Caches" \
-  -DSharedPublicDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Public" \
-  -DMoviesDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Movies" \
-  -DDownloadsDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Downloads" \
-  -DApplicationDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Applications" \
-  -DMusicDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Music" \
-  -DAutosavedInformationDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library/Autosave Information" \
-  -Xmx2G \
-  Moneydance -d "$1" "$2" "$3" "$4" "$5" &>"$console_file" &
+full_cmd=(
+  "${java}"
+  -Xdock:icon="${md_icon}"
+  -cp ${use_live_compiled_current_source_jar}"${md_jars}/*"
+  -Djava.library.path="${macos}:${machelper2}"
+  -Dapple.laf.useScreenMenuBar=true
+  -Dcom.apple.macos.use-file-dialog-packages=true
+  -Dcom.apple.macos.useScreenMenuBar=true
+  -Dcom.apple.mrj.application.apple.menu.about.name=Moneydance
+  -Dapple.awt.application.name=Moneydance
+  -Dcom.apple.smallTabs=true
+  -Dapple.awt.application.appearance=system
+  -Dfile.encoding=UTF-8
+  -DUserHome=${my_user_path}
+  ${use_sandbox}
+  ${use_debugger}
+  -Dinstall4j.exeDir="${md_jars}"
+  -Duser.dir="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data"
+  -Duser.home="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data"
+  -DApplicationSupportDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library/Application Support"
+  -DLibraryDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library"
+  -DDownloadsDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Downloads"
+  -DDesktopDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Desktop"
+  -DPicturesDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Pictures"
+  -DDocumentsDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents"
+  -DCachesDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library/Caches"
+  -DSharedPublicDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Public"
+  -DMoviesDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Movies"
+  -DDownloadsDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Downloads"
+  -DApplicationDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Applications"
+  -DMusicDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Music"
+  -DAutosavedInformationDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library/Autosave Information"
+  -Xmx2G
+  Moneydance -d "$1" "$2" "$3" "$4" "$5"
+  )
 
-open -a Brackets "$console_file" &
+if [ "$MD_DEBUG_FROM_IJ" = "true" ]; then
+  "${full_cmd[@]}"
+else
+  "${full_cmd[@]}" &> "$console_file" &
+  open -a Brackets "$console_file" &
+fi
+
 #
 #echo "changing tabbing mode to fullscreen"
 #defaults write -g AppleWindowTabbingMode -string fullscreen
