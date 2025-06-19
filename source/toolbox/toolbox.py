@@ -22070,6 +22070,8 @@ after saving the file, restart Moneydance
 
         PARAMETER_KEY = "toolbox_fix_non_hier_sec_acct_txns"
 
+        MD_decimal = MD_REF.getPreferences().getDecimalChar()
+
         book = MD_REF.getCurrentAccountBook()
         base = MD_REF.getCurrentAccountBook().getCurrencies().getBaseType()
         sdf = MD_REF.getPreferences().getShortDateFormatter()
@@ -22178,6 +22180,7 @@ after saving the file, restart Moneydance
                 newSecurity.setTickerSymbol("^TOOLBOX")
                 newSecurity.setDecimalPlaces(4)
                 newSecurity.setRelativeRate(1.0)
+                newSecurity.setParameter(PARAMETER_KEY, True)
                 newSecurity.syncItem()
                 output += "\n\nCreated dummy Security: '%s' (%s)\n" %(newSecurity, newSecurity.getUUID())
 
@@ -22207,12 +22210,25 @@ after saving the file, restart Moneydance
                             output += "\nCreated dummy Security Sub Account: '%s' (%s) linked to new dummy security\n" %(newSecurityAcct, newSecurityAcct.getUUID())
                             dummySecurityAccounts[_acct] = newSecurityAcct
 
+                        xfrSplit = TxnUtil.getXfrPart(_txn)
+                        origXfrValue = 0L if xfrSplit is None else xfrSplit.getValue()
+
                         fields.security = dummySecurityAccounts[_acct]
                         fields.storeFields(_txn)
+                        _txn.setParameter(PARAMETER_KEY, True)
                         _txn.syncItem()
+
+                        xfrSplit = TxnUtil.getXfrPart(_txn)
+                        newXfrValue = 0L if xfrSplit is None else xfrSplit.getValue()
 
                         txt = "FIXED: Txn for 'Orphaned' Security - Investment Account: '%s': '%s'\n" %(_acct, _txn)
                         output += "\n%s\n" %(txt)
+
+                        if (origXfrValue != newXfrValue):
+                            _ct = _acct.getCurrencyType()
+                            output += (">> WARNING: Transfer value (for txn fixed ^above^) has changed from %s to %s (probably as shares qty and value are illogically zero) - MANUAL EDIT REQUIRED TO FIX XFR AND CASH BALANCE(S)!\n"
+                                       %(_ct.formatFancy(origXfrValue, MD_decimal), _ct.formatFancy(newXfrValue, MD_decimal)))
+
 
                 output += "\nFinished fixing 'orphans'....\n" \
                           " -----------------------------\n\n"
@@ -22279,6 +22295,7 @@ after saving the file, restart Moneydance
                                     errors_fixed += 1
                                     text += (" -> REMOVING txn's legacy '%s' tag of '%s'\n" %(xferTypeTag, legacyBuySellXfrTag))
                                     txn.removeParameter(xferTypeTag)
+                                    txn.setParameter(PARAMETER_KEY, True)
                                     txn.syncItem()
                                 else:
                                     text+=(" -> need to remove the legacy '%s' tag\n" %(legacyBuySellXfrTag))
@@ -22291,6 +22308,7 @@ after saving the file, restart Moneydance
                                     errors_fixed += 1
                                     text += (" -> ASSIGNING txn's Parent account to '%s'\n" %(correctParentAcct))
                                     txn.setAccount(correctParentAcct)
+                                    txn.setParameter(PARAMETER_KEY, True)
                                     txn.syncItem()
                                 else:
                                     text+=(" -> need to assign txn's Parent account to '%s'\n" %(correctParentAcct))
@@ -22363,9 +22381,10 @@ after saving the file, restart Moneydance
                                     text+=(" -> ASSIGNING txn to '%s'\n" %(correctSecAcct.getFullAccountName()))
                                     fields.security = correctSecAcct
                                     fields.storeFields(txn)
+                                    txn.setParameter(PARAMETER_KEY, True)
                                     txn.syncItem()
                                 else:
-                                    text+=(" -> need to assign txn to '%s'\n" %(correctSecAcct.getFullAccountName()))
+                                    text += (" -> need to assign txn to '%s'\n" %(correctSecAcct.getFullAccountName()))
 
                 del _txns
                 return text, count_the_errors, count_unfixable_yet, errors_fixed
@@ -22401,6 +22420,14 @@ after saving the file, restart Moneydance
 
             jif = None
             if not autofix:
+                if lFixedOrphans:
+                    txt = ("\nWARNING - Sucessfully fixed %s orphans - But found %s subsequent problems - review log - restart MD and re-run this fix!\n" %(iOrphans, iCountErrors)).upper()
+                    output += "\n%s\n" %(txt); myPrint("B", txt)
+                    setDisplayStatus(txt, "R")
+                    jif = QuickJFrame("VIEW Investment Security Txns with both fixed orphans and subsequent errors".upper(), output, lAlertLevel=1, lWrapText=False, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lRestartMDAfterClose=True).show_the_frame()
+                    myPopupInformationBox(jif, txt)
+                    return
+
                 jif = QuickJFrame("VIEW Investment Security Txns with Invalid Parent Accounts".upper(), output, lAlertLevel=1, lWrapText=False, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
 
             # if iCountUnfixable>0:
