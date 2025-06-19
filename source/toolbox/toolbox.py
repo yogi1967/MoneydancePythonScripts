@@ -22294,7 +22294,8 @@ after saving the file, restart Moneydance
                                 if FIX_MODE:
                                     errors_fixed += 1
                                     text += (" -> REMOVING txn's legacy '%s' tag of '%s'\n" %(xferTypeTag, legacyBuySellXfrTag))
-                                    txn.removeParameter(xferTypeTag)
+                                    txn.setTransferType("")           # do this first to also reset the internal variable
+                                    txn.removeParameter(xferTypeTag)  # do this too to then nuke the setting completly
                                     txn.setParameter(PARAMETER_KEY, True)
                                     txn.syncItem()
                                 else:
@@ -22421,10 +22422,10 @@ after saving the file, restart Moneydance
             jif = None
             if not autofix:
                 if lFixedOrphans:
-                    txt = ("\nWARNING - Sucessfully fixed %s orphans - But found %s subsequent problems - review log - restart MD and re-run this fix!\n" %(iOrphans, iCountErrors)).upper()
+                    txt = ("\nWARNING - Sucessfully fixed %s orphans - But found %s subsequent problems - review log and then re-run this fix!\n" %(iOrphans, iCountErrors)).upper()
                     output += "\n%s\n" %(txt); myPrint("B", txt)
                     setDisplayStatus(txt, "R")
-                    jif = QuickJFrame("VIEW Investment Security Txns with both fixed orphans and subsequent errors".upper(), output, lAlertLevel=1, lWrapText=False, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lRestartMDAfterClose=True).show_the_frame()
+                    jif = QuickJFrame("VIEW Investment Security Txns with both fixed orphans and subsequent errors".upper(), output, lAlertLevel=1, lWrapText=False, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lRestartMDAfterClose=False).show_the_frame()
                     myPopupInformationBox(jif, txt)
                     return
 
@@ -22464,14 +22465,14 @@ after saving the file, restart Moneydance
             output += "\n\nYou had %s non-hierarchical txn errors... FIXED: %s\n\n" %(iCountErrors, iErrorsFixed)
             output += "\n<END>"
 
-            txt = "FIXED %s Investment Security Txns with Invalid Parent Accounts (non-hierarchical txn errors) - MD WILL RESTART AFTER VIEWING LOG!" %(iErrorsFixed)
+            txt = "FIXED %s Investment Security Txns with Invalid Parent Accounts (non-hierarchical txn errors)" %(iErrorsFixed)
             myPrint("B", txt)
             logToolboxUpdates("fix_non_hier_sec_acct_txns", txt)
 
             if not autofix:
                 play_the_money_sound()
                 setDisplayStatus(txt, "B")
-                jif = QuickJFrame(_THIS_METHOD_NAME, output, lAlertLevel=1, lWrapText=False, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lRestartMDAfterClose=True).show_the_frame()
+                jif = QuickJFrame(_THIS_METHOD_NAME, output, lAlertLevel=1, lWrapText=False, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lRestartMDAfterClose=False).show_the_frame()
                 myPopupInformationBox(jif, txt, _THIS_METHOD_NAME, JOptionPane.WARNING_MESSAGE)
             else:
                 myPrint("B", "AUTOFIX ENDING....")
