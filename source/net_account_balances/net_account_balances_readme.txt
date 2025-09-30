@@ -640,6 +640,7 @@ NOTE: Click the little "<" icon to the right of the row name field to view/inser
     <#fbo>      = Row name font:    bold
     <#fit>      = Row name font:    italics
     <#fun>      = Row name font:    underline
+    <#f+>       = Row name font:    10% larger (to match other MD widget's total balance value size)
     <#cvre>     = Value colour:     red
     <#cvbl>     = Value colour:     blue
     <#cvgr>     = Value colour:     light grey
@@ -647,6 +648,7 @@ NOTE: Click the little "<" icon to the right of the row name field to view/inser
     <#fvbo>     = Value font:       bold
     <#fvit>     = Value font:       italics
     <#fvun>     = Value font:       underline
+    <#fv+>      = Value font:       10% larger (to match other MD widget's total balance value size)
     <#nud>      = No special underline dots...
     <#fud>      = Force special underline dots...
     <#bzv>      = Forces any total (value) to appear blank when zero
