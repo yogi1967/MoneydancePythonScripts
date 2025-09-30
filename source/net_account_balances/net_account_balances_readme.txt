@@ -1,4 +1,4 @@
-Author: Stuart Beesley - StuWareSoftSystems (created March 2021 - last updated: May 2025)
+Author: Stuart Beesley - StuWareSoftSystems (created March 2021 - last updated: September 2025)
 Credit: (slack: @dtd) aka Dan T Davis for his input, testing, patience and suggestions to make a (much) better product..
 
 Custom Balances works with 2021.1(3056) and newer.
@@ -704,6 +704,12 @@ NOTE: Click the little "<" icon to the right of the row name field to view/inser
         (txd)        - when tax dates are being used
         (uor: n)     - when using another row; where n = the other row
         (uuid: x)    - with debug enabled... shows the internal UUID reference.
+
+- CREATING A HEADING:
+  Create a new row where you want the heading to appear, and simply put the heading text you want in the row name field.
+  Then using the arrow selector next to the field select / insert the code <#bzv>. Do not otherwise configure the row.
+  As long as you have not selected any accounts, or configuration, you will get just a heading.
+  You can optionally add other field codes, like bold, italics, underline etc, these codes are accumulative.
 
 
 USING CATEGORIES (DATE RANGE)
