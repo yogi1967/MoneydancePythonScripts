@@ -124,6 +124,11 @@
 # todo - consider removing toolbox.py source code now that it's compiled and we launch a .class file...
 # todo - advanced_clone_dataset() - consider whether to provide options to zap md+ settings, reset password etc...
 
+
+#todo - @sth - OFX Banking info, redact personal information. it does that for the account numbers in the heading of each section.
+#todo - ...... however there is another line with results of the GetInfo call (including the account number). This line shows up in the log with the ‘?’ replaced with the actual account number.
+#todo -  >> getInfo {u’account_num’: u????? …..}
+
 # NOTE: Toolbox will connect to the internet to gather some data. IT WILL NOT SEND ANY OF YOUR DATA OUT FROM YOUR SYSTEM....:
 # 1. At launch it connects to the Author's code site to get information about the latest version of Toolbox and version requirements
 # 2. At various times it may connect to the Infinite Kind server to gather information about extensions and versions
