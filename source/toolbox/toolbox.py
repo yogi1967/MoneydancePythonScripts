@@ -106,7 +106,7 @@
 # build: 1069 - Tweaks to fix_non_hier_sec_acct_txns()
 # build: 1069 - MoneydanceGUI Kotlin'ized.. plusPoller renamed to plusController
 # build: 1069 - added diag_security_splits_no_price() feature; patch thin_price_history() to exclude just before/after on split dates
-# build: 1069 - Tweak online_banking_view_configuration_data() to skip getInfo() output when redacting. Not necessay to log this...
+# build: 1069 - Tweak online_banking_view_configuration_data() to skip getInfo() output when redacting. Not necessary to log this...
 # build: 1069 - ???
 
 # NOTE: 'The domain/default pair of (kCFPreferencesAnyApplication, AppleInterfaceStyle) does not exist' means that Dark mode is NOT in force
