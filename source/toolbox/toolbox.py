@@ -107,6 +107,7 @@
 # build: 1069 - MoneydanceGUI Kotlin'ized.. plusPoller renamed to plusController
 # build: 1069 - added diag_security_splits_no_price() feature; patch thin_price_history() to exclude just before/after on split dates
 # build: 1069 - Tweak online_banking_view_configuration_data() to skip getInfo() output when redacting. Not necessary to log this...
+# build: 1069 - Tweak OFX_view_CUSIP_settings() to remove 'ticker and cuspid are different' message (irrelevant)...
 # build: 1069 - ???
 
 # NOTE: 'The domain/default pair of (kCFPreferencesAnyApplication, AppleInterfaceStyle) does not exist' means that Dark mode is NOT in force
@@ -7260,7 +7261,7 @@ Visit: %s (Author's site)
                                                     pad(sec.getTickerSymbol(), 15),
                                                     pad(theScheme, 12),
                                                     theCUSIP,
-                                                    ("** CUSIP & TICKER ARE DIFFERENT **" if (theCUSIP.strip() != sec.getTickerSymbol().strip()) else (""*34)),
+                                                    ""*34,
                                                     ("id: "+sec.getUUID() if (debug) else ("")))
 
         if not iCountFound:
