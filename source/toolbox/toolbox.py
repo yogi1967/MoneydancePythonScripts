@@ -7255,14 +7255,12 @@ Visit: %s (Author's site)
                         # raise Exception("ERROR: %s - empty CUSIP returned? Security: %s, Scheme: %s" %(_THIS_METHOD_NAME, sec, theScheme))
 
                     iCountFound += 1
-                    output += "%s %s %s %s %s %s %s\n"\
+                    output += "%s %s %s %s %s\n"\
                                                   %(pad(sec.getName(), 45),
                                                     pad(sec.getIDString(), 15),
                                                     pad(sec.getTickerSymbol(), 15),
                                                     pad(theScheme, 12),
-                                                    theCUSIP,
-                                                    ""*34,
-                                                    ("id: "+sec.getUUID() if (debug) else ("")))
+                                                    theCUSIP)
 
         if not iCountFound:
             output += "\nNONE FOUND!\n"
