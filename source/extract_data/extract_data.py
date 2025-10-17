@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# extract_data.py - build: 1047 - June 2025 - Stuart Beesley
+# extract_data.py - build: 1048 - Oct 2025 - Stuart Beesley
 #                   You can auto invoke by launching MD with one of the following:
 #                           '-d [datasetpath] -invoke=moneydance:fmodule:extract_data:autoextract:noquit'
 #                           '-d [datasetpath] -invoke=moneydance:fmodule:extract_data:autoextract:quit'
@@ -98,10 +98,11 @@
 # build: 1045 - Added tags to extract reminders...; retain sort between reminder refresh(s)
 # build: 1045 - Tweaked EAR extract... copy check to parent if empty, added isParentTxn
 # build: 1046 - Added extract category information (ECI) extract
-# build: 1047 - ???
 # build: 1047 - BUGFIX - Extract Reminders when notes... Missing tags column (index 18)...
 # build: 1047 - Patch ESB - invalid Account::getMaturity() date (in this case a value of 28800000!?
-# build: 1047 - ???
+# build: 1048 - ???
+# build: 1048 - tweak path validation message with new setFilePathValidationMessage()
+# build: 1048 - ???
 
 # todo - EAR: Switch to 'proper' usage of DateRangeChooser() (rather than my own 'copy')
 
@@ -116,7 +117,7 @@
 
 # SET THESE LINES
 myModuleID = u"extract_data"
-version_build = "1047"
+version_build = "1048"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT = True
 
@@ -4500,6 +4501,10 @@ Visit: %s (Author's site)
             return dim
 
     class SelectExtractFolderAL(ActionListener):
+
+        def __init__(self, statusLabel):
+            self.statusLabel = statusLabel
+
         def actionPerformed(self, event):
             source = event.getSource()                                                                                  # noqa
             actionCmd = event.getActionCommand()
@@ -4522,10 +4527,20 @@ Visit: %s (Author's site)
                 myPrint("B", "Extract folder changed to: '%s'" %(GlobalVars.saved_defaultSavePath_SWSS))
             else:
                 myPrint("B", "Extract folder NOT changed - remains: '%s'" %(GlobalVars.saved_defaultSavePath_SWSS))
+            setFilePathValidationMessage(self.statusLabel)
 
+    def setFilePathValidationMessage(statusLabel):
+        if isValidExtractFolder(GlobalVars.saved_defaultSavePath_SWSS):
+            statusLabel.setForeground(getColorBlue())
+            statusLabel.setText("<<Extract folder path valid>>")
+        else:
+            statusLabel.setForeground(getColorRed())
+            statusLabel.setText("<<WARNING: Extract folder path INVALID - Please select folder...>>")
 
     def getExtractChoice(defaultSelection):
         _exit = False
+
+        statusLabel = JLabel("")
 
         extnSettings = getExtensionDatasetSettings()
         EXTN_PREF_KEY_AUTO_EXTRACT_WHEN_FILE_CLOSING = "auto_extract_when_file_closing"
@@ -4546,7 +4561,7 @@ Visit: %s (Author's site)
         user_autoExtractWhenFileClosing = JCheckBox("Enable auto extract EVERY TIME this dataset closes (USE WITH CARE!)?", extnSettings.getBoolean(EXTN_PREF_KEY_AUTO_EXTRACT_WHEN_FILE_CLOSING, False))
         user_autoExtractWhenFileClosing.setToolTipText("WARNING: When enabled, all the selected 'auto extracts' will execute every time this dataset closes!")
 
-        user_defaultSavePath_JBTN = JButton(MDAction.makeNonKeyedAction(MD_REF.getUI(), "<<CLICK HERE - Set Extract Folder>>", "set_extract_folder", SelectExtractFolderAL()))
+        user_defaultSavePath_JBTN = JButton(MDAction.makeNonKeyedAction(MD_REF.getUI(), "<<CLICK HERE - Set Extract Folder>>", "set_extract_folder", SelectExtractFolderAL(statusLabel)))
         user_lShowFolderAfterExtract_SWSS = JCheckBox("Show / open folder after extract(s)?", GlobalVars.saved_lShowFolderAfterExtract_SWSS)
 
         user_extractFileAddDatasetName_SWSS = JCheckBox("Prefix extract file name with dataset name?", GlobalVars.saved_extractFileAddDatasetName_SWSS)
@@ -4560,8 +4575,6 @@ Visit: %s (Author's site)
 
         user_extractFileAddNamePrefix_SWSS.setText(GlobalVars.saved_extractFileAddNamePrefix_SWSS)
         user_extractFileAddTimeStampSuffix_SWSS = JCheckBox("Suffix extract file name with timestamp?", GlobalVars.saved_extractFileAddTimeStampSuffix_SWSS)
-
-        statusLabel = JLabel("")
 
         bg = ButtonGroup()
         bg.add(user_stockglance2020)
@@ -4642,12 +4655,7 @@ Visit: %s (Author's site)
         _options = ["EXIT", "PROCEED"]
 
         while True:
-            if isValidExtractFolder(GlobalVars.saved_defaultSavePath_SWSS):
-                statusLabel.setForeground(getColorBlue())
-                statusLabel.setText("<<Extract folder path valid>>")
-            else:
-                statusLabel.setForeground(getColorRed())
-                statusLabel.setText("<<WARNING: Extract folder path INVALID - Please select folder...>>")
+            setFilePathValidationMessage(statusLabel)
             rowHeight = 24
             rows = 25
             jsp = MyJScrollPaneForJOptionPane(_userFilters, None, 750, rows * rowHeight)
