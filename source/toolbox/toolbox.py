@@ -108,6 +108,7 @@
 # build: 1069 - added diag_security_splits_no_price() feature; patch thin_price_history() to exclude just before/after on split dates
 # build: 1069 - Tweak online_banking_view_configuration_data() to skip getInfo() output when redacting. Not necessary to log this...
 # build: 1069 - Tweak OFX_view_CUSIP_settings() to remove 'ticker and cuspid are different' message (irrelevant)...
+# build: 1069 - add stripReplaceCharacters()
 # build: 1069 - ???
 
 # NOTE: 'The domain/default pair of (kCFPreferencesAnyApplication, AppleInterfaceStyle) does not exist' means that Dark mode is NOT in force
@@ -3420,7 +3421,7 @@ Visit: %s (Author's site)
     GlobalVars.EXTRA_CODE_INITIALISED = False
     try:
         # Reference all code/objects from extra script here (back into main code)....
-        global _extra_code_initialiser, getCloudDirectory
+        global _extra_code_initialiser, getCloudDirectory, stripReplaceCharacters
         global advanced_options_encrypt_file_into_dataset, advanced_options_encrypt_file_into_sync_folder
         global advanced_options_decrypt_file_from_dataset, advanced_options_decrypt_file_from_sync
         global advanced_options_decrypt_dataset, advanced_show_encryption_keys
@@ -16509,7 +16510,7 @@ after saving the file, restart Moneydance
                     bankNameTxt = acct.getBankName()
 
                 currTxt = "" if acct.getCurrencyType() is baseCurr else acct.getCurrencyType().getIDString()
-                commentsTxt = acct.getComment().strip().replace("\n", "|").replace(TOOLBOX_IGNORE, "")
+                commentsTxt = stripReplaceCharacters(acct.getComment().strip()).replace(TOOLBOX_IGNORE, "")
                 xBalTxt = "" if (xBal == 0 and input_showZeroBalanceAsBlank.isSelected()) else acct.getCurrencyType().formatFancy(xBal, MD_decimal)
 
                 if not input_includeBalance.isSelected(): xBalTxt = ""

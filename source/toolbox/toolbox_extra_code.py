@@ -101,6 +101,15 @@ try:
         GlobalVars.EXTRA_CODE_INITIALISED = True
         myPrint("B", ">> extra_code script initialised <<")
 
+    def stripReplaceCharacters(inputStr):
+        TAB_SYMBOL = "⇥"
+        LINEFEED_SYMBOL = "⏎"
+        inputStr = inputStr.replace("\t", TAB_SYMBOL)
+        inputStr = inputStr.replace("\r\n", LINEFEED_SYMBOL)    # Windows
+        inputStr = inputStr.replace("\n", LINEFEED_SYMBOL)      # Unix/macOS
+        inputStr = inputStr.replace("\r", LINEFEED_SYMBOL)      # 'old' Mac
+        return inputStr
+
     class CloudDirectoryEntry:
         @staticmethod
         def completePath(sPath): return sPath if (sPath is None or sPath == "" or sPath.endswith("/")) else sPath + "/"  # Assume always need "/" not os.path.sep here...
