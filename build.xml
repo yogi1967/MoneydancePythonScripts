@@ -227,6 +227,7 @@ http://jakarta.apache.org/ant/index.html
             <include name="*.txt" />
             <include name="*.dict" />
             <include name="*.pdf" />
+            <include name="*.csv" />
             <include name="*.png" />
           </fileset>
         </copy>
@@ -595,6 +596,7 @@ http://jakarta.apache.org/ant/index.html
          <include name="*.pyc" />
          <include name="*.txt" />
          <include name="*.pdf" />
+         <include name="*.csv" />
       </fileset>
     </copy>
 

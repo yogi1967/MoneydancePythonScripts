@@ -2554,6 +2554,45 @@ try:
 
     #### Security stock splits - before/after split date price checks....
 
+    def view_reports_record_keys():
+        _THIS_METHOD_NAME = u"DIAG - View Reports' Data Export Record Keys"
+        if MD_REF.getBuild() < 5500: return
+        from com.moneydance.apps.md.view.gui import GraphReportGenerator
+        rpts = getMemorizedReports(False, True, ReportSpec.Type.TEXT, False)                                            # noqa
+        exportRpts = []
+        for rs in rpts:
+            try:
+                repgen = GraphReportGenerator.getGenerator(rs, MD_REF.getUI())
+                if repgen is not None and repgen.canGenerateExportData(): exportRpts.append(repgen)
+            except: pass
+        if len(exportRpts) < 1:
+            txt = "%s: - No data export enabled reports detected!" %(_THIS_METHOD_NAME)
+            setDisplayStatus(txt, "B")
+            myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.INFORMATION_MESSAGE)
+
+        output = u""
+        output += u"\n%s:\n" % _THIS_METHOD_NAME.upper()
+        output += u" ================================================================\n\n"
+
+        for rpt in exportRpts:
+            output += "\nReport: %s\n" %(rpt.getName())
+            rKeys = rpt.getExportKeyDescriptions()
+            if len(rKeys) < 1:
+                output += "           <NONE>\n"
+                continue
+            for entry in rKeys.entrySet():
+                key = entry.getKey()
+                value = entry.getValue()
+                output += "           %s = %s\n" %(pad(key, 5), value)
+
+        output += "\n\n<END>\n"
+
+        txt = "%s: Displaying data export record keys" %(_THIS_METHOD_NAME)
+        setDisplayStatus(txt, "B")
+        jif = QuickJFrame(_THIS_METHOD_NAME.upper(), output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+        myPopupInformationBox(jif, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
+
+
     class CollectTheGarbage(AbstractAction):
 
         def __init__(self): pass
