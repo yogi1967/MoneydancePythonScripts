@@ -299,7 +299,8 @@ http://jakarta.apache.org/ant/index.html
     <java newenvironment="true"
       classpathref="classpath"
       classname="com.moneydance.admin.KeyAdmin"
-      fork="true">
+      fork="true"
+      failonerror="true">
       <sysproperty key="moneydance_key_pass" value="${keypass}"/>
       <arg value="signextjar"/>
       <arg value="${extprivkeyfile}"/>
@@ -399,10 +400,14 @@ http://jakarta.apache.org/ant/index.html
 
     <antcall target="copy-install-readme" inheritall="true" inheritrefs="true"/>
 
+    <echo level="info" message="" />
+    <echo level="info" message="Running PythonExtensionPackager (via java)" />
+
     <java newenvironment="true"
           classpathref="classpath"
           classname="com.moneydance.admin.PythonExtensionPackager"
-          fork="true">
+          fork="true"
+          failonerror="true">
       <sysproperty key="moneydance_key_pass" value="${keypass}"/>
       <arg value="${extprivkeyfile}"/>
       <arg value="${privkeyid}"/>
