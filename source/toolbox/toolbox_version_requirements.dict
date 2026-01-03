@@ -1,13 +1,13 @@
 {
-    "last_updated" = "20250518"
+    "last_updated" = "20260103"
     "disable_all" = "n"
     "builds" = (
                     {
                     "build" = "1069"
                     "disable" = "n"
-                    "news" = "MD2024 compatible release - PREVIEW BUILD"
+                    "news" = "MD2026 compatible release - PREVIEW BUILD"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2025.5"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2026.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "5500"
                     "MD_OFX_BANK_SETTINGS_DIR" = "https://infinitekind.com/app/md/fis/"
                     "MD_OFX_DEFAULT_SETTINGS_FILE" = "https://infinitekind.com/app/md/fi2004.dict"

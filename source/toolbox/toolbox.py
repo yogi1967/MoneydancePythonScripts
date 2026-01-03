@@ -550,7 +550,7 @@ else:
     GlobalVars.__TOOLBOX = None
 
     GlobalVars.TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0
-    GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2025.0
+    GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2026.0
     GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   5500
     GlobalVars.MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"
     GlobalVars.MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"
