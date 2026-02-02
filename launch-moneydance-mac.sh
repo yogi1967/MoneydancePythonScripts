@@ -53,7 +53,7 @@ echo "My user path: ${my_user_path}"
 
 "/Applications/Moneydance.app/Contents/MacOS/Moneydance" \
   -d \
-  "$*" \
+  "$@" \
   &>"$HOME/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library/Application Support/Moneydance/errlog.txt"
 #  "$HOME/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents/Quote Loader Examples.moneydance" \
 # -invoke=moneydance:fmodule:securityquoteload:runstandalone:quit

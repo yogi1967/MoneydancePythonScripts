@@ -232,7 +232,7 @@ full_cmd=(
   -DMusicDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Music"
   -DAutosavedInformationDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library/Autosave Information"
   -Xmx2G
-  Moneydance -d -nobackup "$1" "$2" "$3" "$4" "$5"
+  Moneydance -d -nobackup "$@"
   )
 
 if [ "$MD_DEBUG_FROM_IJ" = "true" ]; then
