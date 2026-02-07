@@ -1,9 +1,9 @@
 {
-    "last_updated" = "20260206"
+    "last_updated" = "20260207"
     "disable_all" = "n"
     "builds" = (
                     {
-                    "build" = "1070"
+                    "build" = "1071"
                     "disable" = "n"
                     "news" = "MD2026 compatible release"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
@@ -14,6 +14,10 @@
                     "MD_OFX_DEBUG_SETTINGS_FILE" = "https://infinitekind.com/app/md.debug/fi2004.dict"
                     "MD_EXTENSIONS_DIRECTORY_FILE" = "https://infinitekind.com/app/md/extensions.dct"
                     "MYPYTHON_DOWNLOAD_URL" = "https://yogi1967.github.io/MoneydancePythonScripts/"
+                    }
+                    {
+                    "build" = "1070"
+                    "disable" = "n"
                     }
                     {
                     "build" = "1069"
