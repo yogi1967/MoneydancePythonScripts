@@ -3,7 +3,7 @@ build file for ant
 http://jakarta.apache.org/ant/index.html
 
 ###############################################################################
-# Author:   Stuart Beesley - StuWareSoftSystems 2021-2024
+# Author:   Stuart Beesley - StuWareSoftSystems 2021-2026
 ###############################################################################
 -->
 
@@ -66,10 +66,6 @@ http://jakarta.apache.org/ant/index.html
           description="push all python extensions to the IK Open site"
           depends="init,build_all_python,push_toolbox,push_extract_data,push_list_future_reminders,push_net_account_balances,push_extension_tester,push_accounts_categories_mega_search_window,push_security_performance_graph,push_stutilities,push_useful_scripts"/>
 
-  <target name="build_all_java"
-          description="build all java extensions"
-          depends="therearenojavaextnsyet"/>
-
   <target name="init">
   <echo level="info" message="ANT Build Running.... Executing INIT" />
   <echo level="verbose" message="OS Name is:         ${os.name}" />
@@ -92,57 +88,6 @@ http://jakarta.apache.org/ant/index.html
 
   <mkdir dir="${dist}"/>
   <mkdir dir="${build}"/>
-
-    <!--
-    Generic macro for building a specific feature (aka an extension).
-    -->
-    <macrodef name="build-java-mxt" description="macro to build java-based mxt extension files">
-      <attribute name="feature"/> <!-- name of the mxt file -->
-      <attribute name="javac-target" />
-      <attribute name="javac-source" />
-      <sequential>
-        <delete file="${dist}/@{feature}.mxt" />
-        <!--
-          since there isn't separate build directories for each feature,
-          delete anything that wasn't from this feature already
-        -->
-        <delete includeemptydirs="true">
-          <fileset dir="${build}">
-            <include name="**" />
-            <exclude name="com/moneydance/modules/features/@{feature}/**"/>
-          </fileset>
-        </delete>
-        <!-- copy all non java files for this feature -->
-        <copy preservelastmodified="true"
-              todir="${build}">
-          <fileset dir="${java-src}">
-            <include name="com/moneydance/modules/features/@{feature}/**" />
-            <include name="license.txt" />
-            <exclude name="**/*.java" /><!-- exclude source files -->
-            <exclude name="**/contact.*" />
-          </fileset>
-        </copy>
-        <!-- move license and contact to root of mxt -->
-        <copy preservelastmodified="true"
-              todir="${build}">
-          <fileset dir="${java-src}/com/moneydance/modules/features/@{feature}">
-            <include name="contact.*" />
-          </fileset>
-        </copy>
-        <javac target="@{javac-target}" bootclasspath="${bootclasspath}" source="@{javac-source}" srcdir="${java-src}" debug="${debug}" optimize="${optimize}"
-          classpathref="classpath"  destdir="${build}"
-          includes="com/moneydance/modules/features/@{feature}/**"
-          includeAntRuntime="false" />
-        <jar destfile="${dist}/@{feature}.mxt">
-          <fileset dir="${build}" includes="**" />
-        </jar>
-      	<!-- delegating signing to another target to allow bypass when in eclipse -->
-      	<antcall target="sign" inheritall="true" inheritrefs="true">
-      	  <param name="feature" value="@{feature}" />
-      	</antcall>
-      </sequential>
-    </macrodef>
-
 
     <!--    Generic macro for building a specific python extension ('feature') -->
     <macrodef name="build-python-mxt"
@@ -629,7 +574,7 @@ http://jakarta.apache.org/ant/index.html
 
 
   <target name="genkeys"
-          description="generate new private and public keyfiles for sigining mxt extension files">
+          description="generate new private and public keyfiles for signing mxt extension files">
     <!-- The dir= ensures the new key files are put in the user config folder -->
     <java
       failonerror="true"
@@ -642,13 +587,6 @@ http://jakarta.apache.org/ant/index.html
     </java>
 <!--      dir="${user-config-dir}"-->
   </target>
-
-  <target name="therearenojavaextnsyet" depends="init" description="build the therearenojavaextnsyet.mxt">
-    <echo level="verbose" message="DUMMY TARGET - NO JAVA TARGETS DEFINED YET!!!" />
-    <build-java-mxt feature="therearenojavaextnsyet" javac-source="${javac-source}" javac-target="${javac-source}" />
-  </target>
-
-
 
   <!-- In the targets for each extension below, set the parameters/attributes to _true or _false   -->
 
