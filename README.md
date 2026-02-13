@@ -1,5 +1,10 @@
 # Moneydance Python Scripts
 
+*********************************************************************************************************************
+IntelliJ IDEA CE 2021.1 is the last version that supports Jython 2.7 - Later versions simply do not work
+Gradle 9 builds are configured for terminal/command line usage - the IDE gradle tools will probably not be compatible
+*********************************************************************************************************************
+
 Visit: https://yogi1967.github.io/MoneydancePythonScripts/ for downloads...
 
 My collection of Python(Jython 2.7) scripts and extensions for Moneydance (MoneyBot console)
@@ -44,4 +49,4 @@ To use script (*.py):
 Good luck - contact me with any issues.....
 
 _Stuart Beesley_
-**StuWareSoftSystems** 2020-2024
+**StuWareSoftSystems** 2020-2026
