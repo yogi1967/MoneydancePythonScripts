@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# client_mark_extract_data.py - build: 1006 July 2024 - Stuart Beesley (based on: extract_data build: 1036)
+# client_mark_extract_data.py - build: 1007 Feb 2026 - Stuart Beesley (based on: extract_data build: 1036)
 
 # Written specifically for Mark McClintock
 
@@ -66,6 +66,7 @@
 # Build: 1004 - Update MyCostCalculation to v8
 # Build: 1005 - MyJFrame(v5)
 # build: 1006 - MD2024.2(5142) - moneydance_extension_loader was nuked and moneydance_this_fm with getResourceAsStream() was provided.
+# build: 1007 - store asof date into extracted filename
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -73,7 +74,7 @@
 
 # SET THESE LINES
 myModuleID = u"client_mark_extract_data"
-version_build = "1006"
+version_build = "1007"
 MIN_BUILD_REQD = 3056    # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT = False
 
@@ -7214,6 +7215,7 @@ Visit: %s (Author's site)
 
                                     dki = 0
                                     GlobalVars.dataKeys = {}                                                            # noqa
+                                    GlobalVars.dataKeys["_RPTASOFDATE"]               = [dki, "RptAsOfDate"];                  dki += 1
                                     GlobalVars.dataKeys["_ACCOUNT"]                   = [dki, "Account"];                      dki += 1
                                     GlobalVars.dataKeys["_ACCTCURR"]                  = [dki, "AcctCurrency"];                 dki += 1
                                     GlobalVars.dataKeys["_BASECURR"]                  = [dki, "BaseCurrency"];                 dki += 1
@@ -7254,6 +7256,7 @@ Visit: %s (Author's site)
 
                                     GlobalVars.keepKeys_ESB = []
                                     if GlobalVars.ENABLE_BESPOKE_CODING:                                                # PATCH: client_mark_extract_data
+                                        GlobalVars.keepKeys_ESB.append(GlobalVars.dataKeys["_RPTASOFDATE"][_COLUMN])
                                         GlobalVars.keepKeys_ESB.append(GlobalVars.dataKeys["_ACCOUNT"][_COLUMN])
                                         GlobalVars.keepKeys_ESB.append(GlobalVars.dataKeys["_SECURITY"][_COLUMN])
                                         GlobalVars.keepKeys_ESB.append(GlobalVars.dataKeys["_TICKER"][_COLUMN])
@@ -7268,6 +7271,9 @@ Visit: %s (Author's site)
                                     book = MD_REF.getCurrentAccountBook()
 
                                     usedInvestmentCashAccts = []
+
+                                    rptAsOfDate = todayInt if GlobalVars.saved_autoSelectCurrentAsOfDate_ESB else GlobalVars.saved_securityBalancesDate_ESB
+                                    rptAsOfDate = datetime.datetime.strptime(str(rptAsOfDate), "%Y%m%d").strftime(GlobalVars.excelExtractDateFormat)
 
                                     for sAcct in AccountUtil.allMatchesForSearch(book, MyAcctFilterESB(GlobalVars.hideInactiveAccounts_ESB,
                                                                                                        GlobalVars.lAllAccounts_ESB,
@@ -7297,6 +7303,7 @@ Visit: %s (Author's site)
 
                                         _row[GlobalVars.dataKeys["_KEY"][_COLUMN]] = ""
 
+                                        _row[GlobalVars.dataKeys["_RPTASOFDATE"][_COLUMN]] = rptAsOfDate
                                         _row[GlobalVars.dataKeys["_ACCOUNT"][_COLUMN]] = investAcct.getFullAccountName()
                                         _row[GlobalVars.dataKeys["_ACCTCURR"][_COLUMN]] = investAcctCurr.getIDString()
                                         _row[GlobalVars.dataKeys["_BASECURR"][_COLUMN]] = GlobalVars.baseCurrency.getIDString()
@@ -7432,6 +7439,7 @@ Visit: %s (Author's site)
                                                 if cashBalCurrDbl != 0.0:
                                                     _row = ([None] * GlobalVars.dataKeys["_END"][0])  # Create a blank row to be populated below...
                                                     _row[GlobalVars.dataKeys["_KEY"][_COLUMN]] = ""
+                                                    _row[GlobalVars.dataKeys["_RPTASOFDATE"][_COLUMN]] = rptAsOfDate
                                                     _row[GlobalVars.dataKeys["_ACCOUNT"][_COLUMN]] = investAcct.getFullAccountName()
                                                     _row[GlobalVars.dataKeys["_ACCTCURR"][_COLUMN]] = investAcctCurr.getIDString()
                                                     _row[GlobalVars.dataKeys["_BASECURR"][_COLUMN]] = GlobalVars.baseCurrency.getIDString()
@@ -7460,6 +7468,7 @@ Visit: %s (Author's site)
 
                                                 _row = ([None] * GlobalVars.dataKeys["_END"][0])  # Create a blank row to be populated below...
                                                 _row[GlobalVars.dataKeys["_KEY"][_COLUMN]] = ""
+                                                _row[GlobalVars.dataKeys["_RPTASOFDATE"][_COLUMN]] = rptAsOfDate
                                                 _row[GlobalVars.dataKeys["_ACCOUNT"][_COLUMN]] = "__SecurityMaster__"
                                                 _row[GlobalVars.dataKeys["_BASECURR"][_COLUMN]] = GlobalVars.baseCurrency.getIDString()
 
