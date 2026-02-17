@@ -35,3 +35,4 @@ bin
 !bin/repackage-jython
 
 .DS_Store
+/java_code_for_python/.idea/
