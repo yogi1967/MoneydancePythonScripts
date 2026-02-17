@@ -113,6 +113,7 @@
 # build: 1070 - MD2026 release...
 # build: 1071 - ???
 # build: 1071 - Removed Total Selected Transactions feature / script - moved to new contextmenutools extension
+# build: 1071 - BUGFIX script runner (the classloader issue)
 # build: 1071 - ???
 
 # NOTE: 'The domain/default pair of (kCFPreferencesAnyApplication, AppleInterfaceStyle) does not exist' means that Dark mode is NOT in force
@@ -11637,14 +11638,25 @@ Visit: %s (Author's site)
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return False
 
+        classLoader = None
+        if float(MD_REF.getBuild()) >= 3051 and MD_EXTENSION_LOADER is not None:
+            try: classLoader = getFieldByReflection(MD_EXTENSION_LOADER, "classloader")
+            except: pass
+
+        if classLoader is None:
+            txt = "%s: Sorry - Technical error - failed to obtain ClassLoader (speak to developer)!" %(_method)
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
+            myPopupInformationBox(client_mark_extract_data_frame_, txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+            return False
+
         with GlobalVars.SCRIPT_RUNNING_LOCK:
             myPrint("B","**********************************************************")
             myPrint("B","**********************************************************")
             myPrint("B","**********************************************************")
             py = MD_REF.getPythonInterpreter()
             py.set("toolbox_script_runner", _runThisScript)
-            py.getSystemState().setClassLoader(MD_EXTENSION_LOADER)
-            py.set("moneydance_extension_loader", MD_EXTENSION_LOADER)
+            py.getSystemState().setClassLoader(classLoader)
+            py.set("moneydance_extension_loader", classLoader)
 
             class ScriptRunnable(Runnable):
 
