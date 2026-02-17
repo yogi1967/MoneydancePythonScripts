@@ -66,7 +66,7 @@
 # Build: 1004 - Update MyCostCalculation to v8
 # Build: 1005 - MyJFrame(v5)
 # build: 1006 - MD2024.2(5142) - moneydance_extension_loader was nuked and moneydance_this_fm with getResourceAsStream() was provided.
-# build: 1007 - store asof date into extracted filename
+# build: 1007 - store asof date into extracted filename; bugfix script runner (classloader issue)
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -5173,14 +5173,25 @@ Visit: %s (Author's site)
             myPopupInformationBox(client_mark_extract_data_frame_, txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return False
 
+        classLoader = None
+        if float(MD_REF.getBuild()) >= 3051 and MD_EXTENSION_LOADER is not None:
+            try: classLoader = getFieldByReflection(MD_EXTENSION_LOADER, "classloader")
+            except: pass
+
+        if classLoader is None:
+            txt = "%s: Sorry - Technical error - failed to obtain ClassLoader (speak to developer)!" %(_method)
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
+            myPopupInformationBox(client_mark_extract_data_frame_, txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+            return False
+
         with GlobalVars.SCRIPT_RUNNING_LOCK:
             myPrint("B","**********************************************************")
             myPrint("B","**********************************************************")
             myPrint("B","**********************************************************")
             py = MD_REF.getPythonInterpreter()
             py.set("%s_script_runner" %(myModuleID), _runThisScript)
-            py.getSystemState().setClassLoader(MD_EXTENSION_LOADER)
-            py.set("moneydance_extension_loader", MD_EXTENSION_LOADER)
+            py.getSystemState().setClassLoader(classLoader)
+            py.set("moneydance_extension_loader", classLoader)
 
             class ScriptRunnable(Runnable):
 
@@ -7315,6 +7326,9 @@ Visit: %s (Author's site)
                                             asOfDate = GlobalVars.saved_securityBalancesDate_ESB
                                             effectiveDateInt = None if (asOfDate == todayInt) else asOfDate
 
+                                        # note: whilst CostCalculation was upgraged in MD2026(5500), this should not affect
+                                        # this usage (i.e. get the cost basis using as-of date). The main fixes were for
+                                        # capital gains and currency conversion.
                                         costCalculationBal = MyCostCalculation(securityAcct, asOfDate, None, False)   # True replicates InvestUtil.getCostBasis(securityAcct) - i.e. Balance (not Current Balance)
 
                                         sharesAndCostBasisForAsOf = costCalculationBal.getSharesAndCostBasisForAsOf()
