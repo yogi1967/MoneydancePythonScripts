@@ -11635,7 +11635,7 @@ Visit: %s (Author's site)
         if GlobalVars.SCRIPT_RUNNING_LOCK.locked():
             txt = "%s: Sorry - a script is already running with an active Lock" %(_method)
             setDisplayStatus(txt, "R"); myPrint("B", txt)
-            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+            myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
             return False
 
         classLoader = None
@@ -11646,7 +11646,7 @@ Visit: %s (Author's site)
         if classLoader is None:
             txt = "%s: Sorry - Technical error - failed to obtain ClassLoader (speak to developer)!" %(_method)
             setDisplayStatus(txt, "R"); myPrint("B", txt)
-            myPopupInformationBox(client_mark_extract_data_frame_, txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+            myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
             return False
 
         with GlobalVars.SCRIPT_RUNNING_LOCK:
