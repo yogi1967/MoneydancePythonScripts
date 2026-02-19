@@ -36,3 +36,5 @@ bin
 
 .DS_Store
 /java_code_for_python/.idea/
+/gradle/.gradle/
+/userconfig/user.gradle.properties

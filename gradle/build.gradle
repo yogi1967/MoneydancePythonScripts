@@ -1,0 +1,1071 @@
+/*
+Author: Stuart Beesley - February 2026
+
+This is Groovy DSL file
+
+build.gradle: gradle buildfile for Python Moneydance extensions
+- can build python extensions (including bundled java/kotlin)
+
+################################################################
+WARNING: This uses gradle 9 and IntelliJ IDEA CE 2021.1
+         As such, gradle features will not run within the IJ app
+         Use gradle from terminal/command line
+         IJ2021.1 is the last version to support Jython2.7
+################################################################
+
+** REVIEW PROPERTIES IN /gradle/gradle.properties file
+** SET LOCAL/USER OVERRIDING PROPERTIES in /userconfig/user.gradle.properties
+
+Execute ./gradlew                       to show usage
+        ./gradlew extensionname         to build extension
+        ./gradlew cleanextensionname    to cleanup a single extension's build files
+        ./gradlew genkeys               to generate private/public signing keyfile(s) - set keypass= first
+
+Notes:
+        - TO START create/edit user.gradle.properties and set keypass=xxx and then run genkeys
+
+        - Python packaging (with precompile) requires python2.7 installed
+
+        - By default all java/kotlin debug symbols option are turned on
+          - java: includes source file name, line numbers, and local variable tables (equivalent to javac -g) - has full debug symbols.
+          - kotlin: line numbers are always emitted, source mapping is present for stack traces. Parameter/call assertions are on by default.
+*/
+
+
+import org.jetbrains.kotlin.config.KotlinCompilerVersion
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import java.util.zip.ZipFile
+
+plugins {
+  id 'java'
+  id 'org.jetbrains.kotlin.jvm' version '1.9.21'    // plugin version to match Moneydance's build system and also bundled runtime kotlin-stdlib-x.x.x.jar
+                                                    // use '2.3.10' to upgrade
+}
+
+repositories {
+  mavenCentral()
+}
+
+// detect 1.9.x vs 2.x plugin...
+def kotlinPluginVersion = plugins.getPlugin("org.jetbrains.kotlin.jvm").class.package.implementationVersion
+def isKotlin2 = kotlinPluginVersion?.startsWith("2.")
+logger.lifecycle("Kotlin plugin version (${kotlinPluginVersion}) - compiler: ${KotlinCompilerVersion.VERSION}")
+
+// Detect Kotlin 1.9 and run specific commands
+if (!isKotlin2) {
+  // Kotlin 1.9 only: disable classpath snapshotting (removed / not applicable in Kotlin 2.x)
+  // Moneydance build jars are mutable and order-sensitive; classpath snapshotting
+  // can cause incorrect incremental rebuilds. Incremental compilation remains enabled.
+  project.ext["kotlin.incremental.useClasspathSnapshot"] = "false"
+}
+
+// Using gradle 9.x, with kotlin plugin 1.9.21 (note final release before kotlin 2.0 is 1.9.25 which would have maximum compatibility with gradle 9)
+// - ideally match versions to the Moneydance build system, and bundled runtime jar, but..:
+// - latest gradle is fine as this is a separate build system, and we lock the kotlin language / api version to 1.9
+// - java / kotlin target versions are set to allow extensions to have maximum possible of backwards compatibility.
+// - we set these value here - rather than using gradle.properties - as these are not really very user configurable.
+ext {
+    compilerJDK       = 21                          // JDK version to execute java/kotlin compile, sign, and packaging tasks
+    targetRelease     = 17                          // equivalent java --release (source/target/bytecode/API) version
+    kotlinLangVersion = KotlinVersion.KOTLIN_1_9    // kotlin language version (lock to plugin version) - match to Moneydance bundled kotlin-stdlib-x.x.x.jar
+    kotlinApiVersion  = KotlinVersion.KOTLIN_1_9    // kotlin API version (lock to plugin version) - match to Moneydance bundled kotlin-stdlib-x.x.x.jar
+                                                    // use KotlinVersion.KOTLIN_2_1 (for example) to upgrade
+}
+
+// set flag to let subordinate gradle scripts know that the master script is executing
+ext.executingMainBuild = true
+apply from: rootProject.file("usage.gradle")
+
+defaultTasks "verifyConfig"
+
+// Guard against configuration cache being enabled via CLI or user settings.
+// This build is not 'configuration-cache' safe (dynamic feature registration, mutable classpaths, JavaExec signing tasks).
+// Fail fast here to avoid hard build failures.
+// Note: this check triggers a harmless deprecation warning. There seems to be no way to avoid this (perhaps wait for v10)
+// if you remove this check, then you will get a hard fail later, if 'configuration-cache=true' as the script executes unsupported statements
+// to eliminate the deprecation warning, simply remove this check. //TODO - re-evaluate when using gradle10
+if (gradle.startParameter.configurationCacheRequested) {
+  throw new GradleException("Configuration cache must be disabled in gradle.properties for this build - use: org.gradle.configuration-cache=false")
+}
+
+// load user specific properties..
+def localPropsFile = file("../userconfig/user.gradle.properties")
+if (localPropsFile.exists()) {
+  def p = new Properties()
+  localPropsFile.withInputStream { p.load(it) }
+  p.each { k, v -> project.ext.set(k.toString(), v)}
+}
+
+// verify all required properties are set
+["lib", "dist", "pythonSrc", "javaForPythonSrc", "privkeyid", "extprivkeyfile", "extpubkeyfile"]
+    .each {
+      if (!project.hasProperty(it)) throw new GradleException("Missing gradle.property: $it")
+    }
+
+/*
+ * Bridge property names into Gradle variables
+ */
+def debug = project.findProperty("debug") == "true"
+def libPath = project.property("lib")
+def distPath = project.property("dist")
+def pythonSrcPath = project.property("pythonSrc")
+def javaForPythonSrcPath = project.property("javaForPythonSrc")
+def mdbuildlibs = project.findProperty("mdbuildlibs") // note: this is an optional path that will override where the std set of build libs are found
+def extPrivKeyFile = project.property("extprivkeyfile")
+def extPubKeyFile = project.property("extpubkeyfile")
+def privKeyID = project.property("privkeyid")
+def keyPassValue = project.findProperty("keypass")                       // don't force keypass= to exist
+def allowPushIKOpen = project.findProperty("allowPushIKOpen") == "true"  // when true allows push to IK's Open project dirs
+def IKOpenPushDir = project.findProperty("IKOpenPushDir")                // when using allowPushIKOpen, specify the full push path
+
+
+// export for imported gradle files
+ext.debug = debug
+ext.libPath = libPath
+ext.distPath = distPath
+ext.pythonSrcPath = pythonSrcPath
+ext.javaForPythonSrcPath = javaForPythonSrcPath
+ext.extPrivKeyFile = extPrivKeyFile
+ext.extPubKeyFile = extPubKeyFile
+ext.privKeyID = privKeyID
+ext.keyPassValue = keyPassValue
+ext.allowPushIKOpen = allowPushIKOpen
+ext.IKOpenPushDir = IKOpenPushDir
+
+ext.moneydanceChecked = false // we use this to check the classpath for moneydance jar class only once
+
+// common keypass, priv/pub file(s) missing validation code block
+ext.requireSigningInputs = {
+  if (!keyPassValue?.toString()?.trim()) throw new GradleException("\n*****\nERROR - keypass must be set in: ../userconfig/user.gradle.properties\n*****\n")
+  if (!file(extPrivKeyFile).exists()) throw new GradleException("\n*****\nERROR - Missing private key file: ${extPrivKeyFile} (run genkeys)\n*****\n")
+  if (!file(extPubKeyFile).exists()) throw new GradleException("\n*****\nERROR - Missing public key file: ${extPubKeyFile} (run genkeys)\n*****\n")
+}
+
+// common list zip contents block
+ext.listZipContents = { File zipFile, String label ->
+  if (!debug) return
+  if (!zipFile.exists() || zipFile.length() == 0) return
+
+  logger.lifecycle("\n\n---- ZIP CONTENTS: ${label} ----")
+  def zf = new ZipFile(zipFile)
+  zf.entries().toList()
+      .sort { it.name }
+      .each { logger.lifecycle(it.name) }
+  zf.close()
+  logger.lifecycle("---------------------------------------")
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Build a list of Moneydance jars for the classpath – shared by compile + sign (order matters)
+// Note: we prefer the jars in mdbuildlibs when specified, otherwise the 'normal' jars in the lib folder
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+def mdJars = []
+if (mdbuildlibs) {
+  mdJars += [
+      files("${mdbuildlibs}/moneydance.jar"),     // attempt to load user specified moneydance jar first
+      fileTree("${mdbuildlibs}") {                // then load any more user jar files, but not extadmin
+        include("*.jar")
+        exclude("moneydance.jar")
+        exclude("extadmin.jar")
+      },
+      files("${mdbuildlibs}/extadmin.jar")      // since extadmin has a StringUtils, it needs to come after moneydance.jar
+  ]
+}
+mdJars += [
+    files(                                      // now load all jars needed by extensions
+        "${libPath}/kotlin-stdlib-1.9.21.jar",
+        "${libPath}/moneydance-dev.jar",
+        "${libPath}/moneydance-private.jar",    // if you absolutely MUST use something that isn't in the exposed MD API then put a moneydance.jar file from Moneydance 2015 or higher here.  But, please don't
+        "${libPath}/extadmin.jar",              // since extadmin has a StringUtils, it needs to come after moneydance.jar
+        "${libPath}/mdpython.jar"               // used for Python pre-compile
+    )
+]
+ext.mdJars = mdJars   // export for imported gradle files
+
+configurations {
+    mdClasspath {
+        canBeConsumed = false
+        canBeResolved = true
+    }
+  compileOnly.extendsFrom(mdClasspath)
+}
+
+dependencies {
+  mdJars.each { add("mdClasspath", it) }
+}
+
+// define common checker to detect moneydance.jar file(s) on classpath
+// specifically look for a known model class, and detect not found, or where multiple found
+def requireMoneydanceClass = { Map args = [:] ->
+  def classPath = args.classPath ?: "com/infinitekind/moneydance/model/AccountBook.class"
+  def failWhenNotFound = args.failWhenNotFound != false
+  def showResults = args.showResults == true
+
+  def foundIn = []
+  def ordered = configurations.mdClasspath.incoming.files.toList()
+  ordered.each { jar ->
+    if (jar.exists()) {
+      def zip = new ZipFile(jar)
+      if (zip.getEntry(classPath as String) != null) {
+        foundIn << jar
+      }
+      zip.close()
+    }
+  }
+
+  if (failWhenNotFound && foundIn.isEmpty()) { throw new GradleException("Required Moneydance class ${classPath} not found on mdClasspath") }
+
+  if (showResults) {
+    logger.lifecycle("------------------")
+    logger.lifecycle("Classpath resolution order:")
+    ordered.eachWithIndex { jar, i ->
+      logger.lifecycle("  ${i + 1}. ${jar.absolutePath}")
+    }
+    logger.lifecycle("")
+    logger.lifecycle("Found ${classPath} in ${foundIn.size()} jar(s):")
+    foundIn.each { jar ->
+      logger.lifecycle("  -> ${jar.absolutePath}")
+    }
+    if (foundIn.isEmpty()) logger.error("Required Moneydance class: ${classPath} NOT found on classpath")
+    if (foundIn.size() > 1) logger.error("Multiple versions of required Moneydance class: ${classPath} found on classpath")
+    logger.lifecycle("------------------")
+  }
+
+  return foundIn.size()
+}
+ext.requireMoneydanceClass = requireMoneydanceClass
+////////////////////// end building of mdjars list /////////////////////////////////////////////////////////////////////
+
+
+// --------------------
+// Java compiler config
+// --------------------
+java {
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(compilerJDK)    // JDK version used to execute java compile, package, sign tasks
+  }
+}
+tasks.withType(JavaCompile).configureEach {
+  options.release = targetRelease                            // specify the java --release (source/target/bytecode/API) version
+  options.encoding = "UTF-8"                                 // utf8 encoding for all platforms
+  options.incremental = true                                 // performance - incremental build - default in modern Gradle
+  options.compilerArgs += ["-Xlint:all"]                     // enable all compiler warnings (no impact on build)
+
+  if (!debug) {
+    options.compilerArgs += ["-Xlint:-options"]              // disable compiler option warnings (no impact on build)
+  }
+
+  // some potentially useful compiler options
+  //options.debug = true                                     // debugging info - default on - equivalent to javac -g
+  //options.debugOptions.debugLevel = "source,lines,vars"    // debugging info - default on - equivalent to javac -g
+  //options.compilerArgs += ["-Werror"]                      // treat warnings as errors
+
+  doFirst {
+    if (!moneydanceChecked) {
+      requireMoneydanceClass()
+      moneydanceChecked = true
+    }
+  }
+}
+////////////////////// end java compiler config ////////////////////////////////////////////////////////////////////////
+
+// ----------------------
+// Kotlin compiler config
+// ----------------------
+kotlin {
+  jvmToolchain(compilerJDK)                                         // JDK version used to execute java compile, package, sign tasks
+}
+tasks.withType(KotlinCompile).configureEach {
+  compilerOptions {
+
+    languageVersion.set(kotlinLangVersion)                          // kotlin language version
+    apiVersion.set(kotlinApiVersion)                                // kotlin API version
+    jvmTarget.set(JvmTarget.valueOf("JVM_${targetRelease}"))        // specify the java --release (soource/target/bytecode/API) version
+
+    if (isKotlin2) {
+      freeCompilerArgs.add("-jvm-default=no-compatibility")         // interface default methods (plug in 2.x onwards)
+    } else {
+      freeCompilerArgs.add("-Xjvm-default=all")                     // interface default methods (plug in 1.9.x)
+    }
+
+    freeCompilerArgs.add("-Xuse-fast-jar-file-system")              // faster incremental builds
+
+    // some potentially useful compiler options
+    //freeCompilerArgs.add("-Xdebug")                               // compiler diagnostics only (NOT runtime debugging)
+    //freeCompilerArgs.add("-Xno-param-assertions")                 // disable parameter null checks
+    //freeCompilerArgs.add("-Xno-call-assertions")                  // disable call-site null checks
+    //jvmTarget.set(JvmTarget.JVM_nn)                               // jvmTarget defaults to the configured Kotlin JVM toolchain
+  }
+
+  doFirst {
+    if (!moneydanceChecked) {
+      requireMoneydanceClass()
+      moneydanceChecked = true
+    }
+  }
+}
+////////////////////// end kotlin compiler config //////////////////////////////////////////////////////////////////////
+
+// setup JavaExec tasks
+tasks.withType(JavaExec).configureEach {
+  javaLauncher.set(
+    javaToolchains.launcherFor {
+      languageVersion = JavaLanguageVersion.of(compilerJDK)         // JDK version used to execute java compile, package, sign tasks
+    }
+  )
+  systemProperty "file.encoding", "UTF-8"
+  systemProperty "moneydance_key_pass", keyPassValue
+}
+////////////////////// end JavaExec config /////////////////////////////////////////////////////////////////////////////
+
+// turn off tasks we are not using
+tasks.named("jar").configure { enabled = false }
+tasks.named("test").configure { enabled = false }
+tasks.named("build").configure { enabled = false }
+tasks.named("assemble").configure { enabled = false }
+tasks.named("classes").configure { enabled = false }
+////////////////////// end turn-off unused tasks ///////////////////////////////////////////////////////////////////////
+
+
+// add to gradle's inbuilt clean task to also clean up the dist folder and any bit of the python compile left behind.
+// no need to deal with build as gradle handles this...
+tasks.named("clean", Delete).configure {
+  delete(distPath)
+
+  // delete any legacy ANT build folders
+  delete(file("${pythonSrcPath}/build"))
+
+  doFirst {
+    // python generated artefacts
+    // due to file scan, put inside doFirst...
+    file(pythonSrcPath).eachDir { pySrcDir ->
+      delete(fileTree(pySrcDir) {
+        include("**/*.pyc")
+        include("**/*.class")
+      })
+    }
+  }
+}
+
+// create task to verify python installation
+def pythonExec = project.findProperty("python-executable") ?: "python2.7"
+tasks.register("verifyPython27") {
+  group = "TOOLS"
+  description = "Verify python installation / version"
+  doLast {
+    def proc = ["${pythonExec}", "--version"].execute()
+    proc.waitFor()
+    if (proc.exitValue() != 0 || !proc.err.text.contains("Python 2.7")) {
+      throw new GradleException("Python 2.7 is required. '${pythonExec}' not found, or not Python 2.7")
+    }
+    logger.lifecycle("validated python2.7 installed")
+  }
+}
+////////////////////// end verifyPython27 //////// /////////////////////////////////////////////////////////////////////
+
+tasks.register("ensureUserConfig") {
+  group = "TOOLS"
+  description = "Ensure ../userconfig folder exists (create if missing, does nothing if already exists)"
+  outputs.dir("../userconfig")
+  doLast {
+    def dir = file("../userconfig")
+    if (!dir.exists()) {
+      dir.mkdirs()
+      logger.lifecycle("[INFO] ../userconfig folder created...")
+    }
+  }
+}
+
+tasks.register("ensureUserProperties") {
+  group = "TOOLS"
+  description = "Create new user.gradle.properties file (does nothing if already exists)"
+  outputs.file(file("../userconfig/user.gradle.properties"))
+  dependsOn("ensureUserConfig")
+  doLast {
+    def dir = file("../userconfig")
+    def propsFile = new File(dir, "user.gradle.properties")
+    if (!propsFile.exists()) {
+      propsFile.text =
+              "# gradle.user.properties file for building Moneydance extensions\n" +
+              "#keypass=your_genkeys_passphrase(set here then run genkeys)\n" +
+              "#mdbuildlibs=path_to_your_own_set_of_moneydance_jars(optional)"
+      logger.lifecycle("[INFO] user.gradle.properties file created...")
+    }
+  }
+}
+
+// task to verify settings / validate key paths...
+tasks.register("verifyConfig") {
+  group = "INFO"
+  description = "Show usage, display settings, validate paths"
+  dependsOn("ensureUserConfig")
+
+  doLast {
+
+    printUsage()
+
+    logger.lifecycle("")
+    logger.lifecycle("Verify Config: configuration + path checks")
+    logger.lifecycle("------------------------------------------")
+
+    logger.lifecycle("")
+    logger.lifecycle("Gradle version     = ${gradle.gradleVersion}")
+    logger.lifecycle("Kotlin plugin      = ${KotlinCompilerVersion.VERSION}")
+    logger.lifecycle("CompilerJDK        = ${compilerJDK}")
+    logger.lifecycle("target release     = ${targetRelease}")
+    logger.lifecycle("kotlin language    = ${kotlinLangVersion}")
+    logger.lifecycle("kotlin API version = ${kotlinApiVersion}")
+    logger.lifecycle("")
+
+    logger.lifecycle("debug = ${debug}")
+    logger.lifecycle("pythonExec = ${pythonExec}")
+
+    if (mdbuildlibs) {
+      logger.lifecycle("mdbuildlibs = ${mdbuildlibs}")
+    } else {
+      logger.lifecycle("optional mdbuildlibs (library override) <not specified>")
+    }
+
+    logger.lifecycle("lib = ${libPath}")
+    logger.lifecycle("dist = ${distPath}")
+    logger.lifecycle("pythonSrcPath = ${pythonSrcPath}")
+    logger.lifecycle("extprivkeyfile = ${extPrivKeyFile}")
+    logger.lifecycle("extpubkeyfile = ${extPubKeyFile}")
+    logger.lifecycle("javaForPythonSrcPath = ${javaForPythonSrcPath}")
+    logger.lifecycle("allowPushIKOpen = ${allowPushIKOpen}")
+    logger.lifecycle("IKOpenPushDir = ${IKOpenPushDir}")
+
+    def isPassBlank = !keyPassValue?.toString()?.trim()
+    if (!isPassBlank) {
+      logger.lifecycle("keypass = <set>")
+    } else {
+      logger.warn("keypass = <not set>")
+    }
+
+    def didntExist = [:]
+    def mustExist = [
+        "lib"               : libPath,
+        "python src"        : pythonSrcPath,
+        "javaForPythonSrc"  : javaForPythonSrcPath,
+        "extprivkeyfile"    : extPrivKeyFile,
+        "extpubkeyfile"     : extPubKeyFile
+    ]
+
+    mustExist.each { name, path ->
+      def f = (path) ? file(path) : null
+      if (!f || !f.exists()) {
+        didntExist[name] = f
+        logger.error("... MISSING: ${name}: ${f}")
+      } else {
+        logger.lifecycle("... EXISTS: ${name}: ${f}")
+      }
+    }
+
+    def optExist = [
+        "dist"            : distPath,
+        "mdbuildlibs"     : mdbuildlibs,
+        "IKOpenPushDir"   : IKOpenPushDir
+    ]
+    optExist.each { name, path ->
+      def f = (path) ? file(path) : null
+      if (f && f.exists()) {
+        logger.lifecycle("... OPTIONAL EXISTS: ${name}: ${f}")
+      } else {
+        logger.lifecycle("... OPTIONAL MISSING: ${name}: ${f}")
+      }
+    }
+
+    logger.lifecycle("------------------")
+    logger.lifecycle("configuration-cache property = ${providers.gradleProperty("org.gradle.configuration-cache").orNull ?: "<not set>"}")
+    logger.lifecycle("parallelProjectExecutionEnabled = ${gradle.startParameter.parallelProjectExecutionEnabled}")
+    logger.lifecycle("Kotlin incremental compilation enabled = ${providers.gradleProperty("kotlin.incremental").orNull != "false"}")
+    logger.lifecycle("Kotlin classpath snapshotting enabled = ${providers.gradleProperty("kotlin.incremental.useClasspathSnapshot").orNull == "true"}")
+
+    requireMoneydanceClass(failWhenNotFound: false, showResults: true)
+
+    if (isPassBlank) {
+      logger.error("\n")
+      logger.error("#################################")
+      logger.error("## Please set keypass property ##")
+      logger.error("#################################")
+      logger.error("\n")
+    }
+
+    if (!didntExist.isEmpty()) { throw new GradleException("Missing required paths: ${didntExist}") }
+
+  }
+}
+////////////////////// end verifyConfig ////////////////////////////////////////////////////////////////////////////////
+
+
+// task that can clean extension's build files
+def registerCleanTask = { String feature ->
+  tasks.register("clean${feature}", Delete) {
+    group = "CLEAN EXTENSION"
+    description = "Clean built artifacts for extension: ${feature}"
+
+    // Java/Kotlin artifact (i.e. specifically .mxt and anything else with this extension's name)
+    delete(fileTree(dir: distPath, includes: ["${feature}.*", "s-${feature}.*"]))
+
+    // compiled java/kotlin class outputs
+    delete(
+            layout.buildDirectory.dir("classes/java/pythonBundled"),
+            layout.buildDirectory.dir("classes/kotlin/pythonBundled"),
+            layout.buildDirectory.dir("resources/pythonBundled")
+    )
+
+    // Python generated artefacts
+    delete(fileTree("${pythonSrcPath}/${feature}") {
+      include("**/*.pyc")
+      include("**/*.class")
+    })
+
+    // remove python staging
+    delete(layout.buildDirectory.dir("tmp/staging/${feature}"))
+
+    doFirst { if (debug) logger.lifecycle("${path} - cleaning ${feature}") }
+  }
+}
+////////////////////// end clean extension /////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////
+// task that can (re)generate keys for signing mxt files
+// NOTE: please only run this from a terminal session
+//       if you need to type the key using keyboard
+////////////////////////////////////////////////////////
+tasks.register("genkeys", JavaExec) {
+  group = "GENKEYS"
+  description = "Generate Moneydance extension signing keys"
+
+  outputs.upToDateWhen { false }
+
+  outputs.files(
+      extPrivKeyFile,
+      extPubKeyFile
+  )
+
+  classpath = configurations.mdClasspath
+  mainClass.set("com.moneydance.admin.KeyAdmin")
+
+  args(
+      "genkey",
+      extPrivKeyFile,
+      extPubKeyFile
+  )
+
+  standardInput = System.in   // <-- REQUIRED for keyboard input
+
+  doFirst {
+    def isPassBlank = !keyPassValue?.toString()?.trim()
+    logger.lifecycle("")
+    logger.lifecycle("########################################################################")
+    logger.lifecycle("# genkeys running....")
+    logger.lifecycle("# - you may be prompted to overwrite existing key file(s)")
+    if (!isPassBlank) {
+      logger.lifecycle("# - your passphrase as defined in ${localPropsFile} will be used")
+      logger.lifecycle("# - existing passphrase: ******")
+    } else {
+      logger.lifecycle("# - you will need to enter a passphrase to create new keyfiles")
+      logger.lifecycle("# - please save this passphrase in file ${localPropsFile}")
+      logger.lifecycle("#   using the format keypass=yourpassphrase")
+    }
+    logger.lifecycle("########################################################################")
+
+    def priv = file(extPrivKeyFile)
+    def pub = file(extPubKeyFile)
+
+    if (priv.exists() || pub.exists()) {
+      logger.lifecycle("")
+      logger.lifecycle("-------------------------------")
+      print "\u0007"; System.out.flush() // beep-beep
+      print "Keys exist. Overwrite? [y/N]: "; System.out.flush()  // ensure the message shows...
+      def answer = new BufferedReader(new InputStreamReader(System.in)).readLine()
+
+      if (!answer?.equalsIgnoreCase("y")) {
+        throw new GradleException("Key files already exist; please remove before regeneration; aborting")
+      }
+    }
+  }
+
+  doLast {
+    if (!file(extPrivKeyFile).exists()) throw new GradleException("Private key not created")
+    if (!file(extPubKeyFile).exists()) throw new GradleException("Public key not created")
+  }
+}
+////////////////////// end genkeys /////////////////////////////////////////////////////////////////////////////////////
+
+// task to ensure dist folder exists (or create it)
+tasks.register("ensureDist") {
+  group = "TOOLS"
+  description = "Makes the dist folder if it doesn't exist"
+  outputs.dir(distPath)
+  doLast {
+    file(distPath).mkdirs()
+    if (debug) logger.lifecycle("Ensured 'dist' folder exists (created if missing)")
+  }
+}
+
+// setup separate task to build the bundled java/kotlin code
+tasks.register("javaForPython") {
+  group = "BUILD EXTENSION"
+  description = "Compile bundled java/kotlin for python extensions"
+  dependsOn(sourceSets.pythonBundled.classesTaskName)
+  mustRunAfter("clean", "cleanJavaForPython")
+}
+
+tasks.register("cleanJavaForPython", Delete) {
+  group = "CLEAN EXTENSION"
+  description = "Clean compiled bundled java/kotlin for python extensions"
+
+  delete(
+          layout.buildDirectory.dir("classes/java/pythonBundled"),
+          layout.buildDirectory.dir("classes/kotlin/pythonBundled"),
+          layout.buildDirectory.dir("resources/pythonBundled")
+  )
+}
+////////////////////// end genkeys /////////////////////////////////////////////////////////////////////////////////////
+
+
+////////////////////////////////////////////////////////
+// python specific tasks:
+// - cleanup
+// - verify python environment
+// - CPython: python -m py_compile <feature>.py
+// - Jython:  java org.python.util.jython compileall
+// - define python feature modules
+////////////////////////////////////////////////////////
+def registerPythonPrecompile = { String feature, String pythonBase ->
+
+  //////////////////////////////////////////////////////////////////////////////////////////////
+  // PRE-COMPILING CPython to create CPython bytecode .pyc
+  // note: required when you getting 'Module or method too large' issues with large python files
+  //////////////////////////////////////////////////////////////////////////////////////////////
+  tasks.register("py_compile_${feature}", Exec) {
+    group = "other"
+    description = "Pre-compile CPython bytecode (.pyc) for ${feature}"
+
+    ignoreExitValue = false  // trap error to cause fail on error
+
+    workingDir file(pythonBase)
+
+    inputs.file(file("${pythonBase}/${feature}.py"))
+    outputs.file(file("${pythonBase}/${feature}.pyc"))
+    outputs.upToDateWhen { false }    // always repackage the whole extension - too difficult to use gradle's incremtal system
+
+    doFirst {
+      if (debug) logger.lifecycle("${path} START")
+
+      delete(
+          file("${pythonBase}/${feature}.pyc"),
+          file("${pythonBase}/${feature}\$py.class")
+      )
+    }
+//    commandLine "sh", "-c", "${pythonExec} -m py_compile ${feature}.py"
+
+    environment "PYTHONIOENCODING", "UTF-8"
+
+    commandLine pythonExec, "-m", "compileall", "-f", "${feature}.py"   // compileall is more verbose, and -f forces recompile (or just py_compile file.py)
+
+    doLast { if (debug) logger.lifecycle("${path} END") }
+  }
+  tasks.named("py_compile_${feature}") { dependsOn("verifyPython27") }    // verify python2.7 installed
+
+  ////////////////////////////////////////////////////////
+  // PRE-COMPILING Jython to create $py.class
+  ////////////////////////////////////////////////////////
+  def mdPythonJar = file("${libPath}/mdpython.jar")
+  tasks.register("jython_compile_${feature}", JavaExec) {
+    group = "other"
+    description = "Pre-compile Jython bytecode (\$py.class) for ${feature}"
+
+    inputs.file("${pythonBase}/${feature}.py")
+    inputs.file("${pythonBase}/${feature}.pyc")
+    outputs.file(file("${pythonBase}/${feature}\$py.class"))
+    outputs.upToDateWhen { false }    // always repackage the whole extension - too difficult to use gradle's incremtal system
+
+    classpath = files(mdPythonJar)
+    mainClass.set("org.python.util.jython")
+
+    args(
+        "-c",
+        "import compileall; compileall.compile_file('${pythonBase}/${feature}.py', force=True)"
+    )
+
+    doFirst { if (debug) logger.lifecycle("${path} START") }
+    doLast { if (debug) logger.lifecycle("${path} END") }
+  }
+  // enforce the correct sequence...
+  tasks.named("jython_compile_${feature}") {
+    mustRunAfter("py_compile_${feature}")
+  }
+
+  ////////////////////////////////////////////
+  // join python compile processes into one...
+  ////////////////////////////////////////////
+  tasks.register("precompile_${feature}") {
+    group = "other"
+    description = "Pre-compile Python (CPython + Jython) for ${feature}"
+
+    dependsOn(
+        "py_compile_${feature}",
+        "jython_compile_${feature}"
+    )
+  }
+
+}
+
+/////////////////////////////////////////////////
+// execute Moneydance's python packaging routines
+/////////////////////////////////////////////////
+def registerPackagePythonExtension = { String feature, String pythonBase, boolean precompile ->
+
+  def stagingDir = layout.buildDirectory.dir("tmp/staging/${feature}").get().asFile
+
+  tasks.register("package_python_${feature}", JavaExec) {
+    group = "other"
+    description = "package python scripts into a signed extension mxt file for ${feature}"
+
+    outputs.file("${distPath}/${feature}.mxt")
+    outputs.upToDateWhen { false }
+
+    doFirst {
+      if (debug) logger.lifecycle("${path} START")
+
+      requireSigningInputs()
+
+      if (!moneydanceChecked) {
+        requireMoneydanceClass()
+        moneydanceChecked = true
+      }
+
+      // Validate mandatory extension files
+      def requiredFiles = [
+              file("${pythonBase}/meta_info.dict"),
+              file("${pythonBase}/script_info.dict"),
+              file("${pythonBase}/${feature}.py")
+      ]
+      requiredFiles.each { f ->
+        if (!f.exists() || f.length() == 0) { throw new GradleException("Missing required extension file: ${f}") }
+      }
+
+      // reset staging dir
+      delete(stagingDir)
+      stagingDir.mkdirs()
+
+      // stage python files
+      copy {
+        from(pythonBase)
+        exclude("*.pyi")
+        exclude("*.mxt")
+        exclude("**/*.kt")
+        exclude("**/*.java")
+        exclude("${feature}_version_requirements.dict")
+        into(stagingDir)
+      }
+
+      if (feature == "toolbox") {
+        copy {
+          from("${pythonSrcPath}/useful_scripts")
+          include("ofx_*.py")
+          into(stagingDir)
+        }
+      }
+
+      // copy install-readme.txt
+      copy {
+        from(pythonSrcPath)
+        include("install-readme.txt")
+        into(stagingDir)
+      }
+
+      // stage bundled java/kotlin class files (if any)
+      if (bundledFeatureSources.containsKey(feature)) {
+
+        def classPatterns = bundledFeatureSources[feature].collect { name -> "**/${name}*.class" }
+
+        copy {
+          from(sourceSets.pythonBundled.output.classesDirs)
+          include(classPatterns)
+          exclude("META-INF/**")
+          into(stagingDir)
+        }
+      }
+
+    }
+
+    if (precompile) { dependsOn("precompile_${feature}") }
+
+    classpath = configurations.mdClasspath
+    mainClass.set("com.moneydance.admin.PythonExtensionPackager")
+
+    // package from staging dir instead of source
+    args(
+        extPrivKeyFile,
+        privKeyID,
+        feature,
+        stagingDir.absolutePath,
+        distPath
+    )
+
+    doLast {
+
+      // delete staging dir after packaging
+      delete(stagingDir)
+
+      def out = file("${distPath}/${feature}.mxt")
+      if (!out.exists() || out.length() == 0) { throw new GradleException("Python extension not created: ${out}") }
+
+      listZipContents(out, "${feature}.mxt")
+
+      if (debug) logger.lifecycle("${path} END")
+    }
+  }
+}
+
+ext.bundledFeatureSources = [:]  // track which extensions are bundling extra kt/java files
+
+def registerPythonModule = { String feature, boolean precompile = false, List<String> bundledSourcePatterns = [], boolean createZip = true ->
+
+  def fullPath = "${pythonSrcPath}/$feature"
+
+  if (bundledSourcePatterns && !bundledSourcePatterns.isEmpty()) {
+    bundledFeatureSources[feature] = bundledSourcePatterns
+  }
+
+  if (precompile) {
+    registerPythonPrecompile(feature, fullPath)
+  }
+  registerPackagePythonExtension(feature, fullPath, precompile)
+  if (bundledSourcePatterns && !bundledSourcePatterns.isEmpty()) {
+    tasks.named("package_python_${feature}") {
+      dependsOn("javaForPython")
+    }
+  }
+
+  if (createZip) {
+    tasks.register("zip_${feature}", Zip) {
+      group = "other"
+      description = "Create zip bundle for ${feature}"
+
+      dependsOn("ensureDist", "package_python_${feature}")
+
+      archiveFileName.set("${feature}.zip")
+      destinationDirectory.set(file(distPath))
+
+      from(file("${distPath}/${feature}.mxt"))
+      from(fullPath) { include("*.txt", "*.pdf") }
+      from(pythonSrcPath) { include("install-readme.txt") }
+
+      doFirst { if (debug) logger.lifecycle("${path} START") }
+      doLast { if (debug) logger.lifecycle("${path} END") }
+    }
+  }
+
+
+  tasks.register("cleanup_python_${feature}", Delete) {
+    group = "other"
+    description = "Delete compiled python bytecode and classes"
+    delete(fileTree(fullPath) {
+      include("**/*.pyc")
+      include("**/*.class")
+    })
+  }
+
+  if (precompile) {
+    tasks.named("package_python_${feature}") { dependsOn("precompile_${feature}") }
+  }
+
+  tasks.register(feature) {
+    group = "BUILD EXTENSION"
+    description = "Build python extension: ${feature}"
+    dependsOn("ensureDist")
+    mustRunAfter("clean", "cleanJavaForPython", "clean${feature}")
+
+    if (precompile) dependsOn("precompile_${feature}")
+    dependsOn("package_python_${feature}")
+    if (createZip) dependsOn("zip_${feature}")
+    doLast { logger.lifecycle("EXTENSION BUILD (python) '${feature}' ${path} END") }
+  }
+}
+
+sourceSets {
+  pythonBundled {
+    java.srcDir("${javaForPythonSrcPath}")
+    kotlin.srcDir("${javaForPythonSrcPath}")
+  }
+}
+dependencies { mdJars.each { add("pythonBundledCompileOnly", it) } }
+///////////////// end python setup /////////////////////////////////////////////////////////////////////////////////////
+
+// other tasks
+tasks.register("useful_scripts", Zip) {
+  group = "BUILD EXTENSION"
+  description = "Create standalone useful_scripts bundle (no mxt)"
+
+  dependsOn("ensureDist")
+
+  archiveFileName.set("useful_scripts.zip")
+  destinationDirectory.set(file(distPath))
+
+  from("${pythonSrcPath}/useful_scripts") {
+    include("*.py", "*.pyc", "*.txt", "*.pdf", "*.csv")
+  }
+
+  from(pythonSrcPath) { include("install-readme.txt") }
+
+  doFirst { if (debug) logger.lifecycle("${path} START") }
+  doLast { if (debug) logger.lifecycle("${path} END") }
+}
+
+// register tasks to allow push to IK's Open project folders - don't do this unless you really know what you are doing!
+if (allowPushIKOpen) {
+
+  if (!IKOpenPushDir) { throw new GradleException("ERROR: allowPushIKOpen=true but IKOpenPushDir not set") }
+
+  def pushBase = file(IKOpenPushDir)
+  if (!pushBase.exists() || !pushBase.isDirectory()) { throw new GradleException("ERROR: IKOpenPushDir is not a valid directory: ${pushBase}") }
+
+  // Safety guard — optional but recommended
+  if (!pushBase.absolutePath.endsWith("python_scripts")) { throw new GradleException("IKOpenPushDir must point to a python_scripts folder") }
+
+  def pushTasks = []
+
+  def registerPushTask = { String feature, String bundleJava = null ->
+
+    def taskName = "push${feature}"
+    pushTasks += taskName
+
+    tasks.register(taskName) {
+      group = "PUSH EXTENSION"
+      description = "Push '${feature}' source to IK's Open project"
+      dependsOn(feature)
+
+      doFirst { logger.lifecycle("PUSH START: ${feature}") }
+
+      doLast {
+
+        def featureDir = new File(pushBase, feature)
+
+        delete(featureDir)
+        featureDir.mkdirs()
+
+        copy {
+          from("${pythonSrcPath}/${feature}")
+          include("*.py", "*.txt", "*.dict", "*.pdf", "*.csv", "*.png")
+          exclude("${feature}_version_requirements.dict")
+          into(featureDir)
+        }
+
+        if (bundledFeatureSources.containsKey(feature)) {
+          delete(fileTree(dir: featureDir, includes: ["**/*.java", "**/*.kt"]))
+          copy {
+            from(javaForPythonSrcPath)
+            include(bundledFeatureSources[feature].collect { "**/${it}.kt" })
+            include(bundledFeatureSources[feature].collect { "**/${it}.java" })
+            into(featureDir)
+          }
+        }
+
+        if (feature != "extension_tester") {
+          copy {
+            from(pythonSrcPath)
+            include("install-readme.txt")
+            into(featureDir)
+          }
+        }
+
+        if (feature == "toolbox") {
+          copy {
+            from("${pythonSrcPath}/useful_scripts")
+            include("ofx_*.py")
+            into(featureDir)
+          }
+        }
+
+        logger.lifecycle("PUSH END: ${feature}")
+      }
+    }
+  }
+
+  registerPushTask("toolbox")
+  registerPushTask("extract_data")
+  registerPushTask("list_future_reminders")
+  registerPushTask("net_account_balances")
+  registerPushTask("security_performance_graph")
+  registerPushTask("accounts_categories_mega_search_window")
+  registerPushTask("extension_tester")
+  registerPushTask("useful_scripts")
+
+  tasks.register("pushAll") {
+    group = "PUSH ALL..."
+    dependsOn(pushTasks)
+    doLast { logger.lifecycle("All push tasks completed.") }
+  }
+}
+///////////////// end other tasks/ /////////////////////////////////////////////////////////////////////////////////////
+
+
+/*
+ * =================
+ * REGISTER FEATURES
+ * =================
+ */
+
+
+// Python extensions
+// Parameters:
+//            feature:               String   mandatory, case sensitive
+//            precompile:            boolean  optional, default: false
+//            bundledSourcePatterns: List<String>  optional, default: [] - for example: ["MyClass"]
+//            createZip:             boolean  optional, default: true
+
+def commonBundlePatterns = ["CustomCostCalculation","CustomUtil","CustomNetWorthCalculator"]
+
+registerPythonModule("toolbox", true)
+registerPythonModule("extract_data", true)
+registerPythonModule("list_future_reminders")
+registerPythonModule("net_account_balances", true)
+registerPythonModule("security_performance_graph")
+registerPythonModule("extension_tester")
+registerPythonModule("accounts_categories_mega_search_window")
+
+registerPythonModule("stutilities", false, [], false)
+
+registerPythonModule("client_mark_extract_data", true)
+registerPythonModule("client_skylar_lowest_balances", true)
+registerPythonModule("client_jason_last100txns", true)
+
+def allPython = [
+    "toolbox", "extract_data", "list_future_reminders", "net_account_balances", "accounts_categories_mega_search_window", "security_performance_graph", "useful_scripts",
+    "stutilities", "extension_tester", "client_mark_extract_data", "client_skylar_lowest_balances", "client_jason_last100txns"
+]
+def allFeatures = allPython
+
+tasks.register("all") {
+  description = "Execute build for all extensions"
+  group = "BUILD ALL..."
+  dependsOn(allPython, "javaForPython")
+  mustRunAfter("clean", "cleanJavaForPython")
+}
+
+allFeatures.each { registerCleanTask(it) }
+
+///////////////////////////////////////////////
+// Lastly - tidy up the gradle tools window
+// this is visual hygiene, does not affect build
+///////////////////////////////////////////////
+tasks.configureEach {
+  if (group != null && !["INFO", "TOOLS", "GENKEYS", "BUILD ALL...", "BUILD EXTENSION", "CLEAN EXTENSION", "PUSH ALL...", "PUSH EXTENSION"].contains(group)) {
+    group = "other"
+  }
+}
+tasks.named("clean") {group = "CLEAN ALL..." }
+tasks.named("help") {group = "INFO" }
+tasks.named("tasks") {group = "TOOLS" }
+tasks.named("check") {group = "TOOLS" }
+tasks.named("assemble") {group = "TOOLS" }
+tasks.named("dependencies") {group = "TOOLS" }
+tasks.named("properties") {group = "TOOLS" }
+///////////////// end gradle group tidyup //////////////////////////////////////////////////////////////////////////////
