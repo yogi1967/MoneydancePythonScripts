@@ -108,6 +108,7 @@
 # build: 1049 - Tweak Extract Account Register txns (EAR) - add Parent and Split UUID fields...
 # build: 1050 - ???
 # build: 1050 - Upgrade MyCostCalculation to v10 for MD2026(5500)
+# build: 1050 - Misc AI suggested fixes...
 # build: 1050 - ???
 
 # todo - EAR: Switch to 'proper' usage of DateRangeChooser() (rather than my own 'copy')
