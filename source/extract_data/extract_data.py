@@ -10821,13 +10821,11 @@ Visit: %s (Author's site)
 
                                         return False
 
-                                    def getTotalLocalValue( theTxn ):
-
+                                    def getTotalLocalValue(theTxn):
                                         lValue = 0
-
+                                        _p = theTxn.getParentTxn()
                                         for _iSplit in range(0, (theTxn.getOtherTxnCount())):
-                                            lValue += GlobalVars.baseCurrency.getDoubleValue(parent_Txn.getOtherTxn(_iSplit).getValue()) * -1
-
+                                            lValue += GlobalVars.baseCurrency.getDoubleValue(_p.getOtherTxn(_iSplit).getValue()) * -1
                                         return lValue
 
                                     copyValidAccountList = ArrayList()
