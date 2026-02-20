@@ -1397,8 +1397,8 @@ try:
                     # if we are here then... in theory... we are on the same sell, and it has fully consumed enough buys..
                     # repeat the inner-while condition and trap endless loops which should never occur!
                     if (sell.getUnallottedSharesAdded() < 0):  # SCB: MD2024(5118) fix (for avg cost, buy 60, split 7:1, sell 20, split 4:1 issue)
-                        buyIdx = numPositions + 1
-                        sellIdx = numPositions + 1
+                        buyIdx = numPositions + 1                                                                       # noqa
+                        sellIdx = numPositions + 1                                                                      # noqa
                         raise Exception("LOGIC ERROR: end of while loop, but sell.unallottedSharesAdded (%s) < 0L - breaking out of loop... Cost Basis will be wrong!" % (sell.getUnallottedSharesAdded()))
 
                     # inner-while.. On a sell, consuming buys....
