@@ -1209,7 +1209,7 @@ try:
 
         def isAsOfToday(self): return self._isAsOfToday
 
-        def getCostBasisAsOfAsOf(self): return 0L if (self.isCostBasisInvalid()) else self.getMostRecentPosition().getRunningCost()
+        def getCostBasisAsOfAsOf(self): return 0L if (self.isCostBasisInvalid()) else self.getMostRecentPosition().getRunningCost()  # noqa
 
         def getLongTermCutoffDate(self): return self.longTermCutoffDate
         def getInvestCurr(self): return self.investCurr
@@ -1516,7 +1516,7 @@ try:
                     if pos.getTxn() is None: continue
                     if pos.getTxn() == asOfTxn: return pos.getBasisPrice()
                 myPrint("B", "getBasisPrice: unable to find position for txn :%s; returning cost basis as of last position" %(asOfTxn))
-            return self.getMostRecentPosition().getBasisPrice()
+            return self.getMostRecentPosition().getBasisPrice()                                                         # noqa
 
         def getTxnPos(self, forTxn):
             for pos in self.getPositions():
