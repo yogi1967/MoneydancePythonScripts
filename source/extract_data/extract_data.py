@@ -12979,39 +12979,38 @@ Visit: %s (Author's site)
                                                 if GlobalVars.saved_csvDelimiter_SWSS != ",":
                                                     writer.writerow(["sep=",""])  # Tells Excel to open file with the alternative delimiter (it will add the delimiter to this line)
 
-                                                if not GlobalVars.saved_lSimplify_ECH:
-                                                    try:
-                                                        for i in range(0, len(theTable)):
-                                                            try:
-                                                                writer.writerow( theTable[i] )
-                                                            except:
-                                                                myPrint("B", _THIS_EXTRACT_NAME + "Error writing row %s to file... Older Jython version?" %i)
-                                                                myPrint("B", _THIS_EXTRACT_NAME + "Row: ", theTable[i])
-                                                                myPrint("B", _THIS_EXTRACT_NAME + "Will attempt coding back to str()..... Let's see if this fails?!")
-                                                                for _col in range(0, len(theTable[i])):
-                                                                    theTable[i][_col] = fix_delimiter(theTable[i][_col])
-                                                                writer.writerow( theTable[i] )
-                                                    except:
-                                                        _msgTxt = _THIS_EXTRACT_NAME + "@@ ERROR writing to CSV on row %s. Please review console" %(i)
-                                                        GlobalVars.AUTO_MESSAGES.append(_msgTxt)
-                                                        myPrint("B", _msgTxt)
-                                                        myPrint("B", _THIS_EXTRACT_NAME, theTable[i])
-                                                        raise
+                                                try:
+                                                    for i in range(0, len(theTable)):
+                                                        try:
+                                                            writer.writerow( theTable[i] )
+                                                        except:
+                                                            myPrint("B", _THIS_EXTRACT_NAME + "Error writing row %s to file... Older Jython version?" %i)
+                                                            myPrint("B", _THIS_EXTRACT_NAME + "Row: ", theTable[i])
+                                                            myPrint("B", _THIS_EXTRACT_NAME + "Will attempt coding back to str()..... Let's see if this fails?!")
+                                                            for _col in range(0, len(theTable[i])):
+                                                                theTable[i][_col] = fix_delimiter(theTable[i][_col])
+                                                            writer.writerow( theTable[i] )
+                                                except:
+                                                    _msgTxt = _THIS_EXTRACT_NAME + "@@ ERROR writing to CSV on row %s. Please review console" %(i)
+                                                    GlobalVars.AUTO_MESSAGES.append(_msgTxt)
+                                                    myPrint("B", _msgTxt)
+                                                    myPrint("B", _THIS_EXTRACT_NAME, theTable[i])
+                                                    raise
 
-                                                    if GlobalVars.saved_lWriteParametersToExportFile_SWSS:
-                                                        today = Calendar.getInstance()
-                                                        writer.writerow([""])
-                                                        writer.writerow(["StuWareSoftSystems - " + GlobalVars.thisScriptName + "(build: "
-                                                                         + version_build
-                                                                         + ")  Moneydance Python Script - Date of Extract: "
-                                                                         + str(GlobalVars.sdf.format(today.getTime()))])
+                                                if GlobalVars.saved_lWriteParametersToExportFile_SWSS:
+                                                    today = Calendar.getInstance()
+                                                    writer.writerow([""])
+                                                    writer.writerow(["StuWareSoftSystems - " + GlobalVars.thisScriptName + "(build: "
+                                                                     + version_build
+                                                                     + ")  Moneydance Python Script - Date of Extract: "
+                                                                     + str(GlobalVars.sdf.format(today.getTime()))])
 
-                                                        writer.writerow([""])
-                                                        writer.writerow(["Dataset path/name: %s" %(MD_REF.getCurrentAccountBook().getRootFolder()) ])
+                                                    writer.writerow([""])
+                                                    writer.writerow(["Dataset path/name: %s" %(MD_REF.getCurrentAccountBook().getRootFolder()) ])
 
-                                                        writer.writerow([""])
-                                                        writer.writerow(["User Parameters..."])
-                                                        writer.writerow(["<none>"])
+                                                    writer.writerow([""])
+                                                    writer.writerow(["User Parameters..."])
+                                                    writer.writerow(["<none>"])
 
                                             _msgTxt = _THIS_EXTRACT_NAME + "CSV file: '%s' created (%s records)" %(GlobalVars.csvfilename, len(theTable))
                                             myPrint("B", _msgTxt)
