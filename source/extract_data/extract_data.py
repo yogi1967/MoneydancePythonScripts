@@ -12047,7 +12047,12 @@ Visit: %s (Author's site)
 
                                                         numYearsChoice = ["0.5"]
                                                         for iYears in range(1, 51): numYearsChoice.append(str(iYears))
-                                                        _row[GlobalVars.dataKeys["_SECINFO_CD_YEARS"][_COLUMN]] = numYearsChoice[-1] if (len(numYearsChoice) < securityAcct.getNumYears()) else numYearsChoice[securityAcct.getNumYears()]
+                                                        numYears = securityAcct.getNumYears()                                                                                    
+                                                        if numYears < 0 or numYears >= len(numYearsChoice):                                                                      
+                                                            myPrint("B", _THIS_EXTRACT_NAME + "WARNING: unexpected num_years value '%s' for security '%s'" % (numYears, securityAcct.getFullAccountName()))  
+                                                            _row[GlobalVars.dataKeys["_SECINFO_CD_YEARS"][_COLUMN]] = numYearsChoice[-1]
+                                                        else:                                                                                                                     
+                                                            _row[GlobalVars.dataKeys["_SECINFO_CD_YEARS"][_COLUMN]] = numYearsChoice[numYears]
 
                                                     if securityAcct.getSecurityType() == SecurityType.BOND:
                                                         bondTypes = [MD_REF.getUI().getStr("gov_bond"), MD_REF.getUI().getStr("mun_bond"), MD_REF.getUI().getStr("corp_bond"), MD_REF.getUI().getStr("zero_bond")]
