@@ -6170,7 +6170,7 @@ Visit: %s (Author's site)
         label7b = JLabel("Include Balance Adjustments?")
         user_selectBalanceAdjustments = JCheckBox("", GlobalVars.saved_lIncludeBalanceAdjustments_EIT)
 
-        label8 = JLabel("Adjust for stock splits/")
+        label8 = JLabel("Adjust for stock splits?")
         user_selectAdjustSplits = JCheckBox("", GlobalVars.saved_lAdjustForSplits_EIT)
 
         dateStrings=["dd/mm/yyyy", "mm/dd/yyyy", "yyyy/mm/dd", "yyyymmdd"]
