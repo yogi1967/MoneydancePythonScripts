@@ -3107,10 +3107,10 @@ Visit: %s (Author's site)
     # NOTE: Two bugs were later fixed in the MD CC class from MD2024(5119); and then again from MD2026(5500)
     GlobalVars.MD_COSTCALCULATION_UPGRADED_BUILD = 5500                                                                 # MD2026(5500)
     def isCostCalculationUpgradedBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_COSTCALCULATION_UPGRADED_BUILD)
-    if isCostCalculationUpgradedBuild():
-        from com.infinitekind.moneydance.model import CostCalculation
-    else:
+    if not isCostCalculationUpgradedBuild():
         global CostCalculation
+    else:
+        from com.infinitekind.moneydance.model import CostCalculation
 
     GlobalVars.MD_DATERANGECHOOSER_UPGRADED_BUILD = 5128;                                                                # MD2024.2(5128) - fixes between 5100 and 5128
     # def isDateRangeChooserUpgradedBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_DATERANGECHOOSER_UPGRADED_BUILD)
