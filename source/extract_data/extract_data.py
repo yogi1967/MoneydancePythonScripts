@@ -7258,8 +7258,6 @@ Visit: %s (Author's site)
             defaultFileName = "extract_currency_history"
         elif extractType == "eci":
             defaultFileName = "extract_category_info"
-        elif extractType == "eab":
-            defaultFileName = "extract_account_balances"
         elif extractType == "etrunk":
             extn = ""
             defaultFileName = "extract_trunk"
@@ -7416,7 +7414,7 @@ Visit: %s (Author's site)
                                              lModal=False).go()
 
                     else:
-                        for exType in ["EAR", "EIT", "SG2020", "ERTC", "EFRTC", "ESB", "EAB", "ECH", "ECI", "EAB", "ETRUNK", "JSON","EATTACH"]:
+                        for exType in ["EAR", "EIT", "SG2020", "ERTC", "EFRTC", "ESB", "EAB", "ECH", "ECI", "ETRUNK", "JSON","EATTACH"]:
 
                             checkPath = getExtractFullPath(exType, lDoNotAddTimeStamp=True)
                             if check_file_writable(checkPath):
@@ -12712,14 +12710,18 @@ Visit: %s (Author's site)
                                                 row.append(curr.getDecimalPlaces())
                                                 row.append((curr.getPrefix()))
                                                 row.append((curr.getSuffix()))
-                                                row.append(round(float(curr.getParameter("rate", None)),dpc))
-                                                row.append(round(1/float(curr.getParameter("rate", None)),dpc))
+
+                                                _rate = float(curr.getParameter("rate", None))
+                                                row.append(round(_rate,dpc))
+                                                row.append(round(1/_rate, dpc) if _rate != 0.0 else 0.0)
 
                                                 # I don't print relative currency as it's supposed to always be None or = Base..
 
                                                 row.append(currSnapshot.getDateInt())
-                                                row.append(round(float(currSnapshot.getRate()),dpc))
-                                                row.append(round(1/float(currSnapshot.getRate()),dpc))
+
+                                                _snapRate = float(currSnapshot.getRate())
+                                                row.append(round(_snapRate,dpc))
+                                                row.append(round(1/_snapRate, dpc) if _snapRate != 0.0 else 0.0)
 
                                                 curr_table.append(row)
 
