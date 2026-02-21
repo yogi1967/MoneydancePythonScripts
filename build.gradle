@@ -3,7 +3,7 @@ Author: Stuart Beesley - February 2026
 
 This is Groovy DSL file
 
-build.gradle: gradle buildfile for Python Moneydance extensions
+build.gradle: gradle (wrapper) buildfile for Python Moneydance extensions
 - can build python extensions (including bundled java/kotlin)
 
 ################################################################
@@ -13,16 +13,16 @@ WARNING: This uses gradle 9 and IntelliJ IDEA CE 2021.1
          IJ2021.1 is the last version to support Jython2.7
 ################################################################
 
-** REVIEW PROPERTIES IN /gradle/gradle.properties file
+** REVIEW PROPERTIES IN [ROOT]/gradle.properties file
 ** SET LOCAL/USER OVERRIDING PROPERTIES in /userconfig/user.gradle.properties
 
 Execute ./gradlew                       to show usage
         ./gradlew extensionname         to build extension
         ./gradlew cleanextensionname    to cleanup a single extension's build files
-        ./gradlew genkeys               to generate private/public signing keyfile(s) - set keypass= first
+        ./gradlew genKeys               to generate private/public signing keyfile(s) - set keypass= first
 
 Notes:
-        - TO START create/edit user.gradle.properties and set keypass=xxx and then run genkeys
+        - TO START create/edit "user.gradle.properties" and set "keypass=xxx" and then run "genKeys"
 
         - Python packaging (with precompile) requires python2.7 installed
 
@@ -61,11 +61,11 @@ if (!isKotlin2) {
   project.ext["kotlin.incremental.useClasspathSnapshot"] = "false"
 }
 
-// Using gradle 9.x, with kotlin plugin 1.9.21 (note final release before kotlin 2.0 is 1.9.25 which would have maximum compatibility with gradle 9)
+// Using gradle (wrapper) 9.x, with kotlin plugin 1.9.21 (note final release before kotlin 2.0 is 1.9.25 which would have maximum compatibility with gradle 9)
 // - ideally match versions to the Moneydance build system, and bundled runtime jar, but..:
 // - latest gradle is fine as this is a separate build system, and we lock the kotlin language / api version to 1.9
 // - java / kotlin target versions are set to allow extensions to have maximum possible of backwards compatibility.
-// - we set these value here - rather than using gradle.properties - as these are not really very user configurable.
+// - we set these value here - rather than using "gradle.properties" - as these are not really very user configurable.
 ext {
     compilerJDK       = 21                          // JDK version to execute java/kotlin compile, sign, and packaging tasks
     targetRelease     = 17                          // equivalent java --release (source/target/bytecode/API) version
@@ -76,7 +76,7 @@ ext {
 
 // set flag to let subordinate gradle scripts know that the master script is executing
 ext.executingMainBuild = true
-apply from: rootProject.file("usage.gradle")
+apply from: rootProject.file("gradle/usage.gradle")
 
 defaultTasks "verifyConfig"
 
@@ -91,7 +91,8 @@ if (gradle.startParameter.configurationCacheRequested) {
 }
 
 // load user specific properties..
-def localPropsFile = file("../userconfig/user.gradle.properties")
+def userConfigDir = "${project.rootDir}/userconfig"
+def localPropsFile = file("${userConfigDir}/user.gradle.properties")
 if (localPropsFile.exists()) {
   def p = new Properties()
   localPropsFile.withInputStream { p.load(it) }
@@ -112,7 +113,7 @@ def libPath = project.property("lib")
 def distPath = project.property("dist")
 def pythonSrcPath = project.property("pythonSrc")
 def javaForPythonSrcPath = project.property("javaForPythonSrc")
-def mdbuildlibs = project.findProperty("mdbuildlibs") // note: this is an optional path that will override where the std set of build libs are found
+def mdbuildlibs = project.findProperty("md_ext_lib_dir") // note: this is an optional path that will override where the std set of build libs are found
 def extPrivKeyFile = project.property("extprivkeyfile")
 def extPubKeyFile = project.property("extpubkeyfile")
 def privKeyID = project.property("privkeyid")
@@ -138,9 +139,9 @@ ext.moneydanceChecked = false // we use this to check the classpath for moneydan
 
 // common keypass, priv/pub file(s) missing validation code block
 ext.requireSigningInputs = {
-  if (!keyPassValue?.toString()?.trim()) throw new GradleException("\n*****\nERROR - keypass must be set in: ../userconfig/user.gradle.properties\n*****\n")
-  if (!file(extPrivKeyFile).exists()) throw new GradleException("\n*****\nERROR - Missing private key file: ${extPrivKeyFile} (run genkeys)\n*****\n")
-  if (!file(extPubKeyFile).exists()) throw new GradleException("\n*****\nERROR - Missing public key file: ${extPubKeyFile} (run genkeys)\n*****\n")
+  if (!keyPassValue?.toString()?.trim()) throw new GradleException("\n*****\nERROR - keypass must be set in: ${userConfigDir}/user.gradle.properties\n*****\n")
+  if (!file(extPrivKeyFile).exists()) throw new GradleException("\n*****\nERROR - Missing private key file: ${extPrivKeyFile} (run genKeys)\n*****\n")
+//  if (!file(extPubKeyFile).exists()) throw new GradleException("\n*****\nERROR - Missing public key file: ${extPubKeyFile} (run genKeys)\n*****\n")
 }
 
 // common list zip contents block
@@ -157,10 +158,10 @@ ext.listZipContents = { File zipFile, String label ->
   logger.lifecycle("---------------------------------------")
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Build a list of Moneydance jars for the classpath – shared by compile + sign (order matters)
-// Note: we prefer the jars in mdbuildlibs when specified, otherwise the 'normal' jars in the lib folder
-////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Note: we prefer the jars in md_ext_lib_dir when specified, otherwise the 'normal' jars in the lib folder
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
 def mdJars = []
 if (mdbuildlibs) {
   mdJars += [
@@ -221,7 +222,7 @@ def requireMoneydanceClass = { Map args = [:] ->
     logger.lifecycle("------------------")
     logger.lifecycle("Classpath resolution order:")
     ordered.eachWithIndex { jar, i ->
-      logger.lifecycle("  ${i + 1}. ${jar.absolutePath}")
+      logger.lifecycle("  ${i + 1}. ${jar.absolutePath}${if (jar.exists()) "" else " (MISSING)"}")
     }
     logger.lifecycle("")
     logger.lifecycle("Found ${classPath} in ${foundIn.size()} jar(s):")
@@ -282,7 +283,7 @@ tasks.withType(KotlinCompile).configureEach {
 
     languageVersion.set(kotlinLangVersion)                          // kotlin language version
     apiVersion.set(kotlinApiVersion)                                // kotlin API version
-    jvmTarget.set(JvmTarget.valueOf("JVM_${targetRelease}"))        // specify the java --release (soource/target/bytecode/API) version
+    jvmTarget.set(JvmTarget.valueOf("JVM_${targetRelease}"))        // specify the java --release (source/target/bytecode/API) version
 
     if (isKotlin2) {
       freeCompilerArgs.add("-jvm-default=no-compatibility")         // interface default methods (plug in 2.x onwards)
@@ -367,13 +368,13 @@ tasks.register("verifyPython27") {
 
 tasks.register("ensureUserConfig") {
   group = "TOOLS"
-  description = "Ensure ../userconfig folder exists (create if missing, does nothing if already exists)"
-  outputs.dir("../userconfig")
+  description = "Ensure ${userConfigDir} folder exists (create if missing, does nothing if already exists)"
+  outputs.dir("${userConfigDir}")
   doLast {
-    def dir = file("../userconfig")
+    def dir = file("${userConfigDir}")
     if (!dir.exists()) {
       dir.mkdirs()
-      logger.lifecycle("[INFO] ../userconfig folder created...")
+      logger.lifecycle("[INFO] ${userConfigDir} folder created...")
     }
   }
 }
@@ -381,16 +382,16 @@ tasks.register("ensureUserConfig") {
 tasks.register("ensureUserProperties") {
   group = "TOOLS"
   description = "Create new user.gradle.properties file (does nothing if already exists)"
-  outputs.file(file("../userconfig/user.gradle.properties"))
+  outputs.file(file("${userConfigDir}/user.gradle.properties"))
   dependsOn("ensureUserConfig")
   doLast {
-    def dir = file("../userconfig")
+    def dir = file("${userConfigDir}")
     def propsFile = new File(dir, "user.gradle.properties")
     if (!propsFile.exists()) {
       propsFile.text =
               "# gradle.user.properties file for building Moneydance extensions\n" +
-              "#keypass=your_genkeys_passphrase(set here then run genkeys)\n" +
-              "#mdbuildlibs=path_to_your_own_set_of_moneydance_jars(optional)"
+              "#keypass=your_genkeys_passphrase(set here then run genKeys)\n" +
+              "#md_ext_lib_dir=path_to_your_own_set_of_moneydance_jars(optional)"
       logger.lifecycle("[INFO] user.gradle.properties file created...")
     }
   }
@@ -423,9 +424,9 @@ tasks.register("verifyConfig") {
     logger.lifecycle("pythonExec = ${pythonExec}")
 
     if (mdbuildlibs) {
-      logger.lifecycle("mdbuildlibs = ${mdbuildlibs}")
+      logger.lifecycle("md_ext_lib_dir = ${mdbuildlibs}")
     } else {
-      logger.lifecycle("optional mdbuildlibs (library override) <not specified>")
+      logger.lifecycle("optional md_ext_lib_dir (library override) <not specified>")
     }
 
     logger.lifecycle("lib = ${libPath}")
@@ -465,7 +466,7 @@ tasks.register("verifyConfig") {
 
     def optExist = [
         "dist"            : distPath,
-        "mdbuildlibs"     : mdbuildlibs,
+        "md_ext_lib_dir"  : mdbuildlibs,
         "IKOpenPushDir"   : IKOpenPushDir
     ]
     optExist.each { name, path ->
@@ -535,7 +536,7 @@ def registerCleanTask = { String feature ->
 // NOTE: please only run this from a terminal session
 //       if you need to type the key using keyboard
 ////////////////////////////////////////////////////////
-tasks.register("genkeys", JavaExec) {
+tasks.register("genKeys", JavaExec) {
   group = "GENKEYS"
   description = "Generate Moneydance extension signing keys"
 
@@ -561,7 +562,7 @@ tasks.register("genkeys", JavaExec) {
     def isPassBlank = !keyPassValue?.toString()?.trim()
     logger.lifecycle("")
     logger.lifecycle("########################################################################")
-    logger.lifecycle("# genkeys running....")
+    logger.lifecycle("# genKeys running....")
     logger.lifecycle("# - you may be prompted to overwrite existing key file(s)")
     if (!isPassBlank) {
       logger.lifecycle("# - your passphrase as defined in ${localPropsFile} will be used")
@@ -594,7 +595,7 @@ tasks.register("genkeys", JavaExec) {
     if (!file(extPubKeyFile).exists()) throw new GradleException("Public key not created")
   }
 }
-////////////////////// end genkeys /////////////////////////////////////////////////////////////////////////////////////
+////////////////////// end genKeys /////////////////////////////////////////////////////////////////////////////////////
 
 // task to ensure dist folder exists (or create it)
 tasks.register("ensureDist") {
@@ -625,7 +626,7 @@ tasks.register("cleanJavaForPython", Delete) {
           layout.buildDirectory.dir("resources/pythonBundled")
   )
 }
-////////////////////// end genkeys /////////////////////////////////////////////////////////////////////////////////////
+////////////////////// end genKeys /////////////////////////////////////////////////////////////////////////////////////
 
 
 ////////////////////////////////////////////////////////

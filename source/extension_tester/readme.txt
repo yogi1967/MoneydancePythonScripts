@@ -21,7 +21,7 @@ NOTES ABOUT PYTHON EXTENSIONS:
 - To create/build an extension. The process is roughly as follows:
     - Download/install the development kit and read the notes: https://infinitekind.com/developer
     - At lot of the notes relate to java, but some are still valid.
-    - You will need ANT and also to run "ant genkeys" (before you start) in the src directory (to create your own key-pair)
+    - You will need ANT and also to run "ant genKeys" (before you start) in the src directory (to create your own key-pair)
       (strictly speaking you don't actually need to sign your own code)
 
     - You will also need to create an mxt (zip) build script (or use ANT)

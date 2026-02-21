@@ -1,10 +1,4 @@
-
 # NOTE: Also refer to: .git/info/exclude
-user
-priv_key*
-pub_key*
-user.properties
-extension_keyfile.
 
 #*.pyi
 
@@ -16,25 +10,27 @@ extension_keyfile.
 
 _PREVIEW_BUILD_
 
-dist
-!bin/*.zip
+dist/
 
-build
+build/
 
-.idea
+.idea/
 *.iml
 
-classes
+bin/
 
-lib/moneydance-dev.jar
-lib/moneydance-private.jar
-lib/moneydance.jar
-lib/jdk_1.8_rt.jar
-
-bin
-!bin/repackage-jython
+classes/
+lib/
 
 .DS_Store
-/java_code_for_python/.idea/
-/gradle/.gradle/
-/userconfig/user.gradle.properties
+
+mdbuildlibs/
+
+.gradle/
+userconfig/*
+!userconfig/template/
+
+user.properties
+user.gradle.properties
+priv_key
+pub_key
