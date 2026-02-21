@@ -76,7 +76,7 @@ ext {
 
 // set flag to let subordinate gradle scripts know that the master script is executing
 ext.executingMainBuild = true
-apply from: rootProject.file("gradle/usage.gradle")
+apply from: rootProject.file("gradle/usage.gradle.kts")
 
 defaultTasks "verifyConfig"
 
@@ -401,11 +401,9 @@ tasks.register("ensureUserProperties") {
 tasks.register("verifyConfig") {
   group = "INFO"
   description = "Show usage, display settings, validate paths"
-  dependsOn("ensureUserConfig")
+  dependsOn("ensureUserConfig", "printUsage")
 
   doLast {
-
-    printUsage()
 
     logger.lifecycle("")
     logger.lifecycle("Verify Config: configuration + path checks")
