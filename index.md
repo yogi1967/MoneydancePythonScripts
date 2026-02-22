@@ -179,7 +179,7 @@ to use in your own extensions. Contact me for details...
 <a href="https://github.com/TheInfiniteKind/moneydance_open"><strong>GitHub link for moneydance_open</strong>: https://github.com/TheInfiniteKind/moneydance_open</a>
 <BR><BR>
 **URL to clone IK/Moneydance open source repo:** `https://github.com/TheInfiniteKind/moneydance_open.git`
-
+<BR><BR>
 
 ***
 _If you like my tools you can donate to support my work via PayPal (completely optional)_<BR>
