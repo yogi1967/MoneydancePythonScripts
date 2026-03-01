@@ -4511,7 +4511,7 @@ Visit: %s (Author's site)
 
         # Avoid width resizes changing the GUI back and forth....
         def getPreferredSize(self):
-            dim = super(self.__class__, self).getPreferredSize()
+            dim = super(self.__class__, self).getPreferredSize()                                                        # noqa
             self.maxWidth = Math.max(self.maxWidth, dim.width)
             dim.width = self.maxWidth
             return dim
@@ -4531,7 +4531,7 @@ Visit: %s (Author's site)
 
         # Avoid width resizes changing the GUI back and forth....
         def getPreferredSize(self):
-            dim = super(self.__class__, self).getPreferredSize()
+            dim = super(self.__class__, self).getPreferredSize()                                                        # noqa
             self.maxWidth = Math.max(self.maxWidth, dim.width)
             dim.width = self.maxWidth
             return dim
@@ -4557,7 +4557,7 @@ Visit: %s (Author's site)
 
         # Avoid width resizes changing the GUI back and forth....
         def getPreferredSize(self):
-            dim = super(self.__class__, self).getPreferredSize()
+            dim = super(self.__class__, self).getPreferredSize()                                                        # noqa
             self.maxWidth = Math.max(self.maxWidth, dim.width)
             dim.width = self.maxWidth
             return dim
@@ -4671,7 +4671,7 @@ Visit: %s (Author's site)
 
         # Avoid width resizes changing the GUI back and forth....
         def getPreferredSize(self):
-            dim = super(self.__class__, self).getPreferredSize()
+            dim = super(self.__class__, self).getPreferredSize()                                                        # noqa
             self.maxWidth = Math.max(self.maxWidth, dim.width)
             dim.width = self.maxWidth
             return dim
@@ -6852,7 +6852,7 @@ Visit: %s (Author's site)
         @staticmethod
         class MyQueueableRefresher(Runnable):
             def __init__(self, collapsibleRefresherClass):
-                # type: (Runnable) -> None
+                # type: (MyCollapsibleRefresher) -> None
                 self.collapsibleRefresherClass = collapsibleRefresherClass
 
             # noinspection PyMethodMayBeStatic
@@ -6862,7 +6862,7 @@ Visit: %s (Author's site)
                 self.collapsibleRefresherClass.refreshable.run()
 
         def __init__(self, refreshable):
-            # type: (Runnable, bool) -> None
+            # type: (MyCollapsibleRefresher, bool) -> None
             if debug: myPrint("DB", "Initialising MyCollapsibleRefresher.... Instance: %s. Refreshable: %s" %(self, refreshable))
             self.isPendingRefresh = False
             self.refreshable = refreshable
@@ -8195,7 +8195,7 @@ Visit: %s (Author's site)
 
         def isWidgetRefreshRunning_NOLOCKFIRST(self):
             for sw in self.swingWorkers:                                                                                # type: SwingWorker
-                if sw.isBuildHomePageWidgetSwingWorker():
+                if sw.isBuildHomePageWidgetSwingWorker():                                                               # noqa
                     # myPrint("DB", "isWidgetRefreshRunning() reports TRUE on SwingWorker:", sw)
                     return True
             # myPrint("DB", "isSimulateRunning() reports False")
@@ -8206,7 +8206,7 @@ Visit: %s (Author's site)
 
         def isSimulateRunning_NOLOCKFIRST(self):
             for sw in self.swingWorkers:                                                                                # type: SwingWorker
-                if sw.isSimulateTotalForRowSwingWorker():
+                if sw.isSimulateTotalForRowSwingWorker():                                                               # noqa
                     # myPrint("DB", "isSimulateRunning() reports TRUE on SwingWorker:", sw)
                     return True
             # myPrint("DB", "isSimulateRunning() reports False")
@@ -8217,7 +8217,7 @@ Visit: %s (Author's site)
 
         def isParallelRebuildRunning_NOLOCKFIRST(self):
             for sw in self.swingWorkers:                                                                                # type: SwingWorker
-                if sw.isRebuildParallelBalanceTableSwingWorker():
+                if sw.isRebuildParallelBalanceTableSwingWorker():                                                       # noqa
                     # myPrint("DB", "isParallelRebuildRunning() reports TRUE on SwingWorker:", sw)
                     return True
             # myPrint("DB", "isParallelRebuildRunning() reports False")
@@ -8229,9 +8229,9 @@ Visit: %s (Author's site)
         def cancelSwingWorkers(self, lSimulates=False, lParallelRebuilds=False, lBuildHomePageWidgets=False):
             lCancelledAny = False
             for sw in self.swingWorkers:                                                                                # type: SwingWorker
-                if ((lSimulates and sw.isSimulateTotalForRowSwingWorker())
-                        or (lParallelRebuilds and sw.isRebuildParallelBalanceTableSwingWorker())
-                        or (lBuildHomePageWidgets and sw.isBuildHomePageWidgetSwingWorker())):
+                if ((lSimulates and sw.isSimulateTotalForRowSwingWorker())                                              # noqa
+                        or (lParallelRebuilds and sw.isRebuildParallelBalanceTableSwingWorker())                        # noqa
+                        or (lBuildHomePageWidgets and sw.isBuildHomePageWidgetSwingWorker())):                          # noqa
                     if not sw.isCancelled() and not sw.isDone():
                         if debug: myPrint("`DB", "cancelSwingWorkers() sending CANCEL COMMAND to running SwingWorker:", sw)
                         if not sw.cancel(True):
