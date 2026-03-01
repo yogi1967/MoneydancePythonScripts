@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Co-Author Stuart Beesley - StuWareSoftSystems - created: Feb 2021 (last updated: Feb 2025)
+# Co-Author Stuart Beesley - StuWareSoftSystems - created: Feb 2021 (last updated: Feb 2026)
 # Original Author, thanks & credits to hleofxquotes for the original base script and valuable input and knowledge.
 
 # Shell script: launch-moneydance.sh
@@ -43,9 +43,22 @@
 #                                 -invoke=moneydance:fmodule:securityquoteload:runstandalone:quit
 #                                 -invoke=moneydance:fmodule:extract_data:autoextract:quit
 #                                 (use :quit or :noquit) to quit the session or leave open after execution
-
+#
 # MD2021.2(3088): Adds the capability to set the encryption passphrase into an environment variable to bypass the popup question
 #                 Either: md_passphrase=  or  md_passphrase_[filename in lowercase format]=
+#
+#
+# To analise running threads (you have to launch MD using this script - i.e. the bundled version will not allow 'attach'):
+#           pre-install apps:            brew install --cask jdk-mission-control
+#           optional:                    brew install async-profiler
+#           obtain <pid>:                pgrep -f Moneydance
+#           or:                          jps | grep Moneydance
+#           run jcmd:                    jcmd <pid> Thread.print
+#           or create JFR recording:     jcmd <pid> JFR.start duration=60s filename=/tmp/md_dump.jfr settings=profile
+#           or create JFR with async:    asprof -d 60 -f /tmp/md_dump.jfr <pid>
+#           and open in mission control: open -a "JDK Mission Control" /tmp/md_dump.jfr
+#           or:                          asprof -d 60 -f /tmp/md_dump.html <pid>
+#           and:                         open /tmp/md_dump.html
 
 # shellcheck disable=SC2121
 unset md_passphrase
@@ -176,7 +189,7 @@ machelper2="/Applications/Moneydance${md_version}.app/Contents/PlugIns/vm.jdk/Co
 use_sandbox="-DSandboxEnabled=true"
 
 # Allows the attachment of a JVM debugger... Set to "" for no debugger....
-use_debugger=""
+#use_debugger=""
 use_debugger="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"
 
 # NOTE: I set '-Dinstall4j.exeDir=x' to help my Toolbox extension - this is not needed
@@ -227,7 +240,6 @@ full_cmd=(
   -DCachesDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library/Caches"
   -DSharedPublicDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Public"
   -DMoviesDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Movies"
-  -DDownloadsDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Downloads"
   -DApplicationDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Applications"
   -DMusicDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Music"
   -DAutosavedInformationDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library/Autosave Information"
