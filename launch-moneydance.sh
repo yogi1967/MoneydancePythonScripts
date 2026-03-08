@@ -1,7 +1,7 @@
 #!/bin/sh
 
-# Co-Author Stuart Beesley - StuWareSoftSystems - created: Feb 2021 (last updated: Feb 2026)
-# Original Author, thanks & credits to hleofxquotes for the original base script and valuable input and knowledge.
+# Author Stuart Beesley - StuWareSoftSystems - created: Feb 2021 (last updated: March 2026)
+#        thanks & credits to hleofxquotes for the original base script and valuable input and knowledge.
 
 # Shell script: launch-moneydance.sh
 # Make sure you 'chmod +x launch-moneydance.sh' to make script executable
@@ -68,7 +68,7 @@ unset md_passphrase
 
 # set to "" for standard app install name (I add the version and build to the app name when installing)
 #md_version=""
-md_version=" 2024.4 (5253)"
+md_version=" 2026.0 (5500)"
 
 # Download/install OpenAdoptJDK (Hotspot) v15: https://adoptopenjdk.net/?variant=openjdk15&jvmVariant=hotspot
 # Download/install Java FX (allows Moneybot Console) to run: https://gluonhq.com/download/javafx-15-0-1-sdk-mac/
@@ -135,6 +135,8 @@ echo
 #    exit 99
 #fi
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Prevents Moneydance JFrames appearing in tabs... causes strange problems...
 echo "current tabbing mode is set to..:"
 defaults read -g AppleWindowTabbingMode
@@ -149,11 +151,13 @@ echo "My user path: ${my_user_path}"
 # On Mac, output of '/usr/libexec/java_home --verbose' can help
 #         export JAVA_HOME=$(/usr/libexec/java_home -v xx) to change java versions
 #         java -version to verify current version
-export JAVA_HOME="/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home"
+#export JAVA_HOME="/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home"
+export JAVA_HOME="/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home"
 
-# JavaFX modules (no longer used)
-javafx_modules="javafx.swing,javafx.media,javafx.web,javafx.fxml"
-javafx_modulepath="${my_user_path}/Documents/Moneydance/My Python Scripts/javafx-sdk-21.0.2/lib"
+## JavaFX modules (no longer used)
+#javafx_modules="javafx.swing,javafx.media,javafx.web,javafx.fxml"
+#javafx_modulepath="${my_user_path}/Documents/Moneydance/My Python Scripts/javafx-sdk-21.0.2/lib"
+
 export PATH="${JAVA_HOME}/bin:${PATH}"
 java=java
 
@@ -192,7 +196,7 @@ use_sandbox="-DSandboxEnabled=true"
 #use_debugger=""
 use_debugger="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"
 
-# NOTE: I set '-Dinstall4j.exeDir=x' to help my Toolbox extension - this is not needed
+# NOTE: I like to set '-Dinstall4j.exeDir=x' to help the Toolbox extension - this is optional and not needed
 
 # Redirect output to the Moneydance console window...
 mkdir -v -p "${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library/Application Support/Moneydance"
@@ -207,15 +211,20 @@ ${java} --version
 #--module-path "${javafx_modulepath}" \
 #--add-modules "${javafx_modules}" \
 
-
 use_live_compiled_current_source_jar="$HOME/Documents/Moneydance/moneydance_desktop/app/build/libs/moneydance.jar:"
+test_launch_jars="${SCRIPT_DIR}/test-launch-jars/*:"
+
+# useful option for debugging what jars are actually loaded:                  -verbose:class
+# to stop icloud native library access warnings on Mac when loading manually: --enable-native-access=ALL-UNNAMED
 
 # shellcheck disable=SC2086
 # shellcheck disable=SC2048
+# shellcheck disable=SC2206
 full_cmd=(
   "${java}"
+  --enable-native-access=ALL-UNNAMED
   -Xdock:icon="${md_icon}"
-  -cp ${use_live_compiled_current_source_jar}"${md_jars}/*"
+  -cp "${use_live_compiled_current_source_jar}${test_launch_jars}${md_jars}/*"
   -Djava.library.path="${macos}:${machelper2}"
   -Dapple.laf.useScreenMenuBar=true
   -Dcom.apple.macos.use-file-dialog-packages=true
@@ -225,7 +234,7 @@ full_cmd=(
   -Dcom.apple.smallTabs=true
   -Dapple.awt.application.appearance=system
   -Dfile.encoding=UTF-8
-  -DUserHome=${my_user_path}
+  -DUserHome="${my_user_path}"
   ${use_sandbox}
   ${use_debugger}
   -Dinstall4j.exeDir="${md_jars}"
@@ -245,13 +254,13 @@ full_cmd=(
   -DAutosavedInformationDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library/Autosave Information"
   -Xmx2G
   Moneydance -d -nobackup "$@"
-  )
+)
 
 if [ "$MD_DEBUG_FROM_IJ" = "true" ]; then
   "${full_cmd[@]}"
 else
-  "${full_cmd[@]}" &> "$console_file" &
-  open -a Brackets "$console_file" &
+  "${full_cmd[@]}" &>"$console_file" &
+#  open -a Brackets "$console_file" &
 fi
 
 #
