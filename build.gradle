@@ -674,6 +674,8 @@ def registerPythonPrecompile = { String feature, String pythonBase ->
   ////////////////////////////////////////////////////////
   // PRE-COMPILING Jython to create $py.class
   ////////////////////////////////////////////////////////
+
+  //def mdPythonJar = file("${project.rootDir}/JythonLIB/jython-standalone-2.7.4.jar")
   def mdPythonJar = file("${libPath}/mdpython.jar")
   tasks.register("jython_compile_${feature}", JavaExec) {
     group = "other"
