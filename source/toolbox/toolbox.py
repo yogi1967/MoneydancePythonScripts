@@ -114,7 +114,7 @@
 # build: 1071 - Removed Total Selected Transactions feature / script - moved to new contextmenutools extension
 # build: 1071 - BUGFIX script runner (the classloader issue)
 # build: 2000 - ???
-# build: 2000 - relocate more code to extra_code py script file; Bump version number
+# build: 2000 - relocate more code to extra_code py script file; Bump version number; update to 2026 license
 # build: 2000 - ???
 
 # NOTE: 'The domain/default pair of (kCFPreferencesAnyApplication, AppleInterfaceStyle) does not exist' means that Dark mode is NOT in force
@@ -5674,7 +5674,7 @@ Visit: %s (Author's site)
         textArray.append(u"Moneydance updater version to track: %s" %MD_REF.getPreferences().getSetting(u"updater.version_to_track",u""))
         textArray.append(u"")
 
-        currLicense = MD_REF.getPreferences().getSetting(u"gen.lic_key2025",
+        currLicense = MD_REF.getPreferences().getSetting(u"gen.lic_key2026",
                                                                 MD_REF.getPreferences().getSetting(u"gen.lic_key2024",
                                                                 MD_REF.getPreferences().getSetting(u"gen.lic_key2023",
                                                                 MD_REF.getPreferences().getSetting(u"gen.lic_key2022",
@@ -5691,7 +5691,7 @@ Visit: %s (Author's site)
                                                                 MD_REF.getPreferences().getSetting(u"gen.lic_key2004",
                                                                 MD_REF.getPreferences().getSetting(u"gen.lic_key", u"????"))))))))))))))))
 
-        # license2025 = MD_REF.getPreferences().getSetting(u"gen.lic_key2025", None)
+        license2026 = MD_REF.getPreferences().getSetting(u"gen.lic_key2026", None)
         license2024 = MD_REF.getPreferences().getSetting(u"gen.lic_key2024", None)
         license2023 = MD_REF.getPreferences().getSetting(u"gen.lic_key2023", None)
         license2022 = MD_REF.getPreferences().getSetting(u"gen.lic_key2022", None)
