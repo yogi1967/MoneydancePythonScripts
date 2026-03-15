@@ -121,7 +121,7 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 # SET THESE LINES
 myModuleID = u"net_account_balances"
 version_build = "2000"
-MIN_BUILD_REQD = 5100  # 2024(5100) - AppDebug didn't exist before this build, and too many other CC, NW, AcctFIlter changes to deal with...
+MIN_BUILD_REQD = 5100  # 2024(5100) - AppDebug didn't exist before this build, and too many other CC, NW, AcctFilter changes to deal with...
 _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT = False
 
 global moneydance, moneydance_ui, moneydance_extension_loader, moneydance_extension_parameter, moneydance_this_fm
@@ -4941,10 +4941,11 @@ Visit: %s (Author's site)
             self.maxBaseline = self.fonts.defaultMetrics.getMaxDescent()
             self.underlineStroke = BasicStroke(1.0, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 1.0, [1.0, 6.0], 1.0 if (self.getHorizontalAlignment() == JLabel.LEFT) else 0.0)  # noqa
             self.underlineDots = self.NAB.savedDisplayVisualUnderDots
-            if tdfsc.isNoUnderlineDots(): self.underlineDots = False
-            if tdfsc.isForceUnderlineDots(): self.underlineDots = True
+            if tdfsc is not None and tdfsc.isNoUnderlineDots(): self.underlineDots = False
+            if tdfsc is not None and tdfsc.isForceUnderlineDots(): self.underlineDots = True
 
         def setUnderlineDots(self, underlineDots): self.underlineDots = underlineDots
+        def setAllowDynamicSizing(self, allowDynamicSizing): self.allowDynamicSizing = allowDynamicSizing
 
         def getPreferredSize(self):
             dim = super(self.__class__, self).getPreferredSize()
@@ -7635,7 +7636,10 @@ Visit: %s (Author's site)
                 self.moneydanceExtensionLoader = MD_EXTENSION_LOADER  # This is the class loader (or later actually FeatureModule instance) for the whole extension
                 myPrint("DB", "... Build is >= 3051 so using moneydance_extension_loader or moneydance_this_fm: %s" %(self.moneydanceExtensionLoader))
                 # try:
-                #     self.SWSS_CC = MD_EXTENSION_LOADER.loadClass(GlobalVars.Strings.SWSS_COMMON_CODE_NAME)
+                #     _cl = None
+                #     try: _cl = getFieldByReflection(MD_EXTENSION_LOADER, "classloader")
+                #     except: _cl = MD_EXTENSION_LOADER
+                #     self.SWSS_CC = _cl.loadClass(GlobalVars.Strings.SWSS_COMMON_CODE_NAME)
                 #     self.SWSS_CC.DEBUG = False
                 #     myPrint("DB", "... (class)loaded bundled java code '%s' into memory too... (%s)" %(GlobalVars.Strings.SWSS_COMMON_CODE_NAME, self.SWSS_CC))
                 # except:
@@ -17405,30 +17409,41 @@ Visit: %s (Author's site)
 
                                     tdfsc = TextDisplayForSwingConfig(("[%s] " %(i+1) if debug else "") + NAB.savedWidgetName[i], _grayInfoText, altFG, insertVars=insertVars)
 
-                                    nameLabel = SpecialJLinkLabel(tdfsc.getSwingComponentText(), "showConfig?%s" %(str(onRow)), tdfsc.getJustification(), tdfsc=tdfsc, allowDynamicSizing=True)
+                                    nameLabel = SpecialJLinkLabel(tdfsc.getSwingComponentText(), "showConfig?%s" %(str(onRow)), tdfsc.getJustification())
+                                    nameLabel.setAllowDynamicSizing(True)
+                                    nameLabel.setUnderlineDots(NAB.savedDisplayVisualUnderDots)
+                                    if tdfsc.isNoUnderlineDots(): nameLabel.setUnderlineDots(False)
+                                    if tdfsc.isForceUnderlineDots(): nameLabel.setUnderlineDots(True)
+
                                     addPopupContextMenu(md.getUI(), nameLabel)
 
                                     # NOTE: Leave "  " (two spaces) to avoid the row height collapsing.....
                                     if balanceOrAverageLong is None:
                                         netTotalLbl = SpecialJLinkLabel(" " if (tdfsc.getBlankZero()) else GlobalVars.DEFAULT_WIDGET_ROW_NOT_CONFIGURED.lower(),
                                                                         "showConfig?%s" %(str(onRow)),
-                                                                        JLabel.RIGHT,
-                                                                        tdfsc=tdfsc)
+                                                                        JLabel.RIGHT)
+                                        netTotalLbl.setUnderlineDots(NAB.savedDisplayVisualUnderDots)
+                                        if tdfsc.isNoUnderlineDots(): netTotalLbl.setUnderlineDots(False)
+                                        if tdfsc.isForceUnderlineDots(): netTotalLbl.setUnderlineDots(True)
                                         netTotalLbl.setFont(tdfsc.getValueFont(False))                                  # noqa
 
                                     elif balanceObj.isUORError():
                                         netTotalLbl = SpecialJLinkLabel(CalculatedBalance.DEFAULT_WIDGET_ROW_UOR_ERROR.lower(),
                                                                         "showConfig?%s" %(str(onRow)),
-                                                                        JLabel.RIGHT,
-                                                                        tdfsc=tdfsc)
+                                                                        JLabel.RIGHT)
+                                        netTotalLbl.setUnderlineDots(NAB.savedDisplayVisualUnderDots)
+                                        if tdfsc.isNoUnderlineDots(): netTotalLbl.setUnderlineDots(False)
+                                        if tdfsc.isForceUnderlineDots(): netTotalLbl.setUnderlineDots(True)
                                         netTotalLbl.setFont(tdfsc.getValueFont(False))                                  # noqa
                                         netTotalLbl.setForeground(md.getUI().getColors().errorMessageForeground)        # noqa
 
                                     elif balanceObj.isFormulaError():
                                         netTotalLbl = SpecialJLinkLabel(CalculatedBalance.DEFAULT_WIDGET_ROW_FORMULA_ERROR.lower(),
                                                                         "showConfig?%s" %(str(onRow)),
-                                                                        JLabel.RIGHT,
-                                                                        tdfsc=tdfsc)
+                                                                        JLabel.RIGHT)
+                                        netTotalLbl.setUnderlineDots(NAB.savedDisplayVisualUnderDots)
+                                        if tdfsc.isNoUnderlineDots(): netTotalLbl.setUnderlineDots(False)
+                                        if tdfsc.isForceUnderlineDots(): netTotalLbl.setUnderlineDots(True)
                                         netTotalLbl.setFont(tdfsc.getValueFont(False))                                  # noqa
                                         netTotalLbl.setForeground(md.getUI().getColors().errorMessageForeground)        # noqa
 
@@ -17456,7 +17471,10 @@ Visit: %s (Author's site)
                                                 if balanceObj.getCurrencyType().getDoubleValue(balanceOrAverageLong) != balanceOrAverageDecimals:
                                                     theDecimalPrecisionFormattedValue = " (%s)" %(balanceOrAverageDecimals)
 
-                                        netTotalLbl = SpecialJLinkLabel(theFormattedValue + theDecimalPrecisionFormattedValue, "showConfig?%s" %(onRow), JLabel.RIGHT, tdfsc=tdfsc)
+                                        netTotalLbl = SpecialJLinkLabel(theFormattedValue + theDecimalPrecisionFormattedValue, "showConfig?%s" %(onRow), JLabel.RIGHT)
+                                        netTotalLbl.setUnderlineDots(NAB.savedDisplayVisualUnderDots)
+                                        if tdfsc.isNoUnderlineDots(): netTotalLbl.setUnderlineDots(False)
+                                        if tdfsc.isForceUnderlineDots(): netTotalLbl.setUnderlineDots(True)
                                         addPopupContextMenu(md.getUI(), netTotalLbl)
                                         netTotalLbl.setFont(tdfsc.getValueFont())                                       # noqa
                                         netTotalLbl.setForeground(tdfsc.getValueColor(balanceOrAverageLong))            # noqa
