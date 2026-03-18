@@ -220,7 +220,8 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
 
     - MENU: Online (OFX) Banking Tools:
         - Forget OFX Banking Import Link (so it asks which account when importing ofx files) (remove_ofx_account_bindings.py) (MD versions < 2022)
-        - Reset/Fix/Edit/Add your Security's hidden 'Identifiers' / schemes (e.g. CUSIP, ISIN, SEDOL etc). Internal links between security records. (remove_ofx_security_bindings.py and change-security-cusip.py)
+        - Migrate/Merge all Security hidden 'Identifiers' / schemes (e.g. CUSIP, ISIN, SEDOL etc) into MD2026+ data store. (MD versions >= 2026)
+        - Manage your Security's hidden 'Identifiers' / schemes (e.g. CUSIP, ISIN, SEDOL etc). Internal links between security records. (remove_ofx_security_bindings.py and change-security-cusip.py)
         - Update OFX Last Txn Update Date (Downloaded) field for an account (MD versions >= 2022 can now use Online menu, Setup Online Banking, Reset Sync Date)
         - Reset ALL OFX Last Txn Update Dates (default, OFX and MD+) (MD 2022.3(4074) onwards)
         - Remove/disable (hidden) MD+/OFX(/QIF) data from downloaded Transactions within an Account (useful to address as_of reconcile date issues)
