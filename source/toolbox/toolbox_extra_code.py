@@ -12,8 +12,8 @@
 # build: 1002 - Relocated advanced_clone_dataset() into here.
 # build: 1003 - Added delete all reports/graphs, and reset all inbuilt report/graph parameters to defaults...
 # build: 1004 - relocated more code here
-# build: 1005 - Upgraded merge duplicate securities with MD2026 hidden security scheme/id data schemes / api calls
-# build: 1005 - Added migrate_scheme_data(), and relocated / upgraded manage_security_identifiers()
+# build: 1005 - Upgraded merge duplicate securities with MD2026 hidden security Identifier data schemes / api calls
+# build: 1005 - Added merge_security_identifier_stores(), and relocated / upgraded all the fiscal Identifier management code
 ###############################################################################
 # MIT License
 #
@@ -82,7 +82,7 @@ global getMemorizedReports, safeInvertRate
 global CuriousViewInternalSettingsButtonAction, check_if_key_data_string_valid, check_if_key_string_valid
 global detect_duplicate_securities, scriptRunner, selectHomeScreen, disableToolboxButtons
 global JTextFieldLimitYN, isGoodRate, validateAndFixBaseCurrency, detect_non_hier_sec_acct_or_orphan_txns
-global isSecuritySchemesUpgradedBuild, _getLegacyIDForScheme, _getIDsForScheme, _getLegacySchemesForSecurity, _getSchemesForSecurity, _addIDForScheme
+global isSecuritySchemesUpgradedBuild
 
 # New definitions
 from com.moneydance.apps.md.controller.sync import AbstractSyncFolder, MDSyncCipher
@@ -2746,19 +2746,6 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                 dup_securities[theTicker] = getDup
             del currencies
 
-            # as we are using out own _functions, verify they are the same as the original(s)
-            for _assertSec in securities:
-                if isUpgraded:
-                    for _assertScheme in _getSchemesForSecurity(_assertSec):
-                        _native = list(_assertSec.getIDsForScheme(_assertScheme))
-                        _ours = _getIDsForScheme(_assertSec, _assertScheme)
-                        assert _native == _ours, "ASSERT FAILED: getIDsForScheme(%s) native=%s ours=%s for %s" %(_assertScheme, _native, _ours, _assertSec.getName())
-                else:
-                    for _assertScheme in _getLegacySchemesForSecurity(_assertSec):
-                        _native = _assertSec.getIDForScheme(_assertScheme)
-                        _ours   = _getLegacyIDForScheme(_assertSec, _assertScheme)
-                        assert _native == _ours, "ASSERT FAILED: getIDForScheme(%s) native=%s ours=%s for %s" %(_assertScheme, _native, _ours, _assertSec.getName())
-
             def compareSplits(splitsOne, splitsTwo):
                 if len(splitsOne) < 1 and len(splitsTwo) < 1:   return True
                 if len(splitsOne) != len(splitsTwo):            return False
@@ -2783,14 +2770,15 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
             output +=   "Performing analysis and validation of potential 'duplicate' Securities.\n\n" \
                         "The following data can be edited in MD Menu > Tools>Securities (** except 'Decimal Places' where you will need to use Toolbox to edit)\n\n" \
                         "The check / validation rules are:\n" \
-                        "- Find potential 'duplicates' where Securities' 'Ticker' Symbols are the same/match (cannot be blank); then Duplicate Security's...:\n" \
-                        "... ID must be short and DIFFERENT (so you can identify them in this process). Examples: use '^APPL1', '^APPL2', '^APPL3'.. to merge 3 Apple Stocks\n" \
+                        "- Find potential 'duplicates' where Securities' 'Ticker' Symbols match (cannot be blank); then Duplicate Security's...:\n" \
+                        "... ID must be short and DIFFERENT (so you can identify them in this process). Examples: use '^APPL1', '^APPL2', '^APPL3' etc to merge 3 Apple Stocks\n" \
                         "....(^^Close this window and use Tools>Securities>EDIT and change the Security ID for each duplicate and then re-run this function again)\n" \
                         "...'Currency' must match\n" \
                         "...'Current Price' must match\n" \
                         "...'Prefix' & 'Suffix' must match\n" \
                         "...'Splits' data must match\n" \
                         "... hidden 'Decimal Places' setting must match **\n" \
+                        "... hidden Identifier data (e.g. CUSIP, SEDOL, ISIN, TICKER) is not considered for matching (but is handled in any merge)\n" \
                         "- NOTE: Security Name is not matched, but you can select the Security to become the 'master', that has right details, as part of the process\n" \
                         "\n" \
                         " -------------------------------------------------------------------------------------------------------------------------------------------------\n\n"
@@ -2939,7 +2927,7 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                 setDisplayStatus(txt, "R")
                 output += "\n<END>"
                 if lShowOutput:
-                    jif=QuickJFrame(txt, output, lAlertLevel=1,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
+                    jif=QuickJFrame(txt, output, lAlertLevel=1, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
                     myPopupInformationBox(jif,txt)
                 else:
                     myPopupInformationBox(toolbox_frame_,txt)
@@ -2981,7 +2969,9 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                     self.primarySecurity = theSecurity
 
                 def getDisplayString(self, _security):
-                    return ("%s:Ticker %s:ID %s:rate %s:dpc %s:%s:%s:(%s price history recs)"
+                    _schemes = sorted(_getLegacySchemesForSecurity(_security) | _getSchemesForSecurity(_security))
+                    _idSummary = ",".join(["%s:%s" %(_s, _id) for _s in _schemes for _id in _getIDsForScheme(_security, _s)])
+                    return ("%s:Ticker %s:ID %s:rate %s:dpc %s:%s:%s:(%s price history recs)%s"
                             % (_security.getName(),
                                self.theTicker,
                                _security.getIDString(),
@@ -2989,7 +2979,8 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                                _security.getDecimalPlaces(),
                                _security.getPrefix(),
                                _security.getSuffix(),
-                               _security.getSnapshots().size()))
+                               _security.getSnapshots().size(),
+                               " [%s]" %(_idSummary) if _idSummary else ""))
 
                 def __str__(self): return (self.getDisplayString(self.getPrimarySecurity()))[:200]
 
@@ -3000,24 +2991,28 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
 
             for dup in dup_securities:
                 theDupDetails = dup_securities[dup]
-                listDuplicateTickers.append(StoreTickerData(dup,theDupDetails[0],theDupDetails[1]))
-                txt = ".. %s found for Ticker: '%s'" %(theDupDetails[0],dup)
+                listDuplicateTickers.append(StoreTickerData(dup, theDupDetails[0], theDupDetails[1]))
+                txt = ".. %s found for Ticker: '%s'" %(theDupDetails[0], dup)
                 myPrint("DB",txt); output += "%s\n" %(txt)
                 for theDups in theDupDetails[1]:
-                    txt = "         - Name: %s ID: %s Rate: %s Dpc: %s Prx:Sfx: %s (Price History records: %s)"\
-                          %(pad(theDups.getName(),30),
-                            pad(theDups.getIDString(),20),
-                            rpad(safeInvertRate(theDups.getRelativeRate()),12),
-                            rpad(theDups.getDecimalPlaces(),2),
-                            pad(theDups.getPrefix()+":"+theDups.getSuffix(),20),
-                            rpad(theDups.getSnapshots().size(),12))
+                    _schemes = sorted(_getLegacySchemesForSecurity(theDups) | _getSchemesForSecurity(theDups))
+                    _idSummary = ",".join(["%s:%s" %(_s, _id) for _s in _schemes for _id in _getIDsForScheme(theDups, _s)])
+                    txt = "         - Name: %s ID: %s Rate: %s Dpc: %s Prx:Sfx: %s (Price History records: %s)%s"\
+                          %(pad(theDups.getName(), 30),
+                            pad(theDups.getIDString(), 20),
+                            rpad(safeInvertRate(theDups.getRelativeRate()), 12),
+                            rpad(theDups.getDecimalPlaces(), 2),
+                            pad(theDups.getPrefix()+":"+theDups.getSuffix(), 20),
+                            rpad(theDups.getSnapshots().size(), 12),
+                            " [%s]" %(_idSummary) if _idSummary else "")
                     myPrint("DB",txt); output += "%s\n" %(txt)
+
                 output += "\n"
             del dup_securities
 
             output += "\n"
 
-            jif = QuickJFrame("%s: Candidates" %(_THIS_METHOD_NAME),output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
+            jif = QuickJFrame("%s: Candidates" %(_THIS_METHOD_NAME), output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
 
             tickerToMerge = JOptionPane.showInputDialog(jif,
                                                          "Select Ticker / Security set to merge (sorted by Name, Ticker, ID)",
@@ -3031,7 +3026,7 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
             if not tickerToMerge:
                 txt = "%s: User did not select a Ticker / Security set to merge - no changes made" %(_THIS_METHOD_NAME)
                 setDisplayStatus(txt, "B")
-                myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+                myPopupInformationBox(jif, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
 
             quickSecurityDropdownList = []
@@ -3049,7 +3044,7 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
             if not selectedSecurity:
                 txt = "%s: User did not select a Security as the master for the merge - no changes made" %(_THIS_METHOD_NAME)
                 setDisplayStatus(txt, "B")
-                myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+                myPopupInformationBox(jif, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
 
             selectedSecurity = selectedSecurity.getSecurity()
@@ -3057,8 +3052,7 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
             jif.dispose()
 
             if selectedSecurity != tickerToMerge.getPrimarySecurity():
-                txt = "Master security switched from %s to %s (ID: %s)"\
-                      %(tickerToMerge.getPrimarySecurity(), selectedSecurity, selectedSecurity.getIDString())
+                txt = "Master security switched from %s to %s (ID: %s)" %(tickerToMerge.getPrimarySecurity(), selectedSecurity, selectedSecurity.getIDString())
                 myPrint("DB",txt); output += "%s\n" %(txt)
                 tickerToMerge.setPrimarySecurity(selectedSecurity)
 
@@ -3068,7 +3062,6 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
             output += "Selected Security to use as the master for the merge: %s\n\n" %(tickerToMerge.getDisplayString(selectedSecurity))
             del selectedSecurity
 
-            # MyAcctFilter() - 22 Security Sub Accounts; 23 Investment Accounts
             allInvestmentAccounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccountBook(), MyAcctFilter(23))
 
             output += "\nAnalysis of Securities to Merge - Ticker '%s' - %s:\n\n" %(tickerToMerge.getTicker(),tickerToMerge.getName())
@@ -3261,8 +3254,8 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                 txt = "\n\n INVESTMENT ACCOUNT: SECURITY HOLDING VALIDATION FAILED - CANNOT PROCEED! Review the report on screen for details.\n"
                 myPrint("DB", txt); output += "\n\n%s\n" %(txt)
                 setDisplayStatus(txt, "R")
-                jif = QuickJFrame("Merge duplicate securities (by Ticker): REPORT/LOG",output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
-                myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+                jif = QuickJFrame("Merge duplicate securities (by Ticker): REPORT/LOG", output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
+                myPopupInformationBox(jif, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
 
             output += "\n"
@@ -3288,7 +3281,7 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                 output += "Master Security has %s Price History records, the others have %s - STRATEGY REQUIRED...\n" %(primarySnaps, allOtherSnaps)
 
             if lSnapshotActionRequired:
-                jif = QuickJFrame("Merge duplicate securities (by Ticker): REPORT/LOG",output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True).show_the_frame()
+                jif = QuickJFrame("Merge duplicate securities (by Ticker): REPORT/LOG", output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lJumpToEnd=True, lWrapText=False).show_the_frame()
 
                 options = ["Keep Master's %s Price History Records Only (dump the other's %s records)"  %(primarySnaps, allOtherSnaps),
                            "Merge all other %s history records into master's (currently holds %s)"      %(allOtherSnaps, primarySnaps),
@@ -3331,13 +3324,13 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                 for _sec in _theSecList:
                     for _scheme in _getLegacySchemesForSecurity(_sec):
                         _theSchemeID = _getLegacyIDForScheme(_sec, _scheme)
-                        _key = _scheme + "." + str(_theSchemeID)
+                        _key = _scheme + "." + unicode(_theSchemeID)
                         if _allUniqueSecuritySchemes.get(_key) is None:
                             _allUniqueSecuritySchemes[_key] = True
                             returnUniqueSecuritySchemes.append([_scheme, _theSchemeID, "legacy"])
                     for _scheme in _getSchemesForSecurity(_sec):
-                        for _theSchemeID in _getIDsForScheme(_sec, _scheme):
-                            _key = _scheme + "." + str(_theSchemeID)
+                        for _theSchemeID in _getIDsForScheme(_sec, _scheme, lLegacyStore=False):
+                            _key = _scheme + "." + unicode(_theSchemeID)
                             if _allUniqueSecuritySchemes.get(_key) is None:
                                 _allUniqueSecuritySchemes[_key] = True
                                 returnUniqueSecuritySchemes.append([_scheme, _theSchemeID, "new"])
@@ -3353,8 +3346,8 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                     allOtherSecuritySchemes += countSecuritySchemes(security)
 
             allUniqueSecuritySchemes = getAllUniqueSecuritySchemes(tickerToMerge.getSecurityList())
-            lHasLegacySchemes = any(tag == "legacy" for _,_,tag in allUniqueSecuritySchemes)
-            lHasNewSchemes    = any(tag == "new"    for _,_,tag in allUniqueSecuritySchemes)
+            lHasLegacySchemes = any(tag == "legacy" for _, _, tag in allUniqueSecuritySchemes)
+            lHasNewSchemes = any(tag == "new" for _, _, tag in allUniqueSecuritySchemes)
 
             if len(allUniqueSecuritySchemes) > 0:
                 output += "Hidden Security Identifier data found (used for linking Investment Downloaded Securities to MD Securities)...:\n"
@@ -3364,9 +3357,9 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
 
             lSecuritySchemeActionRequired = False
             if len(allUniqueSecuritySchemes) < 1:
-                output += "No hidden Security Identifier data exists - This is OK and No action required....\n"
+                output += "INFO - No hidden Security Identifier data exists - No action required....\n"
             elif primarySecuritySchemes > 0 and allOtherSecuritySchemes < 1:
-                output += "Only the Master Security has hidden Security Identifier data - This is OK and No action required....\n"
+                output += "INFO - Only the Master Security has hidden Security Identifier data - No action required....\n"
             else:
                 lSecuritySchemeActionRequired = True
                 if lHasLegacySchemes:  # strategy (user dialog) only needed when legacy / pre-MD2026 store data exists
@@ -3376,7 +3369,7 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
 
             selectedSecurityScheme = None
             if lSecuritySchemeActionRequired:
-                jif = QuickJFrame("Merge duplicate securities (by Ticker): REPORT/LOG", output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lJumpToEnd=True).show_the_frame()
+                jif = QuickJFrame("Merge duplicate securities (by Ticker): REPORT/LOG", output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lJumpToEnd=True, lWrapText=False).show_the_frame()
 
                 class StoreSecurityScheme:
                     def __init__(self, _objScheme, _objSchemeID):
@@ -3384,7 +3377,6 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                         self._objSchemeID = _objSchemeID
 
                     def getScheme(self): return self._objScheme
-
                     def getSchemeID(self): return self._objSchemeID
 
                     def __str__(self):
@@ -3402,11 +3394,14 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                             allUniqueSecuritySchemesPicklist.append(StoreSecurityScheme(theScheme, theSchemeID))
 
                     if isUpgraded and lHasNewSchemes:
-                        dialogMsg = "Select the pre-MD2026 hidden Security Identifier to keep in the pre-MD2026 store.\nNOTE: ALL IDs from both pre-MD2026 and MD2026+ stores across all securities will be automatically merged into the MD2026+ store."
+                        dialogMsg = "Select the pre-MD2026 hidden Security Identifier to keep in the pre-MD2026 store.\n" \
+                                    "NOTE: ALL IDs from both pre-MD2026 and MD2026+ stores across all securities will be automatically merged into the MD2026+ store."
                     elif isUpgraded:
-                        dialogMsg = "Select the pre-MD2026 hidden Security Identifier to keep.\nNOTE: This ID will also be added into the MD2026+ store."
+                        dialogMsg = "Select the pre-MD2026 hidden Security Identifier to keep.\n" \
+                                    "NOTE: This ID will also be added into the MD2026+ store."
                     elif lHasNewSchemes:
-                        dialogMsg = "Select the pre-MD2026 hidden Security Identifier to keep.\nNOTE: ALL IDs from both pre-MD2026 and MD2026+ stores will also be merged into the MD2026+ store."
+                        dialogMsg = "Select the pre-MD2026 hidden Security Identifier to keep.\n" \
+                                    "NOTE: ALL IDs from both pre-MD2026 and MD2026+ stores will also be merged into the MD2026+ store."
                     else:
                         dialogMsg = "Select the hidden Security Identifier to keep/use in the new Master Security?"
 
@@ -3444,7 +3439,7 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
             output += "\n------\n"
 
 
-            jif = QuickJFrame("%s: REPORT/LOG" %(_THIS_METHOD_NAME),output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
+            jif = QuickJFrame("%s: REPORT/LOG" %(_THIS_METHOD_NAME), output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
             ask = MyPopUpDialogBox(jif,
                                    "%s: REVIEW DIAGNOSTIC BELOW - THEN CLICK PROCEED TO EXECUTE THE SECURITY MERGE" %(_THIS_METHOD_NAME.upper()),
                                    output,
@@ -3488,7 +3483,7 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             setDisplayStatus(txt, "R")
-            jif = QuickJFrame(txt, output, lAlertLevel=2, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True).show_the_frame()
+            jif = QuickJFrame(txt, output, lAlertLevel=2, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lJumpToEnd=True, lWrapText=False).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -3560,16 +3555,6 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
             ############################################################################################################
             # Now Security Identifier merge...
 
-            def deleteSecuritySchemes(_theSec):
-                _deleteList = []
-                for key in _theSec.getParameterKeys():
-                    if key.startswith(GlobalVars.Strings.PARAM_SEC_SCHEMEID_CURRID):
-                        _scheme = key[len(GlobalVars.Strings.PARAM_SEC_SCHEMEID_CURRID):]
-                        _deleteList.append(_scheme)
-                for _delSecurityScheme in _deleteList:
-                    _theSec.setIDForScheme(_delSecurityScheme, None)
-
-
             if not lSecuritySchemeActionRequired:
                 txt = "Skipping hidden Security Identifier data actions...."
                 myPrint("B", txt); output += "%s\n\n" %(txt)
@@ -3581,12 +3566,12 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                 if lHasLegacySchemes:
                     txt = "Removing all pre-MD2026 hidden Security Identifier data from master %s" %(getSecurityNameAndID(primary))
                     myPrint("B", txt); output += "%s\n" %(txt)
-                    deleteSecuritySchemes(primary)
+                    _deleteLegacySecuritySchemes(primary)
 
                     if selectedSecurityScheme.getScheme():
                         txt = "Writing pre-MD2026 Security Identifier - Scheme: %s ID: %s to master %s" %(selectedSecurityScheme.getScheme(), selectedSecurityScheme.getSchemeID(), getSecurityNameAndID(primary))
                         myPrint("B", txt); output += "%s\n" %(txt)
-                        primary.setIDForScheme(selectedSecurityScheme.getScheme(), selectedSecurityScheme.getSchemeID())
+                        _setLegacyIDForScheme(primary, selectedSecurityScheme.getScheme(), selectedSecurityScheme.getSchemeID())
                     else:
                         txt = "User selected NONE - no pre-MD2026 Security Identifier data written to master %s" %(getSecurityNameAndID(primary))
                         myPrint("B", txt); output += "%s\n" %(txt)
@@ -3594,28 +3579,28 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                     output += ".. Master %s pre-MD2026 store now contains: Scheme: %s, ID: %s\n" %(getSecurityNameAndID(primary), selectedSecurityScheme.getScheme(), selectedSecurityScheme.getSchemeID())
 
                 if isUpgraded or lHasNewSchemes:
-                    txt = "Merging all scheme/ID data into MD2026+ store on master %s..." %(getSecurityNameAndID(primary))
+                    txt = "Merging all Identifier data into MD2026+ store on master %s..." %(getSecurityNameAndID(primary))
                     myPrint("B", txt); output += "%s\n" %(txt)
                     for _theSec in tickerToMerge.getSecurityList():
                         for _theScheme in _getLegacySchemesForSecurity(_theSec):
                             _theID = _getLegacyIDForScheme(_theSec, _theScheme)
                             if _theID:
-                                _alreadyHas = _theID in list(_getIDsForScheme(primary, _theScheme))
+                                _alreadyHas = _theID in _getIDsForScheme(primary, _theScheme, lLegacyStore=False)
                                 if not _alreadyHas:
-                                    _addIDForScheme(primary, _theScheme, _theID)
+                                    _addIDForScheme(primary, _theScheme, _theID, lLegacyStore=False)
                                 txt = ".. %s from pre-MD2026 store of %s - Scheme: %s ID: %s into master MD2026+ store" %("SKIPPED (already present)" if _alreadyHas else "Merged", getSecurityNameAndID(_theSec), _theScheme, _theID)
                                 myPrint("B", txt); output += "%s\n" %(txt)
                         for _theScheme in _getSchemesForSecurity(_theSec):
-                            for _theID in _getIDsForScheme(_theSec, _theScheme):
-                                _alreadyHas = _theID in list(_getIDsForScheme(primary, _theScheme))
+                            for _theID in _getIDsForScheme(_theSec, _theScheme, lLegacyStore=False):
+                                _alreadyHas = _theID in _getIDsForScheme(primary, _theScheme, lLegacyStore=False)
                                 if not _alreadyHas:
-                                    _addIDForScheme(primary, _theScheme, _theID)
+                                    _addIDForScheme(primary, _theScheme, _theID, lLegacyStore=False)
                                 txt = ".. %s from MD2026+ store of %s - Scheme: %s ID: %s into master MD2026+ store" %("SKIPPED (already present)" if _alreadyHas else "Merged", getSecurityNameAndID(_theSec), _theScheme, _theID)
                                 myPrint("B", txt); output += "%s\n" %(txt)
 
                     output += ".. Master %s MD2026+ store now contains:\n" %(getSecurityNameAndID(primary))
                     for _theScheme in sorted(_getSchemesForSecurity(primary)):
-                        for _theID in _getIDsForScheme(primary, _theScheme):
+                        for _theID in _getIDsForScheme(primary, _theScheme, lLegacyStore=False):
                             output += "   Scheme: %s ID: %s\n" %(_theScheme, _theID)
 
                 primary.setParameter(PARAMETER_KEY, True)
@@ -3767,7 +3752,7 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             setDisplayStatus(txt, "R")
-            jif = QuickJFrame(txt,output, lAlertLevel=2, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True).show_the_frame()
+            jif = QuickJFrame(txt,output, lAlertLevel=2, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lJumpToEnd=True, lWrapText=False).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -3838,11 +3823,11 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             setDisplayStatus(txt, "R")
-            jif = QuickJFrame(txt, output, lAlertLevel=2, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True).show_the_frame()
+            jif = QuickJFrame(txt, output, lAlertLevel=2, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lJumpToEnd=True, lWrapText=False).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
-        jif = QuickJFrame(txt,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
+        jif = QuickJFrame(txt,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
         setDisplayStatus(txt, optionColor)
         logToolboxUpdates("merge_duplicate_securities", txt)
         play_the_money_sound()
@@ -5471,63 +5456,189 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
 
         return output
 
-    def _clearSchemeFromNewStore(sec, scheme): sec.setParameter(GlobalVars.Strings.PARAM_SEC_SCHEMEIDS_CURRIDS + scheme.strip(), ArrayList())
+    ############# DEFINE the FISCAL SCHEME ID ROUTINES #########################
+    def _getLegacyIDForScheme(sec, scheme):
+        # type: (CurrencyType, str) -> str
+        """replicates PRE-MD2026 com.infinitekind.moneydance.model.CurrencyType#getIDForScheme"""
+        ids = _getIDsForScheme(sec, scheme, lNewStore=False)
+        return ids[0] if ids else None
 
-    def _removeIDForScheme(sec, scheme, removeID):
-        idsForScheme = _getIDsForScheme(sec, scheme)
+    def _getIDsForScheme(sec, scheme, lLegacyStore=True, lNewStore=True):
+        # type: (CurrencyType, str, bool, bool) -> list
+        """replicates MD2026+ com.infinitekind.moneydance.model.CurrencyType#getIDsForScheme
+        lLegacyStore: include legacy curr_id.* store (single) in lookup
+        lNewStore: include MD2026+ curr_ids.* store (list, pipe separated) in lookup"""
+        raw = None
+        if lNewStore:
+            raw = sec.getParameter(GlobalVars.Strings.PARAM_SEC_SCHEMEIDS_CURRIDS + scheme.strip())
+        if raw is None and lLegacyStore:
+            raw = sec.getParameter(GlobalVars.Strings.PARAM_SEC_SCHEMEID_CURRID + scheme.strip())
+        if not raw: return []
+        return list(raw.split(GlobalVars.Strings.CURR_ID_FOR_SCHEME_SEPARATOR))
+
+    def _getLegacySchemesForSecurity(sec):
+        # type: (CurrencyType) -> set
+        """returns all schemes stored in the PRE-MD2026 store for the given security"""
+        schemes = set()
+        for key in sec.getParameterKeys():
+            if key.startswith(GlobalVars.Strings.PARAM_SEC_SCHEMEID_CURRID): schemes.add(key[len(GlobalVars.Strings.PARAM_SEC_SCHEMEID_CURRID):])
+        return schemes
+
+    def _getSchemesForSecurity(sec):
+        # type: (CurrencyType) -> set
+        """returns all schemes stored in the MD2026+ store for the given security"""
+        schemes = set()
+        for key in sec.getParameterKeys():
+            if key.startswith(GlobalVars.Strings.PARAM_SEC_SCHEMEIDS_CURRIDS): schemes.add(key[len(GlobalVars.Strings.PARAM_SEC_SCHEMEIDS_CURRIDS):])
+        return schemes
+
+    def _setLegacyIDForScheme(sec, scheme, newID):
+        # type: (CurrencyType, str, str) -> None
+        """replicates PRE-MD2026 com.infinitekind.moneydance.model.CurrencyType#setIDForScheme - writes curr_id.* only"""
+        if scheme is None: return
+        paramKey = GlobalVars.Strings.PARAM_SEC_SCHEMEID_CURRID + scheme.strip()
+        if newID is None:
+            sec.removeParameter(paramKey)
+        else:
+            sec.setParameter(paramKey, newID)
+
+    def _setIDsForScheme(sec, scheme, schemeIDs):
+        # type: (CurrencyType, str, list) -> None
+        """replicates MD2026+ com.infinitekind.moneydance.model.CurrencyType#setIDsForScheme"""
+        trimmedScheme = scheme.strip()
+        paramKey = GlobalVars.Strings.PARAM_SEC_SCHEMEIDS_CURRIDS + trimmedScheme
+        singleParamKey = GlobalVars.Strings.PARAM_SEC_SCHEMEID_CURRID + trimmedScheme
+        if schemeIDs is None:
+            sec.removeParameter(paramKey)
+            sec.removeParameter(singleParamKey)
+        else:
+            sec.setParameter(paramKey, GlobalVars.Strings.CURR_ID_FOR_SCHEME_SEPARATOR.join(schemeIDs))
+            sec.setParameter(singleParamKey, schemeIDs[0] if schemeIDs else None)
+
+    def _addIDForScheme(sec, scheme, newID, lLegacyStore=True, lNewStore=True):
+        # type: (CurrencyType, str, str, bool, bool) -> None
+        """replicates MD2026+ com.infinitekind.moneydance.model.CurrencyType#addIDForScheme
+        lLegacyStore/lNewStore control which store(s) are checked for duplicate detection only.
+        The write always updates both stores atomically via _setIDsForScheme (consistent with MD Kotlin behaviour).
+        Use lLegacyStore=False when deliberately targeting the new store to avoid skipping adds
+        due to IDs that exist only in the legacy store."""
+        idsForScheme = _getIDsForScheme(sec, scheme, lLegacyStore=lLegacyStore, lNewStore=lNewStore)
+        if newID not in idsForScheme:
+            idsForScheme.append(newID)
+            _setIDsForScheme(sec, scheme, idsForScheme)
+
+    def _deleteLegacySecuritySchemes(_theSec):
+        """Removes all pre-MD2026 curr_id.* scheme data only - replicates pre-MD2026 setIDForScheme(scheme, None)"""
+        for _scheme in _getLegacySchemesForSecurity(_theSec):
+            _theSec.removeParameter(GlobalVars.Strings.PARAM_SEC_SCHEMEID_CURRID + _scheme.strip())
+
+    def output_old_new_scheme_id_info(securities, lOutputGuide=True):
+        # count hidden identifier records across all involved securities and create a text/note
+        _iPreMD2026Count = 0
+        _iMD2026Count = 0
+        _output = ""
+        for _noteSec in securities:
+            for _scheme in _getLegacySchemesForSecurity(_noteSec):
+                if _getLegacyIDForScheme(_noteSec, _scheme): _iPreMD2026Count += 1
+            for _scheme in _getSchemesForSecurity(_noteSec):
+                _iMD2026Count += len(_getIDsForScheme(_noteSec, _scheme, lLegacyStore=False))
+
+        if _iPreMD2026Count > 0 or _iMD2026Count > 0:
+            _output += "\n\nNOTE: Hidden Security Identifier data detected.\n"
+            if _iPreMD2026Count > 0: _output += "      Pre-MD2026 format: %s Identifier record(s) found\n" %(_iPreMD2026Count)
+            if _iMD2026Count > 0: _output += "      MD2026+ format:    %s Identifier record(s) found\n" %(_iMD2026Count)
+            if lOutputGuide: _output += "      Use 'OFX: View Security Identifier Settings' for more details.\n\n"
+        return _output
+
+    def _clearSchemeFromNewStore(sec, scheme):
+        # type: (CurrencyType, str) -> None
+        """removes all IDs for the given scheme from the MD2026+ store only"""
+        sec.removeParameter(GlobalVars.Strings.PARAM_SEC_SCHEMEIDS_CURRIDS + scheme.strip())
+
+    def _removeIDForSchemeFromNewStore(sec, scheme, removeID):
+        # type: (CurrencyType, str, str) -> None
+        """removes a single ID from the MD2026+ store only for the given scheme"""
+        idsForScheme = _getIDsForScheme(sec, scheme, lLegacyStore=False)
         if removeID in idsForScheme:
             idsForScheme.remove(removeID)
-            if len(idsForScheme) == 0: _clearSchemeFromNewStore(sec, scheme)
-            else: sec.setParameter(GlobalVars.Strings.PARAM_SEC_SCHEMEIDS_CURRIDS + scheme.strip(), idsForScheme)
+            if idsForScheme:
+                sec.setParameter(GlobalVars.Strings.PARAM_SEC_SCHEMEIDS_CURRIDS + scheme.strip(),
+                                 GlobalVars.Strings.CURR_ID_FOR_SCHEME_SEPARATOR.join(idsForScheme))
+            else:
+                _clearSchemeFromNewStore(sec, scheme)
 
-    def migrate_scheme_data():
+    def merge_security_identifier_stores():
         if MD_REF.getCurrentAccountBook() is None: return
         if not (ToolboxMode.isUpdateMode()): return
 
         if not isSecuritySchemesUpgradedBuild():
-            txt = "Migrate / Merge Security Identifier data - This build does not support MD2026+ identifier schemes - no changes made"
-            setDisplayStatus(txt, "R")
-            myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
-            return
+            if not myPopupAskQuestion(toolbox_frame_,
+                                      "Merge Security Identifier Stores",
+                                      "WARNING: This build does not support / use MD2026+ identifier schemes.\n"
+                                      "The merge will synchronise both legacy and new stores where possible.\n"
+                                      "NOTE: If a scheme has multiple MD2026+ IDs, only the first ID will be written to the pre-MD2026 store - the remaining IDs are preserved in the MD2026+ store but will not be accessible on this build.\n"
+                                      "No MD2026+ data will be lost. Pre-MD2026 data may be overwritten if a newer (first) ID exists in the MD2026+ store.\n"
+                                      "Proceed?",
+                                      theMessageType=JOptionPane.WARNING_MESSAGE):
+                txt = "Merge Security Identifier Stores - User cancelled - no changes made"
+                setDisplayStatus(txt, "B"); return
 
         if not myPopupAskQuestion(toolbox_frame_,
-                                  "Migrate / Merge Security Identifier data",
-                                  "This will migrate / merge ALL pre-MD2026 Security Identifier data into the MD2026+ store for all Securities. Pre-MD2026 data will be left intact. Proceed?",
+                                  "Merge Security Identifier Stores",
+                                  "This will merge ALL Security Identifier data from both pre-MD2026 and MD2026+ stores for all Securities.\n"
+                                  "After merging: MD2026+ store will contain all IDs, pre-MD2026 store will hold the first ID from the MD2026+ store.\n"
+                                  "Proceed?",
                                   theMessageType=JOptionPane.WARNING_MESSAGE):
-            txt = "Migrate / Merge Security Identifier data - User cancelled - no changes made"
+            txt = "Merge Security Identifier Stores - User cancelled - no changes made"
             setDisplayStatus(txt, "B"); return
 
-        if not confirm_backup_confirm_disclaimer(toolbox_frame_, "Migrate / Merge Security Identifier data",
-                                                 "MIGRATE / MERGE ALL pre-MD2026 Security Identifier data into MD2026+ store?"):
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_, "Merge Security Identifier Stores",
+                                                 "MERGE ALL Security Identifier data from both pre-MD2026 and MD2026+ stores?"):
             return
 
         allSecurities = [curr for curr in MD_REF.getCurrentAccountBook().getCurrencies().getAllCurrencies()
                          if curr.getCurrencyType() == CurrencyType.Type.SECURITY]                                       # noqa
 
         iSecurities = 0
-        iMigrated = 0
+        iMerged = 0
         iSkipped = 0
 
         for sec in allSecurities:
-            _schemes = _getLegacySchemesForSecurity(sec)
-            if not _schemes: continue
-            sec.setEditingMode()
-            iSecurities += 1
-            for _scheme in _schemes:
-                _theID = _getLegacyIDForScheme(sec, _scheme)
-                if _theID:
-                    if _theID in _getIDsForScheme(sec, _scheme):
-                        myPrint("B", "Migrate / Merge Security Identifier data: SKIPPED (already present) Security: '%s' Scheme: %s ID: %s" %(sec, _scheme, _theID))
-                        iSkipped += 1
-                    else:
-                        _addIDForScheme(sec, _scheme, _theID)
-                        myPrint("B", "Migrate / Merge Security Identifier data: migrated Security: '%s' Scheme: %s ID: %s" %(sec, _scheme, _theID))
-                        iMigrated += 1
-            sec.syncItem()
+            _legacySchemes = _getLegacySchemesForSecurity(sec)
+            _newSchemes = _getSchemesForSecurity(sec)
+            _allSchemes = _legacySchemes | _newSchemes
+            if not _allSchemes: continue
 
-        txt = "Migrate / Merge Security Identifier data - completed. %s security(s) processed, %s record(s) migrated, %s skipped (already present)" %(iSecurities, iMigrated, iSkipped)
+            iSecurities += 1
+            schemeUpdates = []  # list of (scheme, combinedIDs) to apply
+
+            lNeedsUpdate = False
+
+            for _scheme in _allSchemes:
+                _legacyID = _getLegacyIDForScheme(sec, _scheme) if _scheme in _legacySchemes else None
+                _newIDs = _getIDsForScheme(sec, _scheme, lLegacyStore=False) if _scheme in _newSchemes else []
+                _combined = list(_newIDs)
+                if _legacyID and _legacyID not in _combined:
+                    _combined.append(_legacyID)
+
+                if _combined == _newIDs and _legacyID == (_combined[0] if _combined else None):
+                    myPrint("B", "Merge Security Identifier Stores: SKIPPED (already in sync) Security: '%s' Scheme: %s IDs: %s" %(sec, _scheme, _combined))
+                    iSkipped += 1
+                else:
+                    schemeUpdates.append((_scheme, _combined))
+                    lNeedsUpdate = True
+
+            if lNeedsUpdate:
+                sec.setEditingMode()
+                for (_scheme, _combined) in schemeUpdates:
+                    _setIDsForScheme(sec, _scheme, _combined)
+                    myPrint("B", "Merge Security Identifier Stores: merged Security: '%s' Scheme: %s IDs: %s (pre-MD2026 store now: %s)" %(sec, _scheme, _combined, _combined[0] if _combined else None))
+                    iMerged += 1
+                sec.syncItem()
+
+        txt = "Merge Security Identifier Stores - completed. %s security(s) processed, %s scheme(s) merged, %s skipped (already in sync)" %(iSecurities, iMerged, iSkipped)
         setDisplayStatus(txt, "B"); myPrint("B", txt)
-        logToolboxUpdates("migrate_scheme_data", txt)
+        logToolboxUpdates("merge_security_identifier_stores", txt)
         play_the_money_sound()
         myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.INFORMATION_MESSAGE)
 
@@ -5539,7 +5650,7 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
         isUpgraded = isSecuritySchemesUpgradedBuild()
 
         # Step 1 - Select store upfront
-        storeOptions = ["Pre-MD2026 store", "MD2026+ store"] if isUpgraded else ["Pre-MD2026 store"]
+        storeOptions = ["MD2026+ store", "Pre-MD2026 store"] if isUpgraded else ["Pre-MD2026 store"]
         selectedStore = JOptionPane.showInputDialog(toolbox_frame_,
                                                     "Select the Security Identifier data store to operate on:",
                                                     "%s - Select Store" %(_THIS_METHOD_NAME),
@@ -5564,7 +5675,7 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                     _schemes = _getSchemesForSecurity(_sec)
                     self.schemeData = ["%s:%s" %(_s, _sID)
                                        for _s in sorted(_schemes)
-                                       for _sID in _getIDsForScheme(_sec, _s)]
+                                       for _sID in _getIDsForScheme(_sec, _s, lLegacyStore=False)]
                 self.hasData = len(self.schemeData) > 0
 
             def __str__(self):
@@ -5576,7 +5687,7 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
             def __repr__(self): return self.__str__()
 
         allSecurities = sorted([curr for curr in MD_REF.getCurrentAccountBook().getCurrencies().getAllCurrencies()
-                                if curr.getCurrencyType() == CurrencyType.Type.SECURITY],                           # noqa
+                                if curr.getCurrencyType() == CurrencyType.Type.SECURITY],                               # noqa
                                key=lambda x: x.getName().upper())
 
         secList = [StoreSecurityWithSchemes(sec) for sec in allSecurities]
@@ -5631,15 +5742,15 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
         if lReset:
             selectedSecurity.setEditingMode()
             if lLegacyStore:
-                for _scheme in list(_getLegacySchemesForSecurity(selectedSecurity)):
+                for _scheme in _getLegacySchemesForSecurity(selectedSecurity):
                     _oldID = _getLegacyIDForScheme(selectedSecurity, _scheme)
-                    selectedSecurity.setIDForScheme(_scheme, None)
+                    _setLegacyIDForScheme(selectedSecurity, _scheme, None)
                     myPrint("B", "%s: RESET pre-MD2026 - deleted Scheme: %s ID: %s from '%s'" %(_THIS_METHOD_NAME, _scheme, _oldID, selectedSecurity))
             else:
-                for _scheme in list(_getSchemesForSecurity(selectedSecurity)):
-                    for _oldID in _getIDsForScheme(selectedSecurity, _scheme):
+                for _scheme in _getSchemesForSecurity(selectedSecurity):
+                    for _oldID in _getIDsForScheme(selectedSecurity, _scheme, lLegacyStore=False):
                         myPrint("B", "%s: RESET MD2026+ - deleted Scheme: %s ID: %s from '%s'" %(_THIS_METHOD_NAME, _scheme, _oldID, selectedSecurity))
-                    _clearSchemeFromNewStore(selectedSecurity, _scheme)                         # //changed - correctly clears all curr_ids.<scheme>.* indexed keys
+                    _clearSchemeFromNewStore(selectedSecurity, _scheme)
             selectedSecurity.syncItem()
             txt = "Security Identifier data in %s on Security: '%s' Reset/Deleted!" %(selectedStore, selectedSecurity)
             myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME, JOptionPane.WARNING_MESSAGE)
@@ -5669,32 +5780,34 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
 
             destSec = selectedMoveTo.sec
             if selectedMoveTo.hasData:
-                if not myPopupAskQuestion(toolbox_frame_, _THIS_METHOD_NAME,
-                                          "Security: '%s' already has %s data. OK will overwrite matching Identifier key(s). Cancel to exit." %(destSec.getName(), selectedStore),
-                                          theMessageType=JOptionPane.WARNING_MESSAGE):
-                    txt = "%s - User cancelled overwrite - no changes made" %(_THIS_METHOD_NAME)
+                if lLegacyStore: _warn = "Security: '%s' already has pre-MD2026 data. OK will OVERWRITE matching scheme(s) on destination. Cancel to exit." %(destSec.getName())
+                else: _warn = "Security: '%s' already has MD2026+ data. OK will MERGE source IDs into destination - existing IDs kept, source IDs added. Cancel to exit." %(destSec.getName())
+                if not myPopupAskQuestion(toolbox_frame_, _THIS_METHOD_NAME, _warn, theMessageType=JOptionPane.WARNING_MESSAGE):
+                    txt = "%s - User cancelled - no changes made" %(_THIS_METHOD_NAME)
                     setDisplayStatus(txt, "R"); return
-                myPrint("B", "%s - User selected to overwrite existing data on destination Security: '%s'" %(_THIS_METHOD_NAME, destSec))
+                if lLegacyStore: myPrint("B", "%s - User confirmed OVERWRITE on destination Security: '%s'" %(_THIS_METHOD_NAME, destSec))
+                else: myPrint("B", "%s - User confirmed MERGE into destination Security: '%s'" %(_THIS_METHOD_NAME, destSec))
 
             selectedSecurity.setEditingMode()
             destSec.setEditingMode()
 
             if lLegacyStore:
-                for _scheme in list(_getLegacySchemesForSecurity(selectedSecurity)):
+                for _scheme in _getLegacySchemesForSecurity(selectedSecurity):
                     _moveID = _getLegacyIDForScheme(selectedSecurity, _scheme)
-                    _destOldID = _getLegacyIDForScheme(destSec, _scheme)                        # //changed - log overwritten destination value
-                    if _destOldID: myPrint("B", "%s: MOVE pre-MD2026 - overwriting Scheme: %s old ID: %s on destination '%s'" %(_THIS_METHOD_NAME, _scheme, _destOldID, destSec))
-                    myPrint("B", "%s: MOVE pre-MD2026 Scheme: %s ID: %s from '%s' to '%s'" %(_THIS_METHOD_NAME, _scheme, _moveID, selectedSecurity, destSec))
-                    destSec.setIDForScheme(_scheme, _moveID)
-                    selectedSecurity.setIDForScheme(_scheme, None)
+                    _destOldID = _getLegacyIDForScheme(destSec, _scheme)
+                    if _destOldID: myPrint("B", "%s: MOVE pre-MD2026 - overwriting Scheme: %s old ID: %s on destination '%s' with new ID: %s" %(_THIS_METHOD_NAME, _scheme, _destOldID, destSec, _moveID))
+                    else: myPrint("B", "%s: MOVE pre-MD2026 - writing Scheme: %s ID: %s to destination '%s'" %(_THIS_METHOD_NAME, _scheme, _moveID, destSec))
+                    _setLegacyIDForScheme(destSec, _scheme, _moveID)
+                    _setLegacyIDForScheme(selectedSecurity, _scheme, None)
+                    myPrint("B", "%s: MOVE pre-MD2026 - cleared Scheme: %s from source '%s'" %(_THIS_METHOD_NAME, _scheme, selectedSecurity))
             else:
-                for _scheme in list(_getSchemesForSecurity(selectedSecurity)):
-                    _destOldIDs = list(_getIDsForScheme(destSec, _scheme))                      # //changed - log overwritten destination values
-                    if _destOldIDs: myPrint("B", "%s: MOVE MD2026+ - overwriting Scheme: %s old IDs: %s on destination '%s'" %(_THIS_METHOD_NAME, _scheme, _destOldIDs, destSec))
-                    for _moveID in list(_getIDsForScheme(selectedSecurity, _scheme)):
-                        myPrint("B", "%s: MOVE MD2026+ Scheme: %s ID: %s from '%s' to '%s'" %(_THIS_METHOD_NAME, _scheme, _moveID, selectedSecurity, destSec))
-                        _addIDForScheme(destSec, _scheme, _moveID)
-                    _clearSchemeFromNewStore(selectedSecurity, _scheme)                         # //changed - correctly clears all curr_ids.<scheme>.* indexed keys
+                for _scheme in _getSchemesForSecurity(selectedSecurity):
+                    _destOldIDs = _getIDsForScheme(destSec, _scheme, lLegacyStore=False)
+                    if _destOldIDs: myPrint("B", "%s: MOVE MD2026+ - merging into existing Scheme: %s on destination '%s' (existing IDs: %s)" %(_THIS_METHOD_NAME, _scheme, destSec, _destOldIDs))
+                    for _moveID in _getIDsForScheme(selectedSecurity, _scheme, lLegacyStore=False):
+                        myPrint("B", "%s: MOVE MD2026+ - adding Scheme: %s ID: %s to destination '%s'" %(_THIS_METHOD_NAME, _scheme, _moveID, destSec))
+                        _addIDForScheme(destSec, _scheme, _moveID, lLegacyStore=False)
+                    _clearSchemeFromNewStore(selectedSecurity, _scheme)
 
             selectedSecurity.syncItem()
             destSec.syncItem()
@@ -5708,7 +5821,7 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                     editList.append("%s:%s" %(_scheme, _getLegacyIDForScheme(selectedSecurity, _scheme)))
             else:
                 for _scheme in sorted(_getSchemesForSecurity(selectedSecurity)):
-                    for _id in _getIDsForScheme(selectedSecurity, _scheme):
+                    for _id in _getIDsForScheme(selectedSecurity, _scheme, lLegacyStore=False):
                         editList.append("%s:%s" %(_scheme, _id))
 
             selectedSchemeID = JOptionPane.showInputDialog(toolbox_frame_,
@@ -5736,10 +5849,10 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
             selectedSecurity.setEditingMode()
 
             if lLegacyStore:
-                selectedSecurity.setIDForScheme(_editScheme, newID)
+                _setLegacyIDForScheme(selectedSecurity, _editScheme, newID)
             else:
-                _removeIDForScheme(selectedSecurity, _editScheme, _editOldID)                   # //changed - use helper to remove old ID
-                _addIDForScheme(selectedSecurity, _editScheme, newID)                           # //changed - use helper to add new ID
+                _removeIDForSchemeFromNewStore(selectedSecurity, _editScheme, _editOldID)
+                _addIDForScheme(selectedSecurity, _editScheme, newID, lLegacyStore=False)
 
             selectedSecurity.syncItem()
             txt = "Security: '%s' Scheme: %s ID changed from %s to %s (%s)" %(selectedSecurity.getName(), _editScheme, _editOldID, newID, selectedStore)
@@ -5747,7 +5860,7 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
 
         elif lAdd:
             newScheme = myPopupAskForInput(toolbox_frame_, _THIS_METHOD_NAME, "NEW Scheme/Key:",
-                                           "Enter Scheme Type to add (commonly 'CUSIP', 'SEDOL', 'ISIN' etc):",
+                                           "Enter Scheme Type to add (commonly CUSIP, SEDOL, ISIN, TICKER):",
                                            defaultValue="CUSIP")
             if not newScheme or newScheme.strip() == "":
                 txt = "%s - ADD - no Scheme entered - no changes made" %(_THIS_METHOD_NAME)
@@ -5763,9 +5876,9 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
             selectedSecurity.setEditingMode()
 
             if lLegacyStore:
-                selectedSecurity.setIDForScheme(newScheme.strip(), newID.strip())
+                _setLegacyIDForScheme(selectedSecurity, newScheme.strip(), newID.strip())
             else:
-                _addIDForScheme(selectedSecurity, newScheme.strip(), newID.strip())
+                _addIDForScheme(selectedSecurity, newScheme.strip(), newID.strip(), lLegacyStore=False)
 
             selectedSecurity.syncItem()
             txt = "Security Identifier Scheme: %s ID: %s added to Security: '%s' (%s)" %(newScheme, newID, selectedSecurity.getName(), selectedStore)
@@ -5785,14 +5898,14 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                 if not lLegacyStore and not _getSchemesForSecurity(_nukeSec): continue
                 _nukeSec.setEditingMode()
                 if lLegacyStore:
-                    for _scheme in list(_getLegacySchemesForSecurity(_nukeSec)):
+                    for _scheme in _getLegacySchemesForSecurity(_nukeSec):
                         _oldID = _getLegacyIDForScheme(_nukeSec, _scheme)
-                        _nukeSec.setIDForScheme(_scheme, None)
+                        _setLegacyIDForScheme(_nukeSec, _scheme, None)
                         myPrint("B", "%s: NUKE pre-MD2026 - deleted Scheme: %s ID: %s from '%s'" %(_THIS_METHOD_NAME, _scheme, _oldID, _nukeSec))
                         iNuked += 1
                 else:
-                    for _scheme in list(_getSchemesForSecurity(_nukeSec)):
-                        for _oldID in _getIDsForScheme(_nukeSec, _scheme):
+                    for _scheme in _getSchemesForSecurity(_nukeSec):
+                        for _oldID in _getIDsForScheme(_nukeSec, _scheme, lLegacyStore=False):
                             myPrint("B", "%s: NUKE MD2026+ - deleted Scheme: %s ID: %s from '%s'" %(_THIS_METHOD_NAME, _scheme, _oldID, _nukeSec))
                             iNuked += 1
                         _clearSchemeFromNewStore(_nukeSec, _scheme)
@@ -5805,10 +5918,146 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
             txt = "%s - Unknown option - no changes made" %(_THIS_METHOD_NAME)
             setDisplayStatus(txt, "R"); return
 
-        if not lNuke: txt = "%s - Changes successfully applied to Security: '%s'" %(_THIS_METHOD_NAME, selectedSecurity)
-        setDisplayStatus(txt, "R"); myPrint("B", txt)
+        if not lNuke:
+            txt = "%s - Changes successfully applied to Security: '%s'" %(_THIS_METHOD_NAME, selectedSecurity)
+            setDisplayStatus(txt, "DG"); myPrint("B", txt)
+        else:
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
+
         logToolboxUpdates("manage_security_identifiers", txt)
         play_the_money_sound()
+
+    def OFX_view_security_identifier_settings():
+        # note: MD2026 onwards there are new API functions which manage multiple IDs per scheme per security
+        # whereas previous versions only allowed/stored a singular ID per scheme.
+
+        if MD_REF.getCurrentAccountBook() is None: return
+
+        _THIS_METHOD_NAME = "OFX: View Security's hidden Security Identifier settings"
+
+        isUpgraded = isSecuritySchemesUpgradedBuild()
+
+        output = "%s:\n" \
+                 "%s\n\n" % (_THIS_METHOD_NAME, " " * len(_THIS_METHOD_NAME))
+
+        output += "The hidden link between your Financial Institution's Investment Securities and your MD Securities when downloading\n" \
+                  "is stored as hidden data against your security using an 'Identifier Scheme' (e.g. CUSIP, ISIN, SEDOL, TICKER).\n" \
+                  "Identifiers can be stored in pre-MD2026 format (single ID per scheme) or MD2026+ format (multiple IDs per scheme).\n" \
+                  "On MD2026+ the new store is queried first. If new store is empty, then the legacy store is queried.\n" \
+                  "When a new identifier is added for the first time on MD2026+, then both legacy ID and new ID are both added to the new store.\n" \
+                  "Refer: 'MENU: Currency & Security tools' > 'DIAG - Produce a quick report of potentially duplicate securities'.\n\n"
+
+        if not isUpgraded: output += "NOTE: This MD build does not support MD2026+ (1:many) identifier schemes (showing the MD2026+ data anyway).\n\n"
+
+        output += " SECURITIES - IDENTIFIER SETTINGS\n" \
+                  " ==================================\n\n"
+
+        W_SEC = 40; W_ID = 15; W_TICKER = 15; W_SCHEME = 20; W_OLD = 30; W_NEW = 30; W_STATUS = 15
+        # SEP_SECURITY = "-" * 3
+
+        col_header = "%s %s %s %s %s %s %s\n" % (
+            pad("Security",      W_SEC),
+            pad("ID",            W_ID),
+            pad("Ticker",        W_TICKER),
+            pad("Scheme",        W_SCHEME),
+            pad("PRE-MD2026",    W_OLD),
+            pad("MD2026+",       W_NEW),
+            pad("Status",        W_STATUS))
+
+        col_divider = "%s %s %s %s %s %s %s\n" % ("-" * W_SEC, "-" * W_ID, "-" * W_TICKER, "-" * W_SCHEME, "-" * W_OLD, "-" * W_NEW, "-" * W_STATUS)
+        output += col_header + col_divider + "\n"
+
+        securities = sorted(MD_REF.getCurrentAccountBook().getCurrencies().getAllCurrencies(), key=lambda x: (x.getCurrencyType(), x.getName().upper()))
+
+        iCountRows = 0
+        firstSec = True
+
+        for sec in securities:
+            if sec.getCurrencyType() != CurrencyType.Type.SECURITY: continue                                            # noqa
+
+            # collect schemes separately per prefix
+            legacy_schemes = _getLegacySchemesForSecurity(sec)
+            new_schemes    = _getSchemesForSecurity(sec)
+
+            schemes = legacy_schemes | new_schemes
+            if not schemes: continue
+
+            # if not firstSec: output += "%s\n" % SEP_SECURITY
+            if not firstSec: output += col_divider
+            firstSec = False
+
+            secName   = sec.getName()
+            secIDStr  = sec.getIDString()
+            secTicker = sec.getTickerSymbol()
+            firstRow  = True
+
+            for scheme in sorted(schemes):
+                legacyID = _getLegacyIDForScheme(sec, scheme) if scheme in legacy_schemes else None  # call our own function which replicates versions prior to MD2026
+                newIDs = _getIDsForScheme(sec, scheme, lLegacyStore=False) if scheme in new_schemes else []
+                rows = []
+                remainingNew = list(newIDs)
+
+                if legacyID and newIDs:
+                    if legacyID in newIDs:
+                        rows.append((legacyID, legacyID, "MATCH"))
+                        remainingNew.remove(legacyID)
+                    else:
+                        rows.append((legacyID, "", "PRE-MD2026 ONLY"))
+                    for nid in remainingNew: rows.append(("", nid, "MD2026+ ONLY"))
+                elif legacyID:
+                    rows.append((legacyID, "", "PRE-MD2026 ONLY"))
+                else:
+                    for nid in newIDs: rows.append(("", nid, "MD2026+ ONLY"))
+
+                firstSchemeRow = True
+
+                for (preCol, newCol, status) in rows:
+                    if firstSchemeRow and firstRow:
+                        output += "%s %s %s %s %s %s %s\n" % (
+                            padTruncateWithDots(secName,   W_SEC),
+                            padTruncateWithDots(secIDStr,  W_ID),
+                            padTruncateWithDots(secTicker, W_TICKER),
+                            padTruncateWithDots(scheme,    W_SCHEME),
+                            padTruncateWithDots(preCol,    W_OLD),
+                            padTruncateWithDots(newCol,    W_NEW),
+                            padTruncateWithDots(status,    W_STATUS))
+                        firstRow = False
+                        firstSchemeRow = False
+                    elif firstSchemeRow:
+                        output += "%s %s %s %s %s %s %s\n" % (
+                            padTruncateWithDots("",        W_SEC),
+                            padTruncateWithDots("",        W_ID),
+                            padTruncateWithDots("",        W_TICKER),
+                            padTruncateWithDots(scheme,    W_SCHEME),
+                            padTruncateWithDots(preCol,    W_OLD),
+                            padTruncateWithDots(newCol,    W_NEW),
+                            padTruncateWithDots(status,    W_STATUS))
+                        firstSchemeRow = False
+                    else:
+                        output += "%s %s %s %s %s %s %s\n" % (
+                            padTruncateWithDots("", W_SEC),
+                            padTruncateWithDots("", W_ID),
+                            padTruncateWithDots("", W_TICKER),
+                            padTruncateWithDots("", W_SCHEME),
+                            padTruncateWithDots(preCol,  W_OLD),
+                            padTruncateWithDots(newCol,  W_NEW),
+                            padTruncateWithDots(status,  W_STATUS))
+                    iCountRows += 1
+
+        output += "\n"
+        if not iCountRows:
+            output += "NONE FOUND!\n"
+        else:
+            output += "%s identifier row(s) found across all securities\n" % iCountRows
+            output += output_old_new_scheme_id_info(securities, False)
+
+        output += "\n<END>"
+
+        QuickJFrame(_THIS_METHOD_NAME.upper(), output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+        txt = "OFX: Your Security's hidden Security Identifier settings have been retrieved and displayed...."
+        setDisplayStatus(txt, "B")
+
+    ############# END OF THE FISCAL SCHEME ID ROUTINES #########################
 
     class CollectTheGarbage(AbstractAction):
 

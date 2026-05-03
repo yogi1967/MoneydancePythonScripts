@@ -116,7 +116,7 @@
 # build: 2000 - ???
 # build: 2000 - relocate more code to extra_code py script file; Bump version number; update to 2026 license
 # build: 2000 - Handle MD2026 change to security schemes - now new api calls and multiple IDs per scheme...
-# build: 2000 - Added migrate_scheme_data(), and relocated / upgraded manage_security_identifiers()...
+# build: 2000 - Added merge_security_identifier_stores(), and relocated / upgraded all fiscal scheme/ID management code to extra code...
 # build: 2000 - ???
 
 # NOTE: 'The domain/default pair of (kCFPreferencesAnyApplication, AppleInterfaceStyle) does not exist' means that Dark mode is NOT in force
@@ -593,6 +593,7 @@ else:
 
     GlobalVars.Strings.PARAM_SEC_SCHEMEID_CURRID  = "curr_id."    # pre-MD2026 (now deprecated)
     GlobalVars.Strings.PARAM_SEC_SCHEMEIDS_CURRIDS = "curr_ids."  # MD2026+
+    GlobalVars.Strings.CURR_ID_FOR_SCHEME_SEPARATOR = "|"         # MD2026+
 
     GlobalVars.Strings.OFX_LAST_TXN_UPDATE = "ofx_last_txn_update"
     GlobalVars.Strings.MD_KEY_ASOF_PREF = "gen.rec_asof_enabled"
@@ -3449,7 +3450,8 @@ Visit: %s (Author's site)
         global advanced_options_edit_parameter_keys, view_reports_record_keys, showMDLaunchParameters
         global list_potentially_duplicate_securities
         global merge_duplicate_securities, move_merge_investment_txns, thin_price_history, diagnose_currencies
-        global manage_security_identifiers, migrate_scheme_data
+        global manage_security_identifiers, merge_security_identifier_stores, OFX_view_security_identifier_settings, output_old_new_scheme_id_info
+        global _getLegacyIDForScheme, _getIDsForScheme, _getLegacySchemesForSecurity, _getSchemesForSecurity, _addIDForScheme, _setIDsForScheme
 
         _extraCodeString = myModuleID + "_extra_code" + ".py"
         if MD_EXTENSION_LOADER is not None:
@@ -4681,9 +4683,10 @@ Visit: %s (Author's site)
                 self.updateWithLatestToolboxVersionRequirements()
 
                 lAbort = False
+                _mdVersionStr = StringUtils.stripNonNumbers(MD_REF.getVersion(), '.')
                 if (GlobalVars.TOOLBOX_STOP_NOW
-                        or (float(MD_REF.getVersion()) < GlobalVars.TOOLBOX_MINIMUM_TESTED_MD_VERSION)
-                        or (int(float(MD_REF.getVersion())) > int(GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_VERSION))):
+                        or (float(_mdVersionStr) < GlobalVars.TOOLBOX_MINIMUM_TESTED_MD_VERSION)
+                        or (int(float(_mdVersionStr)) > int(GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_VERSION))):
                     lAbort = True
                 else:
                     if (float(MD_REF.getBuild()) > GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD):
@@ -7124,162 +7127,6 @@ Visit: %s (Author's site)
 
         QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
         txt = "OFX: Your active accounts' calculated reconcile as_of dates have been displayed...."
-        setDisplayStatus(txt, "B")
-
-    def _getLegacyIDForScheme(sec, scheme): return sec.getParameter(GlobalVars.Strings.PARAM_SEC_SCHEMEID_CURRID + scheme.strip())          # replicate PRE-MD2026  - com.infinitekind.moneydance.model.CurrencyType#getIDForScheme
-    def _getIDsForScheme(sec, scheme): return sec.getStringListParameter(GlobalVars.Strings.PARAM_SEC_SCHEMEIDS_CURRIDS + scheme.strip())   # replicate POST-MD2026 - com.infinitekind.moneydance.model.CurrencyType#getIDsForScheme
-
-    def _getLegacySchemesForSecurity(sec):
-        # type: (CurrencyType) -> set[str]
-        schemes = set()
-        for key in sec.getParameterKeys():
-            if key.startswith(GlobalVars.Strings.PARAM_SEC_SCHEMEID_CURRID): schemes.add(key[len(GlobalVars.Strings.PARAM_SEC_SCHEMEID_CURRID):])
-        return schemes
-
-    def _getSchemesForSecurity(sec):
-        # type: (CurrencyType) -> set[str]
-        schemes = set()
-        for key in sec.getParameterKeys():
-            if key.startswith(GlobalVars.Strings.PARAM_SEC_SCHEMEIDS_CURRIDS): schemes.add(key[len(GlobalVars.Strings.PARAM_SEC_SCHEMEIDS_CURRIDS):].rsplit(".", 1)[0])
-        return schemes
-
-    def _addIDForScheme(sec, scheme, newID):
-        # type: (CurrencyType, str, str) -> None
-        """replicates MD2026(5500) com.infinitekind.moneydance.model.CurrencyType#addIDForScheme"""
-        idsForScheme = _getIDsForScheme(sec, scheme)
-        if newID not in idsForScheme:
-            idsForScheme.append(newID)
-            sec.setParameter(GlobalVars.Strings.PARAM_SEC_SCHEMEIDS_CURRIDS + scheme.strip(), idsForScheme)
-
-    def OFX_view_security_identifier_settings():
-        # note: MD2026 onwards there are new API functions which manage multiple IDs per scheme per security
-        # whereas previous versions only allowed/stored a singular ID per scheme.
-
-        if MD_REF.getCurrentAccountBook() is None: return
-
-        _THIS_METHOD_NAME = "OFX: View Security's hidden Security Identifier settings"
-
-        PARAM_CURRID  = GlobalVars.Strings.PARAM_SEC_SCHEMEID_CURRID
-        PARAM_CURRIDS = GlobalVars.Strings.PARAM_SEC_SCHEMEIDS_CURRIDS  # MD2026+
-
-        isUpgraded = isSecuritySchemesUpgradedBuild()
-
-        output = "%s:\n" \
-                 "%s\n\n" % (_THIS_METHOD_NAME, " " * len(_THIS_METHOD_NAME))
-
-        output += "The hidden link between your Financial Institution's Investment Securities and your MD Securities when downloading\n" \
-                  "is stored as hidden data against your security using an 'Identifier Scheme' (e.g. CUSIP, ISIN, SEDOL).\n" \
-                  "Identifiers can be stored in pre-MD2026 format (single ID per scheme) or MD2026+ format (multiple IDs per scheme).\n" \
-                  "Refer: 'MENU: Currency & Security tools' > 'DIAG - Produce a quick report of potentially duplicate securities'.\n\n"
-
-        if not isUpgraded: output += "NOTE: This MD build does not support MD2026+ (1:many) identifier schemes (showing the MD2026+ data anyway).\n\n"
-
-        output += " SECURITIES - IDENTIFIER SETTINGS\n" \
-                  " ==================================\n\n"
-
-        W_SEC = 40; W_ID = 15; W_TICKER = 15; W_SCHEME = 20; W_OLD = 30; W_NEW = 30; W_STATUS = 15
-        SEP_SECURITY = "-" * 3
-
-        col_header = "%s %s %s %s %s %s %s\n" % (
-            pad("Security",      W_SEC),
-            pad("ID",            W_ID),
-            pad("Ticker",        W_TICKER),
-            pad("Scheme",        W_SCHEME),
-            pad("PRE-MD2026",    W_OLD),
-            pad("MD2026+",       W_NEW),
-            pad("Status",        W_STATUS))
-
-        col_divider = "%s %s %s %s %s %s %s\n\n" % ("-" * W_SEC, "-" * W_ID, "-" * W_TICKER, "-" * W_SCHEME, "-" * W_OLD, "-" * W_NEW, "-" * W_STATUS)
-        output += col_header + col_divider
-
-        securities = sorted(MD_REF.getCurrentAccountBook().getCurrencies().getAllCurrencies(), key=lambda x: (x.getCurrencyType(), x.getName().upper()))
-
-        iCountRows = 0
-        firstSec = True
-
-        for sec in securities:
-            if sec.getCurrencyType() != CurrencyType.Type.SECURITY: continue                                            # noqa
-
-            # collect schemes separately per prefix
-            legacy_schemes = _getLegacySchemesForSecurity(sec)
-            new_schemes    = _getSchemesForSecurity(sec)
-
-            schemes = legacy_schemes | new_schemes
-            if not schemes: continue
-
-            if not firstSec: output += "%s\n" % SEP_SECURITY
-            firstSec = False
-
-            secName   = sec.getName()
-            secIDStr  = sec.getIDString()
-            secTicker = sec.getTickerSymbol()
-            firstRow  = True
-
-            for scheme in sorted(schemes):
-                legacyID = _getLegacyIDForScheme(sec, scheme) if scheme in legacy_schemes else None  # call our own function which replicates versions prior to MD2026
-                newIDs   = list(_getIDsForScheme(sec, scheme)) if scheme in new_schemes else []
-
-                rows = []
-                remainingNew = list(newIDs)
-
-                if legacyID and newIDs:
-                    if legacyID in newIDs:
-                        rows.append((legacyID, legacyID, "MATCH"))
-                        remainingNew.remove(legacyID)
-                    else:
-                        rows.append((legacyID, "", "PRE-MD2026 ONLY"))
-                    for nid in remainingNew: rows.append(("", nid, "MD2026+ ONLY"))
-                elif legacyID:
-                    rows.append((legacyID, "", "PRE-MD2026 ONLY"))
-                else:
-                    for nid in newIDs: rows.append(("", nid, "MD2026+ ONLY"))
-
-                firstSchemeRow = True
-
-                for (preCol, newCol, status) in rows:
-                    if firstSchemeRow and firstRow:
-                        output += "%s %s %s %s %s %s %s\n" % (
-                            padTruncateWithDots(secName,   W_SEC),
-                            padTruncateWithDots(secIDStr,  W_ID),
-                            padTruncateWithDots(secTicker, W_TICKER),
-                            padTruncateWithDots(scheme,    W_SCHEME),
-                            padTruncateWithDots(preCol,    W_OLD),
-                            padTruncateWithDots(newCol,    W_NEW),
-                            padTruncateWithDots(status,    W_STATUS))
-                        firstRow = False
-                        firstSchemeRow = False
-                    elif firstSchemeRow:
-                        output += "%s %s %s %s %s %s %s\n" % (
-                            padTruncateWithDots("",        W_SEC),
-                            padTruncateWithDots("",        W_ID),
-                            padTruncateWithDots("",        W_TICKER),
-                            padTruncateWithDots(scheme,    W_SCHEME),
-                            padTruncateWithDots(preCol,    W_OLD),
-                            padTruncateWithDots(newCol,    W_NEW),
-                            padTruncateWithDots(status,    W_STATUS))
-                        firstSchemeRow = False
-                    else:
-                        output += "%s %s %s %s %s %s %s\n" % (
-                            padTruncateWithDots("", W_SEC),
-                            padTruncateWithDots("", W_ID),
-                            padTruncateWithDots("", W_TICKER),
-                            padTruncateWithDots("", W_SCHEME),
-                            padTruncateWithDots(preCol,  W_OLD),
-                            padTruncateWithDots(newCol,  W_NEW),
-                            padTruncateWithDots(status,  W_STATUS))
-                    iCountRows += 1
-
-        output += "\n"
-        if not iCountRows:
-            output += "NONE FOUND!\n"
-        else:
-            output += "%s identifier row(s) found across all securities\n" % iCountRows
-            output += output_old_new_scheme_id_info(securities, False)
-
-        output += "\n<END>"
-
-        QuickJFrame(_THIS_METHOD_NAME.upper(), output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
-        txt = "OFX: Your Security's hidden Security Identifier settings have been retrieved and displayed...."
         setDisplayStatus(txt, "B")
 
     def OFX_view_online_txns_payees_payments():
@@ -23807,24 +23654,6 @@ after saving the file, restart Moneydance
 
             except: pass
 
-    def output_old_new_scheme_id_info(securities, lOutputGuide=True):
-        # count scheme records across all involved securities for the note
-        _iPreMD2026Count = 0
-        _iMD2026Count = 0
-        _output = ""
-        for _noteSec in securities:
-            for _scheme in _getLegacySchemesForSecurity(_noteSec):
-                if _getLegacyIDForScheme(_noteSec, _scheme): _iPreMD2026Count += 1
-            for _scheme in _getSchemesForSecurity(_noteSec):
-                _iMD2026Count += len(_getIDsForScheme(_noteSec, _scheme))
-
-        if _iPreMD2026Count > 0 or _iMD2026Count > 0:
-            _output += "\n\nNOTE: Hidden Security Identifier data detected.\n"
-            if _iPreMD2026Count > 0: _output += "      Pre-MD2026 format: %s scheme/ID record(s) found\n" %(_iPreMD2026Count)
-            if _iMD2026Count > 0: _output += "      MD2026+ format:    %s scheme/ID record(s) found\n" %(_iMD2026Count)
-            if lOutputGuide: _output += "      Use 'OFX: View Security Identifier Settings' for more details.\n\n"
-        return _output
-
     def detect_duplicate_securities():
 
         try:
@@ -23877,19 +23706,11 @@ after saving the file, restart Moneydance
 
                 for sec in sorted(securitiesInvolved, key=lambda _x: (_x.getName().lower())):
                     hiddenSchemes = []
-                    _seenSchemeIDs = set()
-                    for _scheme in _getLegacySchemesForSecurity(sec):
-                        _theID = _getLegacyIDForScheme(sec, _scheme)
-                        if _theID and (_scheme, _theID) not in _seenSchemeIDs:
-                            _seenSchemeIDs.add((_scheme, _theID))
-                            hiddenSchemes.append("%s:%s" %(_scheme, _theID))
-                    for _scheme in _getSchemesForSecurity(sec):
+                    for _scheme in sorted(_getLegacySchemesForSecurity(sec) | _getSchemesForSecurity(sec)):
                         for _theID in _getIDsForScheme(sec, _scheme):
-                            if (_scheme, _theID) not in _seenSchemeIDs:
-                                _seenSchemeIDs.add((_scheme, _theID))
-                                hiddenSchemes.append("%s:%s" %(_scheme, _theID))
+                            hiddenSchemes.append("%s:%s" %(_scheme, _theID))
 
-                    output += ("%s(Ticker: %s, ID: %s, dpc: %s, splits: %s, rate: %s, hidden schemes: %s, uuid: %s)\n"
+                    output += ("%s(Ticker: %s, ID: %s, dpc: %s, splits: %s, rate: %s, hidden Identifiers (Scheme:ID): %s, uuid: %s)\n"
                               %(sec.getName(), sec.getTickerSymbol(), sec.getIDString(), sec.getDecimalPlaces(), sec.getSplits().size(), safeInvertRate(sec.getRelativeRate()), hiddenSchemes, sec.getUUID()))
 
                 output += output_old_new_scheme_id_info(securitiesInvolved)
@@ -23995,7 +23816,7 @@ after saving the file, restart Moneydance
                     GlobalVars.TOOLBOX_UNLOCK = False
                     self.theFrame.setTitle(self.saveTitle)
                 else:
-                    v = int(float(MD_REF.getVersion())); b = int(float(MD_REF.getBuild())); c = v+b
+                    v = int(float(StringUtils.stripNonNumbers(MD_REF.getVersion(), '.'))); b = int(float(MD_REF.getBuild())); c = v+b
                     response = myPopupAskForInput(self.theFrame,"@@ UNLOCK TOOLBOX @@", "PASSWORD:", "Enter the password to unlock powerful features",
                                           defaultValue=None,isPassword=True,theMessageType=JOptionPane.ERROR_MESSAGE)
                     lCorrect = False
@@ -24248,8 +24069,8 @@ after saving the file, restart Moneydance
                     user_viewListALLMDServices = MenuJRadioButton("View list of MD's Bank dynamic OFX/DC setup profiles (then select one)", False)
                     user_viewListALLMDServices.setToolTipText("This will display Moneydance's dynamic setup profiles for all banks - pulled from Infinite Kind's website..")
 
-                    user_view_security_identifier_settings = MenuJRadioButton("View your Security's hidden 'Identifiers' / schemes (e.g. CUSIP, ISIN, SEDOL etc) (the internal link for downloaded securities....)", False)
-                    user_view_security_identifier_settings.setToolTipText("This will show your Security's hidden identifiers (e.g. CUSIP, ISIN, SEDOL etc). These link your downloads on Investment Securities to MD Securities")
+                    user_view_security_identifier_settings = MenuJRadioButton("View your Security's hidden 'Identifiers' (e.g. CUSIP, ISIN, SEDOL, TICKER) - the internal link for downloaded Investment Securities", False)
+                    user_view_security_identifier_settings.setToolTipText("Shows your Security's hidden Identifier Schemes and IDs (e.g. CUSIP, ISIN, SEDOL, TICKER). These link downloaded Investment Securities to your MD Securities")
 
                     user_viewOnlineTxnsPayeesPayments = MenuJRadioButton("View your Online Txns/Payees/Payments", False)
                     user_viewOnlineTxnsPayeesPayments.setToolTipText("This will show you your cached Online Txns (there should be none) and also your saved online payees and payments")
@@ -24263,11 +24084,11 @@ after saving the file, restart Moneydance
                     user_forgetOFXBankingLink = MenuJRadioButton("Forget OFX Banking File Import Link (remove_ofx_account_bindings.py) (MD versions < MD2022)", False, updateMenu=True, secondaryEnabled=(not isMDPlusEnabledBuild() or isToolboxUnlocked()))
                     user_forgetOFXBankingLink.setToolTipText("Force MD to forget OFX Banking Import link attributed to an Account. Moneydance will ask you to recreate the link on next import.. THIS CHANGES DATA! (remove_ofx_account_bindings.py)")
                     
-                    user_migrate_security_identifier_data = MenuJRadioButton("Migrate/Merge all Security hidden 'Identifiers' / schemes (e.g. CUSIP, ISIN, SEDOL etc) into MD2026+ data store", False, updateMenu=True, secondaryEnabled=(isSecuritySchemesUpgradedBuild()))
-                    user_migrate_security_identifier_data.setToolTipText("Migrates/Merges all pre-MD2026 hidden 'Identifiers' / schemes into the MD2026+ data store. Nothing is lost. THIS CHANGES DATA!")
+                    user_merge_security_identifier_data = MenuJRadioButton("Merge/Sync Security hidden Identifier data stores (pre-MD2026 and MD2026+) - ensures both stores are consistent (e.g. CUSIP, ISIN, SEDOL, TICKER)", False, updateMenu=True)
+                    user_merge_security_identifier_data.setToolTipText("Merges Security hidden Identifier data (e.g. CUSIP, ISIN, SEDOL, TICKER) between pre-MD2026 and MD2026+ stores. Nothing is lost. NOTE: pre-MD2026 store holds only one ID per scheme. THIS CHANGES DATA!")
 
-                    user_manage_security_identifier_settings = MenuJRadioButton("Manage your Security's hidden 'Identifiers' / schemes (e.g. CUSIP, ISIN, SEDOL etc). (remove_ofx_security_bindings.py and change-security-cusip.py)", False, updateMenu=True)
-                    user_manage_security_identifier_settings.setToolTipText("Allows you to manage (reset/add/edit/move) your Security's hidden 'Identifiers' / schemes (e.g. CUSIP, ISIN, SEDOL etc). These link your downloads on Investment Securities to MD Securities. THIS CHANGES DATA!")
+                    user_manage_security_identifier_settings = MenuJRadioButton("Manage your Security's hidden Identifiers (e.g. CUSIP, ISIN, SEDOL, TICKER) - add, edit, reset, move; and even nuke options. (remove_ofx_security_bindings.py and change-security-cusip.py)", False, updateMenu=True)
+                    user_manage_security_identifier_settings.setToolTipText("Add, edit, reset, move or nuke your Security's hidden Identifiers (e.g. CUSIP, ISIN, SEDOL, TICKER). These link downloaded Investment Securities to your MD Securities. THIS CHANGES DATA!")
 
                     user_updateOFXLastTxnUpdate = MenuJRadioButton("Update OFX Last Txn Update Date (Downloaded) field for an account (MD versions >= 2022 use Online menu)", False, updateMenu=True)
                     user_updateOFXLastTxnUpdate.setToolTipText("Allows you to edit the last download txn date which is used to set the start date for txn downloads - THIS CHANGES DATA!")
@@ -24345,7 +24166,7 @@ after saving the file, restart Moneydance
                             userFilters.add(ToolboxMode.getMenuLabel())
 
                         userFilters.add(user_forgetOFXBankingLink)
-                        userFilters.add(user_migrate_security_identifier_data)
+                        userFilters.add(user_merge_security_identifier_data)
                         userFilters.add(user_manage_security_identifier_settings)
                         userFilters.add(user_updateOFXLastTxnUpdate)
                         userFilters.add(user_reset_OFXLastTxnUpdate_dates)
@@ -24395,7 +24216,7 @@ after saving the file, restart Moneydance
                         if user_forgetOFXBankingLink.isSelected():                      forgetOFXImportLink()
                         if user_deleteOFXBankingLogonProfile.isSelected():              deleteOFXService()
                         if user_cleanupMissingOnlineBankingLinks.isSelected():          cleanupMissingOnlineBankingLinks(lAutoPurge=False)
-                        if user_migrate_security_identifier_data.isSelected():          migrate_scheme_data()
+                        if user_merge_security_identifier_data.isSelected():            merge_security_identifier_stores()
                         if user_manage_security_identifier_settings.isSelected():       manage_security_identifiers()
                         if user_UNLOCKMDPlusDiagnostic.isSelected():                    UNLOCKMDPlusDiagnostic()
                         if user_authenticationManagement.isSelected():                  OFX_authentication_management()
