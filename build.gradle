@@ -684,7 +684,7 @@ def registerPythonPrecompile = { String feature, String pythonBase ->
     inputs.file("${pythonBase}/${feature}.py")
     inputs.file("${pythonBase}/${feature}.pyc")
     outputs.file(file("${pythonBase}/${feature}\$py.class"))
-    outputs.upToDateWhen { false }    // always repackage the whole extension - too difficult to use gradle's incremtal system
+    outputs.upToDateWhen { false }    // always repackage the whole extension - too difficult to use gradle's incremental system
 
     classpath = files(mdPythonJar)
     mainClass.set("org.python.util.jython")
