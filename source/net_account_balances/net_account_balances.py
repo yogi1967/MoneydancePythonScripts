@@ -4,7 +4,7 @@
 from __future__ import division    # Has to occur at the beginning of file... Changes division to always produce a float
 assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes that division of integers yields a float! Do you have this statement: 'from __future__ import division'?"
 
-# net_account_balances.py build: 2000 - February 2026 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 2000 - May 2026 - Stuart Beesley - StuWareSoftSystems
 # Display Name in MD changed to 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
 
 # Thanks and credit to Dan T Davis and Derek Kent(23) for their suggestions and extensive testing...
@@ -103,7 +103,7 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 # build: 2000 - ???
 # build: 2000 - Upgraded CostCalculation to v10 to match MD2026(5500)
 # build: 2000 - BUGFIX for gatherRemainingRealBalances() - now when getting capital gains, we detect and pass the row currency and set setSpecialCurrencyType()
-# build: 2000 - misc AI fixes...
+# build: 2000 - misc AI recommended fixes...; added menu option 'Click Opens Register'
 # build: 2000 - ???
 
 # todo - tweak getConvertXBalanceRecursive() and getXBalance() to also exclude inactives from recursive balances (like apply networth rules)
@@ -575,6 +575,7 @@ else:
     GlobalVars.extn_param_NEW_disableWarningIcon_NAB         = None
     GlobalVars.extn_param_NEW_disableGrayTextInfo_NAB        = None
     GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB    = None
+    GlobalVars.extn_param_NEW_clickOpensRegister_NAB         = None
     GlobalVars.extn_param_NEW_useIndianNumberFormat_NAB      = None
     GlobalVars.extn_param_NEW_useTaxDates_NAB                = None
     GlobalVars.extn_param_NEW_displayVisualUnderDots_NAB     = None
@@ -7765,6 +7766,7 @@ Visit: %s (Author's site)
             self.savedDisableWarningIcon            = None
             self.savedDisableGrayTextInfo           = None
             self.savedTreatSecZeroBalInactive       = None
+            self.savedClickOpensRegister            = None
             self.savedUseIndianNumberFormat         = None
             self.savedUseTaxDates                   = None
             self.savedDisplayVisualUnderDots        = None
@@ -7782,6 +7784,7 @@ Visit: %s (Author's site)
             self.menuItemDisableWidgetTitle = None
             self.menuItemShowDashesInsteadOfZeros = None
             self.menuItemTreatSecZeroBalInactive = None
+            self.menuClickOpensRegister = None
             self.menuItemDisableWarningIcon = None
             self.menuItemDisableGrayTextInfo = None
             self.menuItemUseIndianNumberFormat = None
@@ -8457,6 +8460,7 @@ Visit: %s (Author's site)
             GlobalVars.extn_param_NEW_disableWarningIcon_NAB         = copy.deepcopy(NAB.savedDisableWarningIcon)
             GlobalVars.extn_param_NEW_disableGrayTextInfo_NAB        = copy.deepcopy(NAB.savedDisableGrayTextInfo)
             GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB    = copy.deepcopy(NAB.savedTreatSecZeroBalInactive)
+            GlobalVars.extn_param_NEW_clickOpensRegister_NAB         = copy.deepcopy(NAB.savedClickOpensRegister)
             GlobalVars.extn_param_NEW_useIndianNumberFormat_NAB      = copy.deepcopy(NAB.savedUseIndianNumberFormat)
             GlobalVars.extn_param_NEW_useTaxDates_NAB                = copy.deepcopy(NAB.savedUseTaxDates)
             GlobalVars.extn_param_NEW_displayVisualUnderDots_NAB     = copy.deepcopy(NAB.savedDisplayVisualUnderDots)
@@ -9153,6 +9157,7 @@ Visit: %s (Author's site)
         def disableWarningIconDefault(self):            return False
         def disableGrayTextInfoDefault(self):           return False
         def treatSecZeroBalInactiveDefault(self):       return False
+        def clickOpensRegisterDefault(self):            return False
         def useIndianNumberFormatDefault(self):         return False
         def useTaxDatesDefault(self):                   return False
         def hideDecimalsDefault(self):                  return False
@@ -9350,6 +9355,8 @@ Visit: %s (Author's site)
                 self.resetParameters(47)
             elif self.savedTreatSecZeroBalInactive is None or not isinstance(self.savedTreatSecZeroBalInactive, bool):
                 self.resetParameters(49)
+            elif self.savedClickOpensRegister is None or not isinstance(self.savedClickOpensRegister, bool):
+                self.resetParameters(50)
             elif self.savedUseIndianNumberFormat is None or not isinstance(self.savedUseIndianNumberFormat, bool):
                 self.resetParameters(51)
             elif self.savedUseTaxDates is None or not isinstance(self.savedUseTaxDates, bool):
@@ -10339,6 +10346,7 @@ Visit: %s (Author's site)
                 self.savedDisableWarningIcon            = self.disableWarningIconDefault()
                 self.savedDisableGrayTextInfo           = self.disableGrayTextInfoDefault()
                 self.savedTreatSecZeroBalInactive       = self.treatSecZeroBalInactiveDefault()
+                self.savedClickOpensRegister            = self.clickOpensRegisterDefault()
                 self.savedUseIndianNumberFormat         = self.useIndianNumberFormatDefault()
                 self.savedUseTaxDates                   = self.useTaxDatesDefault()
                 self.savedDisplayVisualUnderDots        = self.displayVisualUnderDotsDefault()
@@ -11050,6 +11058,7 @@ Visit: %s (Author's site)
                 myPrint("B", ".....savedDisableWidgetTitle: %s"                 %(NAB.savedDisableWidgetTitle))
                 myPrint("B", ".....savedShowDashesInsteadOfZeros: %s"           %(NAB.savedShowDashesInsteadOfZeros))
                 myPrint("B", ".....savedTreatSecZeroBalInactive: %s"            %(NAB.savedTreatSecZeroBalInactive))
+                myPrint("B", ".....savedClickOpensRegister: %s"                 %(NAB.savedClickOpensRegister))
                 myPrint("B", ".....savedDisableWarningIcon: %s"                 %(NAB.savedDisableWarningIcon))
                 myPrint("B", ".....savedDisableGrayTextInfo: %s"                %(NAB.savedDisableGrayTextInfo))
                 myPrint("B", ".....savedUseIndianNumberFormat: %s"              %(NAB.savedUseIndianNumberFormat))
@@ -11434,6 +11443,7 @@ Visit: %s (Author's site)
             myPrint("B", " %s" %(pad("savedDisableWidgetTitle",30)),            NAB.savedDisableWidgetTitle)
             myPrint("B", " %s" %(pad("savedShowDashesInsteadOfZeros",30)),      NAB.savedShowDashesInsteadOfZeros)
             myPrint("B", " %s" %(pad("savedTreatSecZeroBalInactive",30)),       NAB.savedTreatSecZeroBalInactive)
+            myPrint("B", " %s" %(pad("savedClickOpensRegister",30)),            NAB.savedClickOpensRegister)
             myPrint("B", " %s" %(pad("savedDisableWarningIcon",30)),            NAB.savedDisableWarningIcon)
             myPrint("B", " %s" %(pad("savedDisableGrayTextInfo",30)),           NAB.savedDisableGrayTextInfo)
             myPrint("B", " %s" %(pad("savedUseIndianNumberFormat",30)),         NAB.savedUseIndianNumberFormat)
@@ -12807,6 +12817,13 @@ Visit: %s (Author's site)
                     myPrint("B", "User has changed 'Treat Securities With Zero Balance as Inactive' to: %s" %(NAB.savedTreatSecZeroBalInactive))
 
                 # ######################################################################################################
+                if event.getActionCommand() == "click_opens_register":
+                    NAB.savedClickOpensRegister = not NAB.savedClickOpensRegister
+                    NAB.configSaved = False
+                    NAB.searchFiltersUpdated()
+                    myPrint("B", "User has changed 'Click Opens Register' to: %s" %(NAB.savedClickOpensRegister))
+
+                # ######################################################################################################
                 if event.getActionCommand() == "hide_controls":
                     NAB.savedHideControlPanel = not NAB.savedHideControlPanel
                     NAB.menuBarItemHideControlPanel_CB.setSelected(NAB.savedHideControlPanel)
@@ -13219,6 +13236,7 @@ Visit: %s (Author's site)
                 GlobalVars.extn_param_NEW_disableWarningIcon_NAB            = NAB.disableWarningIconDefault()
                 GlobalVars.extn_param_NEW_disableGrayTextInfo_NAB           = NAB.disableGrayTextInfoDefault()
                 GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB       = NAB.treatSecZeroBalInactiveDefault()
+                GlobalVars.extn_param_NEW_clickOpensRegister_NAB            = NAB.clickOpensRegisterDefault()
                 GlobalVars.extn_param_NEW_useIndianNumberFormat_NAB         = NAB.useIndianNumberFormatDefault()
                 GlobalVars.extn_param_NEW_useTaxDates_NAB                   = NAB.useTaxDatesDefault()
                 GlobalVars.extn_param_NEW_displayVisualUnderDots_NAB        = NAB.displayVisualUnderDotsDefault()
@@ -13288,6 +13306,7 @@ Visit: %s (Author's site)
                         self.savedDisableWarningIcon            = copy.deepcopy(GlobalVars.extn_param_NEW_disableWarningIcon_NAB)
                         self.savedDisableGrayTextInfo           = copy.deepcopy(GlobalVars.extn_param_NEW_disableGrayTextInfo_NAB)
                         self.savedTreatSecZeroBalInactive       = copy.deepcopy(GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB)
+                        self.savedClickOpensRegister            = copy.deepcopy(GlobalVars.extn_param_NEW_clickOpensRegister_NAB)
                         self.savedUseIndianNumberFormat         = copy.deepcopy(GlobalVars.extn_param_NEW_useIndianNumberFormat_NAB)
                         self.savedUseTaxDates                   = copy.deepcopy(GlobalVars.extn_param_NEW_useTaxDates_NAB)
                         self.savedDisplayVisualUnderDots        = copy.deepcopy(GlobalVars.extn_param_NEW_displayVisualUnderDots_NAB)
@@ -13484,6 +13503,12 @@ Visit: %s (Author's site)
             NAB.menuItemTreatSecZeroBalInactive.setToolTipText("When enabled will treat securities with a zero balance as 'Inactive'")
             menuO.add(NAB.menuItemTreatSecZeroBalInactive)
 
+            NAB.menuClickOpensRegister = MyJCheckBoxMenuItem("Click Opens Register")
+            NAB.menuClickOpensRegister.setActionCommand("click_opens_register")
+            NAB.menuClickOpensRegister.addActionListener(NAB.saveActionListener)
+            NAB.menuClickOpensRegister.setToolTipText("When enabled, clicking a row with a single account will open that account's register (otherwise opens config screen)")
+            menuO.add(NAB.menuClickOpensRegister)
+
             NAB.menuItemUseIndianNumberFormat = MyJCheckBoxMenuItem("Use Indian number format")
             NAB.menuItemUseIndianNumberFormat.setActionCommand("use_indian_number_format")
             NAB.menuItemUseIndianNumberFormat.setMnemonic(KeyEvent.VK_N)
@@ -13607,6 +13632,7 @@ Visit: %s (Author's site)
             NAB.menuItemDisableWidgetTitle.setSelected(NAB.savedDisableWidgetTitle)
             NAB.menuItemShowDashesInsteadOfZeros.setSelected(NAB.savedShowDashesInsteadOfZeros)
             NAB.menuItemTreatSecZeroBalInactive.setSelected(NAB.savedTreatSecZeroBalInactive)
+            NAB.menuClickOpensRegister.setSelected(NAB.savedClickOpensRegister)
             NAB.menuItemDisableWarningIcon.setSelected(NAB.savedDisableWarningIcon)
             NAB.menuItemDisableGrayTextInfo.setSelected(NAB.savedDisableGrayTextInfo)
             NAB.menuItemUseIndianNumberFormat.setSelected(NAB.savedUseIndianNumberFormat)
@@ -15600,6 +15626,16 @@ Visit: %s (Author's site)
 
                 myPrint("B", "... end of routines after receiving  '%s' command...." %(AppEventManager.FILE_OPENED))
 
+            elif (appEvent.lower().startswith(("%s:customevent:showAccount" %(self.myModuleID)).lower())):
+                myPrint("DB", "... Click Opens Account requested - attempting to locate and open account for specified uuid: %s" %(appEvent))
+                requestedAcctUUID = decodeCommand(appEvent)[1]
+                clickAcct = NAB.moneydanceContext.getCurrentAccountBook().getAccountByUUID(requestedAcctUUID)
+                if clickAcct is None:
+                    myPrint("DB", ".. failed to find account for uuid: '%s' - doing nothing!" %(requestedAcctUUID))
+                else:
+                    myPrint("DB", ".. calling .showAccount() for account: '%s'" %(clickAcct.getFullAccountName()))
+                    genericSwingEDTRunner(False, False, NAB.moneydanceContext.getUI().showAccount, clickAcct)
+
             elif (appEvent.lower().startswith(("%s:customevent:showConfig" %(self.myModuleID)).lower())):
                 myPrint("DB", "%s Config screen requested - I might show it if conditions are appropriate" %(appEvent))
 
@@ -17409,7 +17445,13 @@ Visit: %s (Author's site)
 
                                     tdfsc = TextDisplayForSwingConfig(("[%s] " %(i+1) if debug else "") + NAB.savedWidgetName[i], _grayInfoText, altFG, insertVars=insertVars)
 
-                                    nameLabel = SpecialJLinkLabel(tdfsc.getSwingComponentText(), "showConfig?%s" %(str(onRow)), tdfsc.getJustification())
+                                    # determine whether clicking on a row opens config or that row's single account register (configured by menu option)
+                                    clickAcctUUID = (NAB.savedAccountListUUIDs[i][0]
+                                                     if (NAB.savedClickOpensRegister and balanceObj.getCountSelectedAccounts() == 1 and len(NAB.savedAccountListUUIDs[i]) == 1)
+                                                     else None)
+                                    clickLink = "showAccount?%s" %(clickAcctUUID) if clickAcctUUID is not None else "showConfig?%s" %(str(onRow))
+
+                                    nameLabel = SpecialJLinkLabel(tdfsc.getSwingComponentText(), clickLink, tdfsc.getJustification())
                                     nameLabel.setAllowDynamicSizing(True)
                                     nameLabel.setUnderlineDots(NAB.savedDisplayVisualUnderDots)
                                     if tdfsc.isNoUnderlineDots(): nameLabel.setUnderlineDots(False)
@@ -17420,8 +17462,7 @@ Visit: %s (Author's site)
                                     # NOTE: Leave "  " (two spaces) to avoid the row height collapsing.....
                                     if balanceOrAverageLong is None:
                                         netTotalLbl = SpecialJLinkLabel(" " if (tdfsc.getBlankZero()) else GlobalVars.DEFAULT_WIDGET_ROW_NOT_CONFIGURED.lower(),
-                                                                        "showConfig?%s" %(str(onRow)),
-                                                                        JLabel.RIGHT)
+                                                                        clickLink, JLabel.RIGHT)
                                         netTotalLbl.setUnderlineDots(NAB.savedDisplayVisualUnderDots)
                                         if tdfsc.isNoUnderlineDots(): netTotalLbl.setUnderlineDots(False)
                                         if tdfsc.isForceUnderlineDots(): netTotalLbl.setUnderlineDots(True)
@@ -17429,8 +17470,7 @@ Visit: %s (Author's site)
 
                                     elif balanceObj.isUORError():
                                         netTotalLbl = SpecialJLinkLabel(CalculatedBalance.DEFAULT_WIDGET_ROW_UOR_ERROR.lower(),
-                                                                        "showConfig?%s" %(str(onRow)),
-                                                                        JLabel.RIGHT)
+                                                                        clickLink, JLabel.RIGHT)
                                         netTotalLbl.setUnderlineDots(NAB.savedDisplayVisualUnderDots)
                                         if tdfsc.isNoUnderlineDots(): netTotalLbl.setUnderlineDots(False)
                                         if tdfsc.isForceUnderlineDots(): netTotalLbl.setUnderlineDots(True)
@@ -17439,8 +17479,7 @@ Visit: %s (Author's site)
 
                                     elif balanceObj.isFormulaError():
                                         netTotalLbl = SpecialJLinkLabel(CalculatedBalance.DEFAULT_WIDGET_ROW_FORMULA_ERROR.lower(),
-                                                                        "showConfig?%s" %(str(onRow)),
-                                                                        JLabel.RIGHT)
+                                                                        clickLink, JLabel.RIGHT)
                                         netTotalLbl.setUnderlineDots(NAB.savedDisplayVisualUnderDots)
                                         if tdfsc.isNoUnderlineDots(): netTotalLbl.setUnderlineDots(False)
                                         if tdfsc.isForceUnderlineDots(): netTotalLbl.setUnderlineDots(True)
@@ -17663,6 +17702,11 @@ Visit: %s (Author's site)
                 HPV = MyHomePageView.getHPV()
 
                 if isinstance(link, basestring):
+
+                    if (link.lower().startswith("showAccount".lower())):
+                        myPrint("DB", ".. calling .showURL() to trigger a call to show account: %s" %(link))
+                        NAB.moneydanceContext.showURL("moneydance:fmodule:%s:%s:customevent:%s" %(HPV.myModuleID,HPV.myModuleID, link))
+
                     if (link.lower().startswith("showConfig".lower())):
                         myPrint("DB", ".. calling .showURL() to call up %s panel" %(link))
                         NAB.moneydanceContext.showURL("moneydance:fmodule:%s:%s:customevent:%s" %(HPV.myModuleID,HPV.myModuleID, link))

@@ -520,6 +520,8 @@ OPTIONS MENU:
   - You can change the default setting AutoSum for new rows that you insert/create. It does not affect existing rows
   - You can disable the Widget's Display Name Title. This prevents the title appearing on the Summary Page widget
   - Show Dashes instead of Zeros: Changes the display so that you get '-' instead of '£ 0.0'
+  - Click Opens Register: Clicking a widget's row normally opens the config screen. When enabled, then clicking on a row
+                          with only one account will open that account's register instead (default not enabled)
   - Treat Securities with Zero Balance as Inactive: If a Security holds zero units, it will be treated as Inactive
   - Use Indian numbering format: On numbers greater than 10,000 group in powers of 100 (e.g. 10,00,000 not 1,000,000)
   - Use Tax Dates: When selected then all calculations based on Income/Expense categories will use the Tax Date.
