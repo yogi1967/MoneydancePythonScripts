@@ -1,4 +1,4 @@
-Author: Stuart Beesley - StuWareSoftSystems (created March 2021 - last updated: February 2026)
+Author: Stuart Beesley - StuWareSoftSystems (created March 2021 - last updated: May 2026)
 Credit: (slack: @dtd) aka Dan T Davis for his input, testing, patience and suggestions to make a (much) better product..
 
 Custom Balances (version 2000 onwards) works with Moneydance 2024(5100) onwards.
@@ -650,28 +650,38 @@ NOTE: Click the little "<" icon to the right of the row name field to view/inser
 - ROW NAME Configuration Options:
   - You can embed the following text (lowercase) in the Row Name field to configure the row / total (value) as follows:
     <#brn>      = Forces row name to be blank/empty
-    <#jr>       = Row name justify: right
-    <#jc>       = Row name justify: center
-    <#cre>      = Row name colour:  red
-    <#cbl>      = Row name colour:  blue
-    <#cgr>      = Row name colour:  light grey
-    <#fbo>      = Row name font:    bold
-    <#fit>      = Row name font:    italics
-    <#fun>      = Row name font:    underline
-    <#f+>       = Row name font:    10% larger (to match other MD widget's total balance value size)
-    <#cvre>     = Value colour:     red
-    <#cvbl>     = Value colour:     blue
-    <#cvgr>     = Value colour:     light grey
-    <#cvde>     = Value colour:     default foreground
-    <#fvbo>     = Value font:       bold
-    <#fvit>     = Value font:       italics
-    <#fvun>     = Value font:       underline
-    <#fv+>      = Value font:       10% larger (to match other MD widget's total balance value size)
+    <#jr>       = Row name justify:      right
+    <#jc>       = Row name justify:      center
+    <#cre>      = Row name colour:       red
+    <#cbl>      = Row name colour:       blue
+    <#cgrn>     = Row name colour:       green
+    <#cgr>      = Row name colour:       light grey
+    <#fbo>      = Row name font:         bold
+    <#fit>      = Row name font:         italics
+    <#fun>      = Row name font:         underline
+    <#f+>       = Row name font:         10% larger (to match other MD widget's total balance value size)
+    <#cvre>     = Value colour:          red
+    <#cvbl>     = Value colour:          blue
+    <#cvgrn>    = Value colour:          green
+    <#cvgr>     = Value colour:          light grey
+    <#cvde>     = Value colour:          default foreground (normally black)
+    <#cv-re>    = Value colour negative: red"
+    <#cv-bl>    = Value colour negative: blue"
+    <#cv-gr>    = Value colour negative: green"
+    <#cv-de>    = Value colour negative: default foreground (normally black)"
+    <#cv+re>    = Value colour positive: red"
+    <#cv+bl>    = Value colour positive: blue"
+    <#cv+gr>    = Value colour positive: green"
+    <#cv+de>    = Value colour positive: default foreground (normally black)"
+    <#fvbo>     = Value font:            bold
+    <#fvit>     = Value font:            italics
+    <#fvun>     = Value font:            underline
+    <#fv+>      = Value font:            10% larger (to match other MD widget's total balance value size)
     <#nud>      = No special underline dots...
     <#fud>      = Force special underline dots...
     <#bzv>      = Forces any total (value) to appear blank when zero
-    <#cmd:xxx>  = Row name colour:  replace 'xxx' with an internal Moneydance colour name - e.g. 'defaultTextForeground'
-    <#cvmd:xxx> = Value colour:     replace 'xxx' with an internal Moneydance colour name - e.g. 'defaultTextForeground'
+    <#cmd:xxx>  = Row name colour: replace 'xxx' with an internal Moneydance colour name - e.g. 'defaultTextForeground'
+    <#cvmd:xxx> = Value colour:    replace 'xxx' with an internal Moneydance colour name - e.g. 'defaultTextForeground'
 
   - You can embed the following to insert variable text into the Row Name field:
     <##rn>    = insert the row number

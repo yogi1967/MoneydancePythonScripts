@@ -103,7 +103,7 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 # build: 2000 - ???
 # build: 2000 - Upgraded CostCalculation to v10 to match MD2026(5500)
 # build: 2000 - BUGFIX for gatherRemainingRealBalances() - now when getting capital gains, we detect and pass the row currency and set setSpecialCurrencyType()
-# build: 2000 - misc AI recommended fixes...; added menu option 'Click Opens Register'
+# build: 2000 - misc AI recommended fixes...; added menu option 'Click Opens Register'; added ability to specify pos/neg value colours via row formmating commands
 # build: 2000 - ???
 
 # todo - tweak getConvertXBalanceRecursive() and getXBalance() to also exclude inactives from recursive balances (like apply networth rules)
@@ -5030,6 +5030,7 @@ Visit: %s (Author's site)
         WIDGET_ROW_CENTERROWNAME        = "<#jc>";       WIDGET_ROW_CENTERROWNAME_DISPLAY        = "row name justify: center"
         WIDGET_ROW_REDROWNAME           = "<#cre>";      WIDGET_ROW_REDROWNAME_DISPLAY           = "row name colour: red"
         WIDGET_ROW_BLUEROWNAME          = "<#cbl>";      WIDGET_ROW_BLUEROWNAME_DISPLAY          = "row name colour: blue"
+        WIDGET_ROW_GREENROWNAME         = "<#cgrn>";     WIDGET_ROW_GREENROWNAME_DISPLAY         = "row name colour: green"
         WIDGET_ROW_LIGHTGREYROWNAME     = "<#cgr>";      WIDGET_ROW_LIGHTGREYROWNAME_DISPLAY     = "row name colour: light grey"
         WIDGET_ROW_MDCOLORROWNAME       = "<#cmd:xxx>";  WIDGET_ROW_MDCOLORROWNAME_DISPLAY       = "row name colour: Moneydance internal colour (refer help)"
         WIDGET_ROW_BOLDROWNAME          = "<#fbo>";      WIDGET_ROW_BOLDROWNAME_DISPLAY          = "row name font: bold"
@@ -5040,26 +5041,34 @@ Visit: %s (Author's site)
         WIDGET_ROW_BLANKZEROVALUE       = "<#bzv>";      WIDGET_ROW_BLANKZEROVALUE_DISPLAY       = "forces any total (value) to appear blank when zero"
         WIDGET_ROW_VALUE_RED            = "<#cvre>";     WIDGET_ROW_VALUE_RED_DISPLAY            = "value colour: red"
         WIDGET_ROW_VALUE_BLUE           = "<#cvbl>";     WIDGET_ROW_VALUE_BLUE_DISPLAY           = "value colour: blue"
+        WIDGET_ROW_VALUE_GREEN          = "<#cvgrn>";    WIDGET_ROW_VALUE_GREEN_DISPLAY          = "value colour: green"
         WIDGET_ROW_VALUE_LIGHTGREY      = "<#cvgr>";     WIDGET_ROW_VALUE_LIGHTGREY_DISPLAY      = "value colour: light grey"
-        WIDGET_ROW_VALUE_DEFAULT        = "<#cvde>";     WIDGET_ROW_VALUE_DEFAULT_DISPLAY        = "value colour: default foreground"
+        WIDGET_ROW_VALUE_DEFAULT        = "<#cvde>";     WIDGET_ROW_VALUE_DEFAULT_DISPLAY        = "value colour: default foreground (normally black)"
         WIDGET_ROW_VALUE_MDCOLOR        = "<#cvmd:xxx>"; WIDGET_ROW_VALUE_MDCOLOR_DISPLAY        = "value colour: Moneydance internal colour (refer help)"
+        WIDGET_ROW_VALUE_NEG_RED        = "<#cv-re>";    WIDGET_ROW_VALUE_NEG_RED_DISPLAY        = "value colour negative: red"
+        WIDGET_ROW_VALUE_NEG_BLUE       = "<#cv-bl>";    WIDGET_ROW_VALUE_NEG_BLUE_DISPLAY       = "value colour negative: blue"
+        WIDGET_ROW_VALUE_NEG_GREEN      = "<#cv-gr>";    WIDGET_ROW_VALUE_NEG_GREEN_DISPLAY      = "value colour negative: green"
+        WIDGET_ROW_VALUE_NEG_DEFAULT    = "<#cv-de>";    WIDGET_ROW_VALUE_NEG_DEFAULT_DISPLAY    = "value colour negative: default foreground (normally black)"
+        WIDGET_ROW_VALUE_POS_RED       = "<#cv+re>";     WIDGET_ROW_VALUE_POS_RED_DISPLAY        = "value colour positive: red"
+        WIDGET_ROW_VALUE_POS_BLUE       = "<#cv+bl>";    WIDGET_ROW_VALUE_POS_BLUE_DISPLAY       = "value colour positive: blue"
+        WIDGET_ROW_VALUE_POS_GREEN      = "<#cv+gr>";    WIDGET_ROW_VALUE_POS_GREEN_DISPLAY      = "value colour positive: green"
+        WIDGET_ROW_VALUE_POS_DEFAULT    = "<#cv+de>";    WIDGET_ROW_VALUE_POS_DEFAULT_DISPLAY    = "value colour positive: default foreground (normally black)"
         WIDGET_ROW_VALUE_BOLD           = "<#fvbo>";     WIDGET_ROW_VALUE_BOLD_DISPLAY           = "value font: bold"
         WIDGET_ROW_VALUE_ITALICS        = "<#fvit>";     WIDGET_ROW_VALUE_ITALICS_DISPLAY        = "value font: italics"
         WIDGET_ROW_VALUE_UNDERLINE      = "<#fvun>";     WIDGET_ROW_VALUE_UNDERLINE_DISPLAY      = "value font: underline"
         WIDGET_ROW_VALUE_PLUS           = "<#fv+>";      WIDGET_ROW_VALUE_PLUS_DISPLAY           = "value font: plus (larger size)"
         WIDGET_ROW_HTMLROWNAME          = "<#html>";     WIDGET_ROW_HTMLROWNAME_DISPLAY          = "EXPERIMENTAL. Takes your row name as html encoded text"
-
-        WIDGET_VAR_ROW_NUMBER           = "<##rn>";    WIDGET_VAR_ROW_NUMBER_DISPLAY           = "insert the row number"
-        WIDGET_VAR_ROW_TAG              = "<##rt>";    WIDGET_VAR_ROW_TAG_DISPLAY              = "insert the row tag (variable) name"
-        WIDGET_VAR_BAL_OPTION           = "<##bopt>";  WIDGET_VAR_BAL_OPTION_DISPLAY           = "insert the balance option selected"
-        WIDGET_VAR_BAL_ASOF_DATE        = "<##bad>";   WIDGET_VAR_BAL_ASOF_DATE_DISPLAY        = "insert the balance asof date"
-        WIDGET_VAR_BAL_ASOF_DATE_NAME   = "<##badn>";  WIDGET_VAR_BAL_ASOF_DATE_NAME_DISPLAY   = "insert the balance asof date name"
-        WIDGET_VAR_REM_ASOF_DATE        = "<##rad>";   WIDGET_VAR_REM_ASOF_DATE_DISPLAY        = "insert the include reminders asof date"
-        WIDGET_VAR_REM_ASOF_DATE_NAME   = "<##radn>";  WIDGET_VAR_REM_ASOF_DATE_NAME_DISPLAY   = "insert the include reminders asof date name"
-        WIDGET_VAR_CG_DATE_RANGE        = "<##cgdr>";  WIDGET_VAR_CG_DATE_RANGE_DISPLAY        = "insert the capital gains date range"
-        WIDGET_VAR_CG_DATE_RANGE_NAME   = "<##cgdrn>"; WIDGET_VAR_CG_DATE_RANGE_NAME_DISPLAY   = "insert the capital gains date range name"
-        WIDGET_VAR_IE_DATE_RANGE        = "<##iedr>";  WIDGET_VAR_IE_DATE_RANGE_DISPLAY        = "insert the income/expense date range"
-        WIDGET_VAR_IE_DATE_RANGE_NAME   = "<##iedrn>"; WIDGET_VAR_IE_DATE_RANGE_NAME_DISPLAY   = "insert the income/expense date range name"
+        WIDGET_VAR_ROW_NUMBER           = "<##rn>";      WIDGET_VAR_ROW_NUMBER_DISPLAY           = "insert the row number"
+        WIDGET_VAR_ROW_TAG              = "<##rt>";      WIDGET_VAR_ROW_TAG_DISPLAY              = "insert the row tag (variable) name"
+        WIDGET_VAR_BAL_OPTION           = "<##bopt>";    WIDGET_VAR_BAL_OPTION_DISPLAY           = "insert the balance option selected"
+        WIDGET_VAR_BAL_ASOF_DATE        = "<##bad>";     WIDGET_VAR_BAL_ASOF_DATE_DISPLAY        = "insert the balance asof date"
+        WIDGET_VAR_BAL_ASOF_DATE_NAME   = "<##badn>";    WIDGET_VAR_BAL_ASOF_DATE_NAME_DISPLAY   = "insert the balance asof date name"
+        WIDGET_VAR_REM_ASOF_DATE        = "<##rad>";     WIDGET_VAR_REM_ASOF_DATE_DISPLAY        = "insert the include reminders asof date"
+        WIDGET_VAR_REM_ASOF_DATE_NAME   = "<##radn>";    WIDGET_VAR_REM_ASOF_DATE_NAME_DISPLAY   = "insert the include reminders asof date name"
+        WIDGET_VAR_CG_DATE_RANGE        = "<##cgdr>";    WIDGET_VAR_CG_DATE_RANGE_DISPLAY        = "insert the capital gains date range"
+        WIDGET_VAR_CG_DATE_RANGE_NAME   = "<##cgdrn>";   WIDGET_VAR_CG_DATE_RANGE_NAME_DISPLAY   = "insert the capital gains date range name"
+        WIDGET_VAR_IE_DATE_RANGE        = "<##iedr>";    WIDGET_VAR_IE_DATE_RANGE_DISPLAY        = "insert the income/expense date range"
+        WIDGET_VAR_IE_DATE_RANGE_NAME   = "<##iedrn>";   WIDGET_VAR_IE_DATE_RANGE_NAME_DISPLAY   = "insert the income/expense date range name"
 
         ROW_NAME_MD_COLOR_PATTERN = re.compile(r"<#cmd:([a-zA-Z0-9]+)>")
         ROW_VALUE_MD_COLOR_PATTERN = re.compile(r"<#cvmd:([a-zA-Z0-9]+)>")
@@ -5070,6 +5079,7 @@ Visit: %s (Author's site)
                                 [WIDGET_ROW_CENTERROWNAME,             WIDGET_ROW_CENTERROWNAME_DISPLAY       ],
                                 [WIDGET_ROW_REDROWNAME,                WIDGET_ROW_REDROWNAME_DISPLAY          ],
                                 [WIDGET_ROW_BLUEROWNAME,               WIDGET_ROW_BLUEROWNAME_DISPLAY         ],
+                                [WIDGET_ROW_GREENROWNAME,              WIDGET_ROW_GREENROWNAME_DISPLAY        ],
                                 [WIDGET_ROW_LIGHTGREYROWNAME,          WIDGET_ROW_LIGHTGREYROWNAME_DISPLAY    ],
                                 [WIDGET_ROW_BOLDROWNAME,               WIDGET_ROW_BOLDROWNAME_DISPLAY         ],
                                 [WIDGET_ROW_ITALICSROWNAME,            WIDGET_ROW_ITALICSROWNAME_DISPLAY      ],
@@ -5079,6 +5089,7 @@ Visit: %s (Author's site)
                                 [WIDGET_ROW_BLANKZEROVALUE,            WIDGET_ROW_BLANKZEROVALUE_DISPLAY      ],
                                 [WIDGET_ROW_VALUE_RED,                 WIDGET_ROW_VALUE_RED_DISPLAY           ],
                                 [WIDGET_ROW_VALUE_BLUE,                WIDGET_ROW_VALUE_BLUE_DISPLAY          ],
+                                [WIDGET_ROW_VALUE_GREEN,               WIDGET_ROW_VALUE_GREEN_DISPLAY         ],
                                 [WIDGET_ROW_VALUE_LIGHTGREY,           WIDGET_ROW_VALUE_LIGHTGREY_DISPLAY     ],
                                 [WIDGET_ROW_VALUE_DEFAULT,             WIDGET_ROW_VALUE_DEFAULT_DISPLAY       ],
                                 [WIDGET_ROW_VALUE_BOLD,                WIDGET_ROW_VALUE_BOLD_DISPLAY          ],
@@ -5087,6 +5098,14 @@ Visit: %s (Author's site)
                                 [WIDGET_ROW_VALUE_PLUS,                WIDGET_ROW_VALUE_PLUS_DISPLAY          ],
                                 [WIDGET_ROW_MDCOLORROWNAME,            WIDGET_ROW_MDCOLORROWNAME_DISPLAY      ],
                                 [WIDGET_ROW_VALUE_MDCOLOR,             WIDGET_ROW_VALUE_MDCOLOR_DISPLAY       ],
+                                [WIDGET_ROW_VALUE_NEG_RED,             WIDGET_ROW_VALUE_NEG_RED_DISPLAY       ],
+                                [WIDGET_ROW_VALUE_NEG_BLUE,            WIDGET_ROW_VALUE_NEG_BLUE_DISPLAY      ],
+                                [WIDGET_ROW_VALUE_NEG_GREEN,           WIDGET_ROW_VALUE_NEG_GREEN_DISPLAY     ],
+                                [WIDGET_ROW_VALUE_NEG_DEFAULT,         WIDGET_ROW_VALUE_NEG_DEFAULT_DISPLAY   ],
+                                [WIDGET_ROW_VALUE_POS_RED,             WIDGET_ROW_VALUE_POS_RED_DISPLAY       ],
+                                [WIDGET_ROW_VALUE_POS_BLUE,            WIDGET_ROW_VALUE_POS_BLUE_DISPLAY      ],
+                                [WIDGET_ROW_VALUE_POS_GREEN,           WIDGET_ROW_VALUE_POS_GREEN_DISPLAY     ],
+                                [WIDGET_ROW_VALUE_POS_DEFAULT,         WIDGET_ROW_VALUE_POS_DEFAULT_DISPLAY   ],
                                 [WIDGET_ROW_HTMLROWNAME,               WIDGET_ROW_HTMLROWNAME_DISPLAY         ],
                                 [WIDGET_VAR_ROW_NUMBER,                WIDGET_VAR_ROW_NUMBER_DISPLAY          ],
                                 [WIDGET_VAR_ROW_TAG,                   WIDGET_VAR_ROW_TAG_DISPLAY             ],
@@ -5189,6 +5208,8 @@ Visit: %s (Author's site)
             self.disableBlinkOnValue = False
             self.blankZero = False
             self.valueColor = None
+            self.valueNegColor = None
+            self.valuePosColor = None
             self.valueBold = False
             self.valueItalics = False
             self.valueUnderline = False
@@ -5221,6 +5242,10 @@ Visit: %s (Author's site)
             if (self.__class__.WIDGET_ROW_BLUEROWNAME in _rowText):
                 _rowText = _rowText.replace(self.__class__.WIDGET_ROW_BLUEROWNAME, "")
                 self.color = getColorBlue()
+
+            if (self.__class__.WIDGET_ROW_GREENROWNAME in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_GREENROWNAME, "")
+                self.color = getColorDarkGreen()
 
             if (self.__class__.WIDGET_ROW_REDROWNAME in _rowText):
                 _rowText = _rowText.replace(self.__class__.WIDGET_ROW_REDROWNAME, "")
@@ -5261,6 +5286,10 @@ Visit: %s (Author's site)
                 _rowText = _rowText.replace(self.__class__.WIDGET_ROW_VALUE_BLUE, "")
                 self.valueColor = getColorBlue()
 
+            if (self.__class__.WIDGET_ROW_VALUE_GREEN in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_VALUE_GREEN, "")
+                self.valueColor = getColorDarkGreen()
+
             if (self.__class__.WIDGET_ROW_VALUE_RED in _rowText):
                 _rowText = _rowText.replace(self.__class__.WIDGET_ROW_VALUE_RED, "")
                 self.valueColor = getColorRed()
@@ -5272,6 +5301,38 @@ Visit: %s (Author's site)
             if (self.__class__.WIDGET_ROW_VALUE_DEFAULT in _rowText):
                 _rowText = _rowText.replace(self.__class__.WIDGET_ROW_VALUE_DEFAULT, "")
                 self.valueColor = self.defaultTextForeground
+
+            if (self.__class__.WIDGET_ROW_VALUE_NEG_RED in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_VALUE_NEG_RED, "")
+                self.valueNegColor = getColorRed()
+
+            if (self.__class__.WIDGET_ROW_VALUE_NEG_BLUE in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_VALUE_NEG_BLUE, "")
+                self.valueNegColor = getColorBlue()
+
+            if (self.__class__.WIDGET_ROW_VALUE_NEG_GREEN in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_VALUE_NEG_GREEN, "")
+                self.valueNegColor = getColorDarkGreen()
+
+            if (self.__class__.WIDGET_ROW_VALUE_NEG_DEFAULT in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_VALUE_NEG_DEFAULT, "")
+                self.valueNegColor = self.defaultTextForeground
+
+            if (self.__class__.WIDGET_ROW_VALUE_POS_RED in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_VALUE_POS_RED, "")
+                self.valuePosColor = getColorRed()
+
+            if (self.__class__.WIDGET_ROW_VALUE_POS_BLUE in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_VALUE_POS_BLUE, "")
+                self.valuePosColor = getColorBlue()
+
+            if (self.__class__.WIDGET_ROW_VALUE_POS_GREEN in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_VALUE_POS_GREEN, "")
+                self.valuePosColor = getColorDarkGreen()
+
+            if (self.__class__.WIDGET_ROW_VALUE_POS_DEFAULT in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_VALUE_POS_DEFAULT, "")
+                self.valuePosColor = self.defaultTextForeground
 
             colorMatch = self.__class__.ROW_VALUE_MD_COLOR_PATTERN.search(_rowText)
             if colorMatch:
@@ -5346,7 +5407,7 @@ Visit: %s (Author's site)
         def clone(self, tdfsc, prependBigText, appendBigText):
             newTDFSC = TextDisplayForSwingConfig(prependBigText + tdfsc.originalRowText + appendBigText,
                                                  tdfsc.originalSmallText,
-                                                 _smallColor=tdfsc.originalSmallText,
+                                                 _smallColor=tdfsc.originalSmallColor,
                                                  stripBigChars=tdfsc.originalStripBigChars,
                                                  stripSmallChars=tdfsc.originalStripSmallChars,
                                                  insertVars=tdfsc.originalVars,
@@ -5365,11 +5426,12 @@ Visit: %s (Author's site)
         def getValuePlus(self): return self.valuePlus
 
         def getValueColor(self, resultValue=-1):
-            if self.valueColor is not None:
-                return self.valueColor
+            if self.valueColor is not None: return self.valueColor
             if resultValue < 0:
+                if self.valueNegColor is not None: return self.valueNegColor
                 return self.ui.getColors().negativeBalFG
             else:
+                if self.valuePosColor is not None: return self.valuePosColor
                 if "default" == ThemeInfo.themeForID(self.ui,
                         self.ui.getPreferences().getSetting(GlobalVars.MD_PREFERENCE_KEY_CURRENT_THEME, ThemeInfo.DEFAULT_THEME_ID)).getThemeID():
                     return self.ui.getColors().budgetHealthyColor
