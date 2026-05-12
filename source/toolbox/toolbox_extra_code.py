@@ -5547,7 +5547,7 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
             _output += "\n\nNOTE: Hidden Security Identifier data detected.\n"
             if _iPreMD2026Count > 0: _output += "      Pre-MD2026 format: %s Identifier record(s) found\n" %(_iPreMD2026Count)
             if _iMD2026Count > 0: _output += "      MD2026+ format:    %s Identifier record(s) found\n" %(_iMD2026Count)
-            if lOutputGuide: _output += "      Use 'OFX: View Security Identifier Settings' for more details.\n\n"
+            if lOutputGuide: _output += "      Use 'OFX: View Security's hidden Security Identifier settings' for more details.\n\n"
         return _output
 
     def _clearSchemeFromNewStore(sec, scheme):
