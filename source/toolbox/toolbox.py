@@ -4684,7 +4684,10 @@ Visit: %s (Author's site)
 
                 lAbort = False
                 _mdVersionStr = StringUtils.stripNonNumbers(MD_REF.getVersion(), '.')
-                if (GlobalVars.TOOLBOX_STOP_NOW
+                lDevMDBuild = "x" in MD_REF.getVersion().lower()
+                if lDevMDBuild:
+                    myPopupInformationBox(toolbox_frame_, "ALERT - Moneydance DEVELOPER build detected: %s(%s)" %(MD_REF.getVersion(), MD_REF.getBuild()), "DEVELOPER", JOptionPane.WARNING_MESSAGE)
+                elif (GlobalVars.TOOLBOX_STOP_NOW
                         or (float(_mdVersionStr) < GlobalVars.TOOLBOX_MINIMUM_TESTED_MD_VERSION)
                         or (int(float(_mdVersionStr)) > int(GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_VERSION))):
                     lAbort = True
