@@ -7215,7 +7215,7 @@ Visit: %s (Author's site)
     if GlobalVars.AUTO_INVOKE_CALLED:
         GlobalVars.AUTO_INVOKE_THEN_QUIT = (cmdParam == "quit")
 
-    myPrint("B", "Book: '%s', Auto Extract Mode: %s, Auto Invoke: %s (MD Quit after extract: %s), Handle_Event triggered: %s (Menu/Parameter/Event detected: '%s'), Display SG2020: %s, Display Remiders: %s"
+    myPrint("B", "Book: '%s', Auto Extract Mode: %s, Auto Invoke: %s (MD Quit after extract: %s), Handle_Event triggered: %s (Menu/Parameter/Event detected: '%s'), Display SG2020: %s, Display Reminders: %s"
             %(MD_REF.getCurrentAccountBook(), GlobalVars.AUTO_EXTRACT_MODE, GlobalVars.AUTO_INVOKE_CALLED, GlobalVars.AUTO_INVOKE_THEN_QUIT, GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE, MD_EXTENSION_PARAMETER, GlobalVars.AUTO_DISPLAY_SG2020, GlobalVars.AUTO_DISPLAY_REMINDERS))
 
     ####################################################################################################################
@@ -7304,17 +7304,17 @@ Visit: %s (Author's site)
     def getTxnDescription(txn):
         # type: (AbstractTxn) -> String
         if isinstance(txn, SplitTxn):
-            return txn.getParentTxn().getDescription().strip()
+            return txn.getParentTxn().getDescription().strip()                                                          # noqa
         else:
             return txn.getDescription().strip()
 
     def getTxnMemo(txn, fallBackParent, grabParentMemo=False):
         # type: (AbstractTxn, bool, bool) -> String
         if isinstance(txn, SplitTxn):
-            memo = txn.getDescription().strip()
+            memo = txn.getDescription().strip()                                                                         # noqa
             if memo == getTxnDescription(txn): memo = ""
             if fallBackParent and (memo == "" or grabParentMemo):
-                memo = txn.getParentTxn().getMemo().strip()
+                memo = txn.getParentTxn().getMemo().strip()                                                             # noqa
                 memo = wrapTextWithSquares(memo)
         else:
             memo = txn.getParentTxn().getMemo().strip()
@@ -9480,12 +9480,12 @@ Visit: %s (Author's site)
                                                     if isinstance(txnparent, ParentTxn): pass
 
                                                     amount = baseCurr.getDoubleValue(txnparent.getValue())
-                                                    stripacct = txnparent.getAccount().getFullAccountName().strip()
+                                                    stripacct = txnparent.getAccount().getFullAccountName().strip()     # noqa
 
                                                     catsAmounts = ""
                                                     for iRemSplit in range(0, txnparent.getOtherTxnCount()):
                                                         remSplit = txnparent.getOtherTxn(iRemSplit)
-                                                        stripCat = remSplit.getAccount().getFullAccountName().strip()
+                                                        stripCat = remSplit.getAccount().getFullAccountName().strip()   # noqa
                                                         splitValue = GlobalVars.baseCurrency.getDoubleValue(remSplit.getValue()) * -1
                                                         catsAmounts += "{%s;%s}" %(stripCat, splitValue)
 
@@ -9683,17 +9683,17 @@ Visit: %s (Author's site)
                                                     if isinstance(splitTxn, SplitTxn): pass
 
                                                     # remove commas to keep csv format happy....
-                                                    splitdesc = splitTxn.getDescription().replace(",", " ").strip()
+                                                    splitdesc = splitTxn.getDescription().replace(",", " ").strip()     # noqa
                                                     splitmemo = txnparent.getMemo().replace(",", " ").strip()
-                                                    maindesc = txnparent.getDescription().replace(",", " ").strip()
+                                                    maindesc = txnparent.getDescription().replace(",", " ").strip()     # noqa
 
                                                     if index2 > 0: amount = ''  # Don't repeat the new amount on subsequent split lines (so you can total column). The split amount will be correct
 
                                                     # stripacct = str(txnparent.getAccount()).replace(",", " ").strip()
-                                                    stripacct = txnparent.getAccount().getFullAccountName().replace(",", " ").strip()
+                                                    stripacct = txnparent.getAccount().getFullAccountName().replace(",", " ").strip()   # noqa
 
                                                     # stripcat = str(splitTxn.getAccount()).replace(","," ").strip()
-                                                    stripcat = splitTxn.getAccount().getFullAccountName().replace(","," ").strip()
+                                                    stripcat = splitTxn.getAccount().getFullAccountName().replace(","," ").strip()   # noqa
 
                                                     # use set() to create a unique list, and OR to concatenate...
                                                     splitTags = list(set(txnparent.getKeywords() if index2 == 0 else []) | set(splitTxn.getKeywords()))
