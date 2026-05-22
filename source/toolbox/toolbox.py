@@ -117,6 +117,7 @@
 # build: 2000 - relocate more code to extra_code py script file; Bump version number; update to 2026 license
 # build: 2000 - Handle MD2026 change to security schemes - now new api calls and multiple IDs per scheme...
 # build: 2000 - Added merge_security_identifier_stores(), and relocated / upgraded all fiscal scheme/ID management code to extra code...
+# build: 2000 - MD2026(5501) changed Syncer#stopSyncing() signature with killswitch.. advanced_clone_dataset() now calls with True for a clean sync shutdown on 5501 onwards...
 # build: 2000 - ???
 
 # NOTE: 'The domain/default pair of (kCFPreferencesAnyApplication, AppleInterfaceStyle) does not exist' means that Dark mode is NOT in force
@@ -555,7 +556,7 @@ else:
 
     GlobalVars.TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0
     GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2026.0
-    GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   5500
+    GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   5501
     GlobalVars.MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"
     GlobalVars.MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"
     GlobalVars.MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"

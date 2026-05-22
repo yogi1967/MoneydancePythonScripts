@@ -1400,7 +1400,8 @@ try:
             if not newBook.save(): raise Exception("ERROR: cloned AccountBook .save() returned false")
 
             # myPrint("B", "Syncer: %s, isSyncing: %s, isRunningInBackground: %s" %(newBookSyncer, newBookSyncer.isSyncing(), newBookSyncer.isRunningInBackground()))
-            newBookSyncer.stopSyncing()
+            if MD_REF.getBuild() >= 5501: newBookSyncer.stopSyncing(True)
+            else: newBookSyncer.stopSyncing()
             output += "Cloned dataset's 'Syncer' has been shut down (flushing remaining in-memory changes)\n"
 
             # register attachment for deletion etc
