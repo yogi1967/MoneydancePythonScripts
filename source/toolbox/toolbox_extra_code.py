@@ -2622,11 +2622,12 @@ ADVANCED MONEYDANCE LAUNCH SETTINGS / PARAMETERS:
 
 Moneydance(MD) is built on Java. Hence the application runs on a Java Virtual Machine (JVM).
 - The MD installer typically creates an app package and launch icon for easy execution of the app
+- Within the application is the Java Runtime (aka JRE). Java does NOT need to be installed locally (it would be ignored anyway).
 
 - NOTE: You can also execute the moneydance.jar using Java as long as you set up your environment properly.
         .. this is out of scope of this document, but refer to: https://yogi1967.github.io/MoneydancePythonScripts/
         .. and the example launch scripts contained on my site.
-        .. MD2022.1(4058) Java 17, MD2022.3(4077) Java 18, MD2023.2(5008) Java 20, MD2023.2(5047) Java 21
+        .. MD2022.1(4058) Java 17, MD2022.3(4077) Java 18, MD2023.2(5008) Java 20, MD2023.2(5047) Java 21, MD2026 (5500) Java 25 LTS
 
 - Windows and Linux: The launch package is built using install4j. The JVM can be modified by editing the vmoptions file.
                      See separate Toolbox > Advanced Options menu > 'View Java VM Options File' for details
@@ -2652,11 +2653,23 @@ Moneydance(MD) is built on Java. Hence the application runs on a Java Virtual Ma
          ... the [optional] parameters below will work with this app package using Terminal.
          
 - Apple macOS: The installer creates an apple mac 'package' file called /Applications/Moneydance.app
-               .. (this is really a special folder. In Finder, right-click and 'Show Package Contents'
+               .. (this is really a special folder. Finder, right-click and 'Show Package Contents'
                .. There is no vmoptions file option with macOS
                .. But you can simply execute Moneydance from Terminal using the following command:
                .. /Applications/Moneydance.app/Contents/MacOS/Moneydance (with [optional] parameters - see below)
+               
+               - You can pass some java / JVM parameters using these methods from Terminal:
 
+                 without Moneydance arguments:
+                    JAVA_TOOL_OPTIONS="-Dsomething=great" open -a "/Applications/Moneydance.app/Contents/MacOS/Moneydance"
+
+                 with Moneydance arguments:
+                    JAVA_TOOL_OPTIONS="-DDsomething=great" "/Applications/Moneydance.app/Contents/MacOS/Moneydance" -d -nobackup
+
+                note: not all java/JVM options will work here:
+                    - Attach / Profiling / Debugging commands will not work with the JRE as these are excluded from the build  
+                    -Dsun.java2d.metal=false        # sometimes useful to disable Metal rendering giving large memory usage issues
+                    
 Moneydance parameters:
 ----------------------
 -d                  Enables Moneydance DEBUG mode (extra messages in help/console)
