@@ -2658,7 +2658,7 @@ Moneydance(MD) is built on Java. Hence the application runs on a Java Virtual Ma
                .. But you can simply execute Moneydance from Terminal using the following command:
                .. /Applications/Moneydance.app/Contents/MacOS/Moneydance (with [optional] parameters - see below)
                
-               - You can pass some java / JVM parameters using these methods from Terminal:
+               - You can pass some java / JVM parameters by setting [JAVA_TOOL_OPTIONS] from Terminal:
 
                  without Moneydance arguments:
                     JAVA_TOOL_OPTIONS="-Dsomething=great" open -a "/Applications/Moneydance.app/Contents/MacOS/Moneydance"
@@ -2669,6 +2669,9 @@ Moneydance(MD) is built on Java. Hence the application runs on a Java Virtual Ma
                 note: not all java/JVM options will work here:
                     - Attach / Profiling / Debugging commands will not work with the JRE as these are excluded from the build  
                     -Dsun.java2d.metal=false        # sometimes useful to disable Metal rendering giving large memory usage issues
+
+                you can also set [_JAVA_OPTIONS] to override some default launcher settings:
+                   _JAVA_OPTIONS="-Xmx5G" open -a "/Applications/Moneydance.app" # override memory setting (example)
                     
 Moneydance parameters:
 ----------------------
