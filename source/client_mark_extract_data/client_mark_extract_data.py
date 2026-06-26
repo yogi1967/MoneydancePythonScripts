@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# client_mark_extract_data.py - build: 1008 Feb 2026 - Stuart Beesley (based on: extract_data build: 1036)
+# client_mark_extract_data.py - build: 1009 June 2026 - Stuart Beesley (based on: extract_data build: 1036)
 
 # Written specifically for Mark McClintock
 
@@ -68,6 +68,7 @@
 # build: 1006 - MD2024.2(5142) - moneydance_extension_loader was nuked and moneydance_this_fm with getResourceAsStream() was provided.
 # build: 1007 - store asof date into extracted filename; bugfix script runner (classloader issue)
 # build: 1008 - Upgrade MyCostCalculation to v10 for MD2026(5500)
+# build: 1009 - fix for EIT with security splits now allowing multi-same-day as of MD2026(5501)
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -75,7 +76,7 @@
 
 # SET THESE LINES
 myModuleID = u"client_mark_extract_data"
-version_build = "1008"
+version_build = "1009"
 MIN_BUILD_REQD = 3056    # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT = False
 
@@ -7015,27 +7016,9 @@ Visit: %s (Author's site)
                                             _row[GlobalVars.dataKeys["_AVGCOST"][_COLUMN]] = ""
                                             _row[GlobalVars.dataKeys["_SECSHRHOLDING"][_COLUMN]] = 0
 
-                                        if GlobalVars.lAdjustForSplits_EIT and securityTxn and _row[GlobalVars.dataKeys["_SHARES"][_COLUMN]] != 0:
-                                            # Here we go.....
-                                            _row[GlobalVars.dataKeys["_SHRSAFTERSPLIT"][_COLUMN]] = _row[GlobalVars.dataKeys["_SHARES"][_COLUMN]]
-                                            stockSplits = securityCurr.getSplits()
-                                            if stockSplits and len(stockSplits)>0:
-                                                # Here we really go....1
-
-                                                myPrint("D", _THIS_EXTRACT_NAME, securityCurr, " - Found share splits...")
-                                                myPrint("D", _THIS_EXTRACT_NAME, securityTxn)
-
-                                                stockSplits = sorted(stockSplits, key=lambda x: x.getDateInt(), reverse=True)   # Sort date newest first...
-                                                for theSplit in stockSplits:
-                                                    if _row[GlobalVars.dataKeys["_DATE"][_COLUMN]] >= theSplit.getDateInt():
-                                                        continue
-                                                    myPrint("D", _THIS_EXTRACT_NAME, securityCurr, " -  ShareSplits()... Applying ratio.... *", theSplit.getSplitRatio(), "Shares before:",  _row[GlobalVars.dataKeys["_SHRSAFTERSPLIT"][_COLUMN]])
-                                                    # noinspection PyUnresolvedReferences
-                                                    _row[GlobalVars.dataKeys["_SHRSAFTERSPLIT"][_COLUMN]] = _row[GlobalVars.dataKeys["_SHRSAFTERSPLIT"][_COLUMN]] * theSplit.getSplitRatio()
-                                                    myPrint("D", _THIS_EXTRACT_NAME, securityCurr, " - Shares after:",  _row[GlobalVars.dataKeys["_SHRSAFTERSPLIT"][_COLUMN]])
-                                                    # Keep going if more splits....
-                                                    continue
-
+                                        if GlobalVars.lAdjustForSplits_EIT and securityTxn and securityTxn.getValue() != 0:
+                                            shrsAfterSplitLong = securityCurr.adjustValueForSplitsInt(txn.getDateInt(), securityTxn.getValue())
+                                            _row[GlobalVars.dataKeys["_SHRSAFTERSPLIT"][_COLUMN]] = securityCurr.getDoubleValue(shrsAfterSplitLong)
 
                                         _row[GlobalVars.dataKeys["_DESC"][_COLUMN]] = safeStr(txn.getDescription())
                                         _row[GlobalVars.dataKeys["_ACTION"][_COLUMN]] = safeStr(txn.getTransferType())
