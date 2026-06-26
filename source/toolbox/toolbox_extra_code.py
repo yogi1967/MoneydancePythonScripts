@@ -2445,6 +2445,9 @@ try:
             splits = sec.getSplits()
             if not splits: continue
 
+            splitCountByDate = {}
+            for s in splits: splitCountByDate[s.getDateInt()] = splitCountByDate.get(s.getDateInt(), 0) + 1
+
             snaps = list(sec.getSnapshots())
             if not snaps: continue
 
@@ -2457,6 +2460,9 @@ try:
                 if abs(ratio - 1.0) < EPSILON: continue
 
                 splitDate = split.getDateInt()
+
+                multipleSplitsSameDay = splitCountByDate.get(splitDate, 0) > 1
+
                 on_snap, prev_snap, next_snap = _find_on_prev_next(snaps, dates, splitDate)
 
                 beforeSplitDateRate = None if prev_snap is None else prev_snap.getRate()
@@ -2474,20 +2480,25 @@ try:
 
                 # strict pass/fail using DISPLAY orientation for consistency with shown %Δ
                 ok = True
-                if beforeSplitDateRate is None: ok = False
+                if multipleSplitsSameDay: ok = False
+                elif beforeSplitDateRate is None: ok = False
                 elif onSplitDateRate is None: ok = False
                 elif disp_expected is None or not _rel_close(disp_on, disp_expected, TOL_ON): ok = False
                 elif (disp_after is not None) and (not _rel_close(disp_after, disp_expected, TOL_AFTER)): ok = False
 
                 if ok and (not lAll): continue
 
-                if ok:
-                    warning, action = u"OK", u""
+                if ok: warning, action = u"OK", u""
+                elif multipleSplitsSameDay: warning, action = u"Multiple splits on the same date", u"Review combined split ratio and price validation"
                 else:
                     later_exists = next_snap is not None
                     warning, action = _classify_issue(
-                        beforeSplitDateRate, onSplitDateRate, afterSplitDateRate, estSplitDateRate,
-                        later_exists, disp_on)
+                        beforeSplitDateRate,
+                        onSplitDateRate,
+                        later_exists,
+                        disp_on,
+                        disp_after,
+                        disp_expected)
 
                 beforeDisp   = _fmt_val(disp_before,   missingTxt, dec, sec)
                 onDisp       = _fmt_val(disp_on,       missingTxt, dec, sec)
@@ -2764,10 +2775,11 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
             del currencies
 
             def compareSplits(splitsOne, splitsTwo):
+
+                # don't sort - rely on the underlying order (backed by TreeSet), key date (+UUID from MD2026 5501)
+                # now allows multi-splits on same day...
                 if len(splitsOne) < 1 and len(splitsTwo) < 1:   return True
                 if len(splitsOne) != len(splitsTwo):            return False
-                splitsOne = sorted(splitsOne, key=lambda sort_x: (sort_x.getDateInt()))
-                splitsTwo = sorted(splitsTwo, key=lambda sort_x: (sort_x.getDateInt()))
 
                 for i in range(0,len(splitsOne)):
                     s1 = splitsOne[i]
