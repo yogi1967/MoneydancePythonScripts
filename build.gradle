@@ -38,10 +38,14 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.util.zip.ZipFile
 
+// note: we match the kotlin plugin version to the Moneydance build system. For MD2024 this was 1.9, with MD2026 it's 2.4
+// kotlin plugin 2.3.21 is the last version to support language level 1.9.
+// we limit the kotlin language/api version to 1.9 for backwards compatibility with MD2024
+// we also compile against the kotlin stdlib 1.9 jar for the same reason
+
 plugins {
   id 'java'
-  id 'org.jetbrains.kotlin.jvm' version '1.9.21'    // plugin version to match Moneydance's build system and also bundled runtime kotlin-stdlib-x.x.x.jar
-                                                    // use '2.3.10' to upgrade
+  id 'org.jetbrains.kotlin.jvm' version '2.3.21'    // configure the kotlin environment - kotlin plugin version to match Moneydance's build system and also bundled runtime kotlin-stdlib-x.x.x.jar
 }
 
 repositories {
@@ -67,7 +71,7 @@ if (!isKotlin2) {
 // - java / kotlin target versions are set to allow extensions to have maximum possible of backwards compatibility.
 // - we set these value here - rather than using "gradle.properties" - as these are not really very user configurable.
 ext {
-    compilerJDK       = 21                          // JDK version to execute java/kotlin compile, sign, and packaging tasks
+    compilerJDK       = 25                          // JDK version to execute java/kotlin compile, sign, and packaging tasks
     targetRelease     = 17                          // equivalent java --release (source/target/bytecode/API) version
     kotlinLangVersion = KotlinVersion.KOTLIN_1_9    // kotlin language version (lock to plugin version) - match to Moneydance bundled kotlin-stdlib-x.x.x.jar
     kotlinApiVersion  = KotlinVersion.KOTLIN_1_9    // kotlin API version (lock to plugin version) - match to Moneydance bundled kotlin-stdlib-x.x.x.jar
@@ -410,6 +414,7 @@ tasks.register("verifyConfig") {
     logger.lifecycle("------------------------------------------")
 
     logger.lifecycle("")
+    logger.lifecycle("Daemon JVM         = ${System.getProperty('java.version')} (${System.getProperty('java.home')})")
     logger.lifecycle("Gradle version     = ${gradle.gradleVersion}")
     logger.lifecycle("Kotlin plugin      = ${KotlinCompilerVersion.VERSION}")
     logger.lifecycle("CompilerJDK        = ${compilerJDK}")
@@ -481,6 +486,7 @@ tasks.register("verifyConfig") {
     logger.lifecycle("parallelProjectExecutionEnabled = ${gradle.startParameter.parallelProjectExecutionEnabled}")
     logger.lifecycle("Kotlin incremental compilation enabled = ${providers.gradleProperty("kotlin.incremental").orNull != "false"}")
     logger.lifecycle("Kotlin classpath snapshotting enabled = ${providers.gradleProperty("kotlin.incremental.useClasspathSnapshot").orNull == "true"}")
+    logger.lifecycle("kotlin.stdlib.default.dependency = ${providers.gradleProperty("kotlin.stdlib.default.dependency").orNull ?: "<default: true>"}")
 
     requireMoneydanceClass(failWhenNotFound: false, showResults: true)
 
