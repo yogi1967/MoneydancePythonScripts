@@ -1,14 +1,32 @@
 #!/bin/sh
 
-# Author Stuart Beesley - StuWareSoftSystems - created: Feb 2021 (last updated: March 2026)
+# Author Stuart Beesley - StuWareSoftSystems - created: Feb 2021 (last updated: June 2026)
 #        thanks & credits to hleofxquotes for the original base script and valuable input and knowledge.
 
 # Shell script: launch-moneydance.sh
 # Make sure you 'chmod +x launch-moneydance.sh' to make script executable
 
 # NOTE:   You can also just run the 'code-signed app' by launching the following from Terminal (which is a simpler approach):
-#         "/Applications/Moneydance.app/Contents/MacOS/Moneydance"                [-d] [-v] [... etc]
+#         "/Applications/Moneydance.app/Contents/MacOS/Moneydance"                                    [-d] [-v] [... etc]
 #         "/Applications/Moneydance 2023.2 (5047) KOTLIN COMPILED ALL.app/Contents/MacOS/Moneydance"  [-d] [-v] [... etc]
+#
+#         - You can actually pass some java / JVM parameters by setting [JAVA_TOOL_OPTIONS] from Terminal:
+#                 without Moneydance arguments:
+#                    JAVA_TOOL_OPTIONS="-Dsomething=great" open -a "/Applications/Moneydance.app/Contents/MacOS/Moneydance"
+#
+#                 with Moneydance arguments:
+#                    JAVA_TOOL_OPTIONS="-DDsomething=great" "/Applications/Moneydance.app/Contents/MacOS/Moneydance" -d -nobackup
+#
+#                 with Moneydance debugger attached:
+#                    first copy java JDK's libjdwp.dylib and libdt_socket.dylib into /Applications/Moneydance.app/Contents/PlugIns/vm.jdk/Contents/Home/lib/
+#                    JAVA_TOOL_OPTIONS="-XX:+StartAttachListener -XX:+UnlockDiagnosticVMOptions -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005 -Xlog:gc*:file=/tmp/mdjfr/gc.log:time,uptime,level,tags" "/Applications/Moneydance.app/Contents/MacOS/Moneydance" -d -nobackup
+#
+#                note: not all java/JVM options will work here:
+#                    - Attach / Profiling / Debugging commands will NOT work with the JRE as these are excluded from the build
+#                    -Dsun.java2d.metal=false        # sometimes useful to disable Metal rendering giving large memory usage issues
+#
+#                you can also set [_JAVA_OPTIONS] to override some default launcher settings
+#                   _JAVA_OPTIONS="-Xmx5G" open -a "/Applications/Moneydance.app" # override memory setting (example)
 
 # THIS IS WRITTEN FOR MacOS Terminal(zsh). Adjust accordingly...!
 
@@ -57,7 +75,6 @@
 #           or create JFR recording:     jcmd <pid> JFR.start duration=60s filename=/tmp/md_dump.jfr settings=profile
 #           or create JFR with async:    asprof -d 60 -f /tmp/md_dump.jfr <pid>
 #           and open in mission control: open -a "JDK Mission Control" /tmp/md_dump.jfr
-#           or:                          asprof -d 60 -f /tmp/md_dump.html <pid>
 #           and:                         open /tmp/md_dump.html
 
 # shellcheck disable=SC2121
@@ -68,7 +85,7 @@ unset md_passphrase
 
 # set to "" for standard app install name (I add the version and build to the app name when installing)
 #md_version=""
-md_version=" 2026.0 (5500)"
+md_version=" 2026.0 (5503)"
 
 # Download/install OpenAdoptJDK (Hotspot) v15: https://adoptopenjdk.net/?variant=openjdk15&jvmVariant=hotspot
 # Download/install Java FX (allows Moneybot Console) to run: https://gluonhq.com/download/javafx-15-0-1-sdk-mac/
@@ -106,6 +123,8 @@ md_version=" 2026.0 (5500)"
 # https://adoptium.net/en-GB/temurin/releases/?version=23
 
 # NOTE:   MD2024.3(5212) (reverted to) Java 21.0.5+11-LTS
+
+# NOTE:   MD2026.0(5503) Java 25.0.2 (LTS)
 
 # Edit the necessary install locations for JDK, JavaFX and Java Native Frameworks below
 # Edit the necessary settings and your folder locations below
@@ -193,9 +212,14 @@ machelper2="/Applications/Moneydance${md_version}.app/Contents/PlugIns/vm.jdk/Co
 use_sandbox="-DSandboxEnabled=true"
 
 # Allows the attachment of a JVM debugger... Set to "" for no debugger....
-#use_debugger=""
-use_debugger="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"
+use_debugger=""
+#use_debugger="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"
 
+# Allows JFR to run - Set to "" for no debugger (the tmp folder is where the JFR files will go....
+#use_jfr=""
+rm -rf /tmp/mdjfr
+mkdir -p /tmp/mdjfr
+use_jfr="-XX:NativeMemoryTracking=detail -XX:+UnlockDiagnosticVMOptions -XX:FlightRecorderOptions=stackdepth=256 -XX:StartFlightRecording=filename=/tmp/mdjfr/md.jfr,settings=profile,disk=true,dumponexit=true,maxage=24h,maxsize=512m,path-to-gc-roots=true -Xlog:gc*,safepoint:file=/tmp/mdjfr/gc.log:time,uptime,level,tags:filecount=5,filesize=20m"
 # NOTE: I like to set '-Dinstall4j.exeDir=x' to help the Toolbox extension - this is optional and not needed
 
 # Redirect output to the Moneydance console window...
@@ -211,11 +235,17 @@ ${java} --version
 #--module-path "${javafx_modulepath}" \
 #--add-modules "${javafx_modules}" \
 
-use_live_compiled_current_source_jar="$HOME/Documents/Moneydance/moneydance_desktop/app/build/libs/moneydance.jar:"
-test_launch_jars="${SCRIPT_DIR}/test-launch-jars/*:"
+# override these to "" to just use the jars within the app package. I.E. only set these to override with different jars!
+#use_live_compiled_current_source_jar="$HOME/Documents/Moneydance/moneydance_desktop/app/build/libs/moneydance.jar:"
+use_live_compiled_current_source_jar=""
+#test_launch_jars="${SCRIPT_DIR}/test-launch-jars/*:"
+test_launch_jars=""
+#test_launch_libs="${SCRIPT_DIR}/test-launch-jars:"
+test_launch_libs=""
 
 # useful option for debugging what jars are actually loaded:                  -verbose:class
 # to stop icloud native library access warnings on Mac when loading manually: --enable-native-access=ALL-UNNAMED
+# disable Metal rendering                                                     -Dsun.java2d.metal=false
 
 # shellcheck disable=SC2086
 # shellcheck disable=SC2048
@@ -225,7 +255,7 @@ full_cmd=(
   --enable-native-access=ALL-UNNAMED
   -Xdock:icon="${md_icon}"
   -cp "${use_live_compiled_current_source_jar}${test_launch_jars}${md_jars}/*"
-  -Djava.library.path="${macos}:${machelper2}"
+  -Djava.library.path="${test_launch_libs}${macos}:${machelper2}"
   -Dapple.laf.useScreenMenuBar=true
   -Dcom.apple.macos.use-file-dialog-packages=true
   -Dcom.apple.macos.useScreenMenuBar=true
@@ -234,10 +264,12 @@ full_cmd=(
   -Dcom.apple.smallTabs=true
   -Dapple.awt.application.appearance=system
   -Dfile.encoding=UTF-8
+  -Dsun.java2d.metal=false
   -DUserHome="${my_user_path}"
   ${use_sandbox}
   ${use_debugger}
-  -Dinstall4j.exeDir="${md_jars}"
+  ${use_jfr}
+  -Dinstall4j.exeDir="${macos}"
   -Duser.dir="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data"
   -Duser.home="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data"
   -DApplicationSupportDirectory="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library/Application Support"
