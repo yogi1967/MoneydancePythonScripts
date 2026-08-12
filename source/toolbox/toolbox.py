@@ -7,7 +7,7 @@
 # Moneydance Support Tool
 # ######################################################################################################################
 
-# toolbox.py build: 2000 - 2020 thru 2026 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
+# toolbox.py build: 2001 - 2020 thru 2026 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
 # Further thanks to Kevin(N), Dan T Davis, and dwg for their testing, input and OFX Bank help/input.....
 # Credit of course to Moneydance(Sean) and IK retain all copyright over Moneydance internal code
@@ -121,7 +121,8 @@
 # build: 2000 - add disgnostic messages for JVM debugging and profiling tools
 # build: 2000 - fixes for multi-security-splits (now allowed) on same day - as of MD2026(5501)...
 # build: 2000 - added toolbox_show_data_mode_in_viewer.py - new menu to toggle the data export show in viewer option/flag
-# build: 2000 - ???
+# build: 2001 - Kotlin'isation of Moneydance's Main class (12th August 2026)
+# build: 2001 - ???
 
 # NOTE: 'The domain/default pair of (kCFPreferencesAnyApplication, AppleInterfaceStyle) does not exist' means that Dark mode is NOT in force
 
@@ -153,7 +154,7 @@
 
 # SET THESE LINES
 myModuleID = u"toolbox"
-version_build = "2000"
+version_build = "2001"
 MIN_BUILD_REQD = 1915                   # Min build for Toolbox 2020.0(1915)
 _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT = True
 
@@ -3331,6 +3332,14 @@ Visit: %s (Author's site)
     GlobalVars.MD_GUI_KOTLIN_BUILD = 5500                                                                               # MD2025.0(5500)
     def isGUIKotlinBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_GUI_KOTLIN_BUILD)
 
+    GlobalVars.MD_MAIN_KOTLIN_BUILD = 5504                                                                              # MD2026.0(5504) 12th August 2026
+    def isMainKotlinBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_MAIN_KOTLIN_BUILD)
+
+    GlobalVars.MD_APP_FLAG_BUILD = 5504                                                                                 # MD2026.0(5504) 12th August 2026
+    def isAppFlagBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_APP_FLAG_BUILD)
+    if isAppFlagBuild():
+        from com.infinitekind.util import AppFlag, MDFlags
+
     GlobalVars.MD_MEMREPORTS_UPGRADED_BUILD = 5142                                                                      # MD2024.2(5142)
     def isMemReportsUpgradedBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_MEMREPORTS_UPGRADED_BUILD)
 
@@ -4075,8 +4084,15 @@ Visit: %s (Author's site)
                 setFieldByReflection(MD_REF, "backgroundThread", saveBGT)   # Allows com.moneydance.apps.md.controller.Main.shutdown() to work
             del saveBGT
 
-            myPrint("DB", "... setting Main's 'currentBook' to None...")
-            setFieldByReflection(MD_REF, "currentBook", None)
+            if isMainKotlinBuild():
+                # field renamed in MD2026.0(5504) 12th August from `currentBook`
+                myPrint("DB", "... setting Main's 'currentAccounts' to None...")
+                setFieldByReflection(MD_REF, "currentAccounts", None)
+                myPrint("DB", "...... Main's 'currentAccounts' set to None...")
+            else:
+                myPrint("DB", "... setting Main's 'currentBook' to None...")
+                setFieldByReflection(MD_REF, "currentBook", None)
+                myPrint("DB", "...... Main's 'currentBook' set to None...")
 
             myPrint("B", "Closed current dataset (book: %s)" %(wr_bookToClose.get()))
 
@@ -5783,8 +5799,11 @@ Visit: %s (Author's site)
         if isNoSplashScreenOptionsBuild() and File(MD_REF.getPlatformHelper().getRootPath(), UserPreferences.SUPPRESS_SPLASH_FILENAME).exists():    # noqa
             textArray.append(u"\nLaunch splash screen is SUPPRESSED")
 
-        if isSuppressBackupsOptionBuild() and MD_REF.SUPPRESS_BACKUPS:
+        if isSuppressBackupsOptionBuild() and (MD_REF.SUPPRESS_BACKUPS if not isMainKotlinBuild() else MD_REF.Companion.SUPPRESS_BACKUPS):
             textArray.append(u"\nLaunched with '-nobackup' parameter - Backups are SUPRESSED!")
+
+        if isAppFlagBuild():
+            textArray.append(u"\nState of App Feature Flags: %s" %(u", ".join([u"%s(%s)=%s" %(flag.getTitle(), flag.getKey(), flag.getValue()) for flag in AppFlag.Companion.getAllFeatureFlags()])))
 
         if not MD_REF.getCurrentAccountBook(): textArray.append(u"Moneydance datafile is empty")
         x = MD_REF.getPreferences().getSetting(GlobalVars.Strings.MD_CONFIGDICT_CURRENT_ACCOUNT_BOOK, None)
@@ -6022,7 +6041,7 @@ Visit: %s (Author's site)
             textArray.append(u"MD Execution Mode:                   %s" %(MD_REF.getExecutionMode()))
 
         textArray.append(u"MD Debug Mode:                       %s" %(MD_REF.DEBUG if not isAppDebugEnabledBuild() else AppDebug.DEBUG.isEnabled()))  # noqa
-        textArray.append(u"Beta Features:                       %s" %(MD_REF.BETA_FEATURES))
+        textArray.append(u"Beta Features:                       %s" %(MD_REF.BETA_FEATURES if not isMainKotlinBuild() else MD_REF.Companion.BETA_FEATURES))
         textArray.append(u"Architecture:                        %s%s" %(System.getProperty(u"os.arch"),
                                                                         u" (Intel 32-bit)" if isIntelX86_32bit() else u""))
 
@@ -6285,7 +6304,8 @@ Visit: %s (Author's site)
             textArray.append(u"Font Size: %s" %(MD_REF.getPreferences().getSetting(u"print.font_size", u"12")))
 
         extraBackupTxt = ""
-        if isSuppressBackupsOptionBuild() and MD_REF.SUPPRESS_BACKUPS: extraBackupTxt = u" (THESE SETTINGS ARE BEING IGNORED AS BACKUPS ARE SUPPRESSED!)"
+        if isSuppressBackupsOptionBuild() and (MD_REF.SUPPRESS_BACKUPS if not isMainKotlinBuild() else MD_REF.Companion.SUPPRESS_BACKUPS):
+            extraBackupTxt = u" (THESE SETTINGS ARE BEING IGNORED AS BACKUPS ARE SUPPRESSED!)"
         textArray.append(u"\n>> BACKUPS%s" %(extraBackupTxt))
 
         destroyBackupChoicesStr = MD_REF.getPreferences().getSetting(UserPreferences.BACKUP_DESTROY_NUMBER, "5")
