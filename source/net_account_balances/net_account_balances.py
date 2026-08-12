@@ -104,6 +104,7 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 # build: 2000 - Upgraded CostCalculation to v10 to match MD2026(5500)
 # build: 2000 - BUGFIX for gatherRemainingRealBalances() - now when getting capital gains, we detect and pass the row currency and set setSpecialCurrencyType()
 # build: 2000 - misc AI recommended fixes...; added menu option 'Click Opens Register'; added ability to specify pos/neg value colours via row formmating commands
+# build: 2000 - fix for when swing worker aborts process causing error - now logs and returns...
 # build: 2000 - ???
 
 # todo - tweak getConvertXBalanceRecursive() and getXBalance() to also exclude inactives from recursive balances (like apply networth rules)
@@ -6709,13 +6710,10 @@ Visit: %s (Author's site)
                 # No need to set start balance - calculated asof balance includes the opening balance
                 balanceObj.setStartBalance(0)       # Do this last!
 
-                # for debug...
                 if (balanceObj.getStartBalance() is None or balanceObj.balance is None):
-                    # trap a strange NPE....
-                    myPrint("B", "*** LOGIC ERROR >> row: %s acct: '%s' getStartBalance(): %s balance: %s - dumping balanceObj..:"
-                            %(iRowIdx+1, acct, balanceObj.getStartBalance(), balanceObj.balance))
-                    myPrint("B", "    " + balanceObj.toString())
-                    myPrint("B", "----------------------------------------")
+                    myPrint("B", "*** row: %s acct: '%s' - startBalance/balance is None, aborting (assume SwingWorker cancelled)" %(iRowIdx+1, acct))
+                    return  # assume that swing worker was cancelled. We need to quit and let it regenerate cleanly
+
                 balanceObj.balAsOf_balance = balanceObj.getBalance()
                 balanceObj.balAsOf_currentBalance = balanceObj.getCurrentBalance()
                 balanceObj.balAsOf_clearedBalance = balanceObj.getClearedBalance()
