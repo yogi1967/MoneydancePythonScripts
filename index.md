@@ -75,10 +75,13 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
 
 
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/contextmenutools.mxt"><strong>Context Menu Tools (signed)</strong>: Adds to right-click context menu options on certain objects.</a><br>
-NOTE: This is a pure java extension - the source code is hosted on the IK Open Source repo (see below)
+NOTE: This is a pure kotlin(on JVM) extension - the source code is hosted on the IK Open Source repo (see below)
   - transactions: new duplicate transaction(s) option(s)
   - transactions: new Show value of selected transactions option
-
+  - transactions: new copy/paste/apply template/rebalance splits option(s)
+  - transactions: new copy raw details to clipboard option
+  - transaction register: new jump to date in register
+    
 ### Extension (and Scripts formats) (*.mxt and *.py format) - Very latest PREVIEW (unsigned) builds
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/extract_data.zip"><strong>Extract Data</strong>: Extract Data: Extract various data to screen / or csv.. (also auto-extract mode): Includes:</a>
     - StockGlance2020: Securities/stocks, total by security across investment accounts;
