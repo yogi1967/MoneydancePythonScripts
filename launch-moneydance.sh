@@ -41,6 +41,8 @@
 
 # This has been setup for a Mac, and would need to be changed for Windows/Linux - especially the folder locations...
 
+# NOTE: from MD2027 onwards launch Moneydance with -h for help on launch parameters
+
 # Usage:
 # Execute using './launch-moneydance.sh' you can add parameters that will be passed to Moneydance
 # Parameter: '-d'                 is passed by default by this script and turns on MD DEBUG mode
@@ -85,7 +87,7 @@ unset md_passphrase
 
 # set to "" for standard app install name (I add the version and build to the app name when installing)
 #md_version=""
-md_version=" 2026.0 (5503)"
+md_version=" 2027.0 (5510)"
 
 # Download/install OpenAdoptJDK (Hotspot) v15: https://adoptopenjdk.net/?variant=openjdk15&jvmVariant=hotspot
 # Download/install Java FX (allows Moneybot Console) to run: https://gluonhq.com/download/javafx-15-0-1-sdk-mac/
@@ -125,6 +127,7 @@ md_version=" 2026.0 (5503)"
 # NOTE:   MD2024.3(5212) (reverted to) Java 21.0.5+11-LTS
 
 # NOTE:   MD2026.0(5503) Java 25.0.2 (LTS)
+# NOTE:   MD2026.0(5509) alpha renamed to MD2027(5510) alpha
 
 # Edit the necessary install locations for JDK, JavaFX and Java Native Frameworks below
 # Edit the necessary settings and your folder locations below
