@@ -107,6 +107,8 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 # build: 2000 - fix for when swing worker aborts process causing error - now logs and returns...
 # build: 2000 - MD2026(5509) alpha jumped to MD2027(5510) alpha
 # build: 2000 - updated CostCalculation with latest bugfixes from MD2027(5511) - 5th September 2026
+# build: 2000 - updated CostCalculation with latest bugfixes from MD2027(5512) - 18th September 2026
+# build: 2000 - fixes to leverage the two invalid cost basis states (current and future). Maintain parallel flags.
 # build: 2000 - ???
 
 # todo - tweak getConvertXBalanceRecursive() and getXBalance() to also exclude inactives from recursive balances (like apply networth rules)
@@ -3109,7 +3111,7 @@ Visit: %s (Author's site)
         return None
 
     # NOTE: Two bugs were later fixed in the MD CC class from MD2024(5119); and then again from MD2026(5500)
-    GlobalVars.MD_COSTCALCULATION_UPGRADED_BUILD = 5500                                                                 # MD2026(5500)
+    GlobalVars.MD_COSTCALCULATION_UPGRADED_BUILD = 5512                                                                 # MD2026(5500)
     def isCostCalculationUpgradedBuild(): return (MD_REF.getBuild() >= GlobalVars.MD_COSTCALCULATION_UPGRADED_BUILD)
     if not isCostCalculationUpgradedBuild():
         global CostCalculation
@@ -3982,6 +3984,7 @@ Visit: %s (Author's site)
             self.parallelReturnCostBasisType = GlobalVars.COSTBASIS_TYPE_NONE
             self.parallelReturnCostBasisCash = False
             self.costBasisInvalid = False
+            self.currentCostBasisInvalid = False
             self.isIncomeExpenseAcct = isIncomeExpenseAcct(acct)
             self.isSecurityAcct = isSecurityAcct(acct)
             self.isInvestmentAcct = isInvestmentAcct(acct)
@@ -4019,6 +4022,7 @@ Visit: %s (Author's site)
         def setParallelReturnCostBasisType(self, cbType):       self.parallelReturnCostBasisType = cbType
         def setParallelReturnCostBasisCash(self, useCash):      self.parallelReturnCostBasisCash = useCash
         def setCostBasisInvalid(self, isInvalid):               self.costBasisInvalid = isInvalid
+        def setCurrentCostBasisInvalid(self, isInvalid):        self.currentCostBasisInvalid = isInvalid
 
         def isParallelRealBalances(self):               return self.parallelRealBalances
         def isParallelIncExpBalances(self):             return self.parallelIncExpBalances
@@ -4028,6 +4032,7 @@ Visit: %s (Author's site)
         def getParallelReturnCostBasisType(self):       return self.parallelReturnCostBasisType
         def getParallelReturnCostBasisCash(self):       return self.parallelReturnCostBasisCash
         def isCostBasisInvalid(self):                   return self.costBasisInvalid
+        def isCurrentCostBasisInvalid(self):            return self.currentCostBasisInvalid
 
         def isAutoSum(self):                                        return self.autoSum
         def shouldApplyNWRules(self):                               return self.applyNWRules
@@ -6325,18 +6330,26 @@ Visit: %s (Author's site)
 
                     del sharesAndCostBasisForAsOf
 
-                    if costCalculationBal.isCostBasisInvalid():
-                        balObj.setCostBasisInvalid(True)        # In theory costCalculationCurrBal.isCostBasisInvalid() should be the same...
-                    else:
-                        ct = balObj.getCurrencyType()
+                    # the two calculations now use different txn universes (asof vs today), so their invalid flags
+                    # can legitimately differ (only when the asof date is in the future - otherwise they are the same object).
+                    # Each is stored separately, and each share balance check is gated by its own flag.
+                    balObj.setCostBasisInvalid(costCalculationBal.isCostBasisInvalid())
+                    balObj.setCurrentCostBasisInvalid(costCalculationCurrBal.isCostBasisInvalid())
+
+                    ct = balObj.getCurrencyType()
+                    if not balObj.isCostBasisInvalid():
                         if debug:
                             assert balObj.getBalance()        == asofSharesBal,               ("LOGIC ERROR: SecAcct: '%s' HoldBal stored        asof balObj.getBalance(): %s !=    cb sharesBal: %s" %(balObj.getFullAccountName(), ct.getDoubleValue(balObj.getBalance()),        ct.getDoubleValue(asofSharesBal)))
-                            assert balObj.getCurrentBalance() == asofSharesCurBal,            ("LOGIC ERROR: SecAcct: '%s' HoldBal stored asof balObj.getCurrentBalance(): %s != cb sharesCurBal: %s" %(balObj.getFullAccountName(), ct.getDoubleValue(balObj.getCurrentBalance()), ct.getDoubleValue(asofSharesCurBal)))
                         else:
                             if balObj.getBalance()            != asofSharesBal:    myPrint("B", "@@ WARNING: SecAcct: '%s' HoldBal stored        asof balObj.getBalance(): %s !=    cb sharesBal: %s" %(balObj.getFullAccountName(), ct.getDoubleValue(balObj.getBalance()),        ct.getDoubleValue(asofSharesBal)))
-                            if balObj.getCurrentBalance()     != asofSharesCurBal: myPrint("B", "@@ WARNING: SecAcct: '%s' HoldBal stored asof balObj.getCurrentBalance(): %s != cb sharesCurBal: %s" %(balObj.getFullAccountName(), ct.getDoubleValue(balObj.getCurrentBalance()), ct.getDoubleValue(asofSharesCurBal)))
-                        del ct
 
+                    if not balObj.isCurrentCostBasisInvalid():
+                        if debug:
+                            assert balObj.getCurrentBalance() == asofSharesCurBal,            ("LOGIC ERROR: SecAcct: '%s' HoldBal stored asof balObj.getCurrentBalance(): %s != cb sharesCurBal: %s" %(balObj.getFullAccountName(), ct.getDoubleValue(balObj.getCurrentBalance()), ct.getDoubleValue(asofSharesCurBal)))
+                        else:
+                            if balObj.getCurrentBalance()     != asofSharesCurBal: myPrint("B", "@@ WARNING: SecAcct: '%s' HoldBal stored asof balObj.getCurrentBalance(): %s != cb sharesCurBal: %s" %(balObj.getFullAccountName(), ct.getDoubleValue(balObj.getCurrentBalance()), ct.getDoubleValue(asofSharesCurBal)))
+                    del ct
+                    
                     # NOTE: (share qty) balances were already calculated earlier on, so just grab these, and convert into a monetary value...
                     valueBal = convertValue(balObj.getBalance(), acct.getCurrencyType(), acct.getParentAccount().getCurrencyType(), effectiveDateInt)
                     valueCurBal = convertValue(balObj.getCurrentBalance(), acct.getCurrencyType(), acct.getParentAccount().getCurrencyType(), effectiveDateInt)
@@ -16543,21 +16556,6 @@ Visit: %s (Author's site)
                                     sudoAcctRef = parallelBalanceTable[iAccountLoop][acct]                              # type: HoldBalance
                                     effectiveDateInt = sudoAcctRef.getEffectiveDateInt()
 
-                                    ### START WARNING CHECKS ####
-                                    if (debug or NAB.savedShowWarningsTable[iAccountLoop]) and (not lFromSimulate or iAccountLoop == justIndex):
-
-                                        # Check for invalid cost basis issues...
-                                        if sudoAcctRef.isCostBasisInvalid():    # todo - is this check actually correct (ie it's not checking that one of these types was requested)?
-                                            lWarningDetected = True
-                                            iWarningType = (14 if (iWarningType is None or iWarningType == 14) else 0)
-                                            iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                                            warnTxt = ("WARNING: Row: %s >> Returning Cost Basis / ur-gains / capital gains but at least one account (e.g. '%s') is reporting 'INVALID' Cost Basis"
-                                                       %(onRow, sudoAcctRef.getFullAccountName()))
-                                            myPrint("B", warnTxt)
-                                            NAB.warningMessagesTable.append(warnTxt)
-
-                                    ### END WARNING CHECKS
-
                                 except KeyError:
                                     myPrint("B", "@@ KeyError - Row: %s - Trying to access 'parallelBalanceTable[%s]' with Account: '%s'" %(onRow, iAccountLoop,acct))
                                     raise
@@ -16611,6 +16609,22 @@ Visit: %s (Author's site)
                                 NAB.warningMessagesTable.append(warnTxt)
 
                             asOfBalDateInt = getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[iAccountLoop], NAB.savedBalanceType[iAccountLoop])
+
+                            # Check for invalid cost basis issues - scan the row's own table, not accountsToShow. AutoSum'd
+                            # children are in here but are never iterated in the account loop above, so their flags would otherwise never be read.
+                            if isAnyCostBasisOptionTypeSelected(iAccountLoop) and isParallelBalanceTableOperational(iAccountLoop):
+                                _useCurrentFlag = (NAB.savedBalanceType[iAccountLoop] == GlobalVars.BALTYPE_CURRENTBALANCE)
+                                for _holdBal in parallelBalanceTable[iAccountLoop].values():                            # type: HoldBalance
+                                    if (_holdBal.isCurrentCostBasisInvalid() if _useCurrentFlag else _holdBal.isCostBasisInvalid()):
+                                        lWarningDetected = True
+                                        iWarningType = (14 if (iWarningType is None or iWarningType == 14) else 0)
+                                        iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                                        warnTxt = ("WARNING: Row: %s >> Returning Cost Basis / ur-gains / capital gains but account '%s' is reporting 'INVALID' Cost Basis"
+                                                   %(onRow, _holdBal.getFullAccountName()))
+                                        myPrint("B", warnTxt)
+                                        NAB.warningMessagesTable.append(warnTxt)
+                                del _useCurrentFlag
+
                             if ((iCountIncomeExpense and (iCountAccounts)) or (iCountSecurities and (iCountIncomeExpense))):
                                 lWarningDetected = True
                                 iWarningType = (4 if (iWarningType is None or iWarningType == 4) else 0)
