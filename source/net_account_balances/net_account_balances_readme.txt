@@ -584,10 +584,30 @@ GroupID allows you create groups of rows that you can separately display.
          Enter '&' (and) to make the filter include rows where all the requested filters match
                         NOTE: |(or) is default - will be the default anyway unless '!' or '&' used
          Group ID Filters are cAsE InSeNsItIve...
-         Each filter you use will be remembered and stored for later quick selection.. The most recent will always be
-              top of the list. Click the little up/down selector on the widget title bar, or in the GUI to select one
-              Use CMD-SHIFT-G to edit the list and provide names to the filters
-              Only the most recent 20 will be saved...
+         Group ID Filters match on PART of a groupid, not the whole thing. So a filter of 'Min' will match a row
+              whose groupid is 'MinimumBalance'.
+
+         THE FILTER SELECTOR (the small up/down 'double caret' arrows on the widget title bar, and also in the GUI):
+              Click it to pick a filter without typing. The menu contains:
+                  <NO FILTER>       clears the filter - all rows are shown again
+                  'your filter'     each filter you have previously used (see below)
+                  <EDIT FILTERS>    opens the remembered filter list for editing (same as CMD-SHIFT-G)
+
+              IMPORTANT: this menu lists the filters YOU HAVE PREVIOUSLY USED - it is NOT a list of the groupids
+                   that exist on your rows. A groupid you have set on a row but never typed into the filter box
+                   will not appear in the menu until you use it as a filter at least once.
+
+              Each filter you use is remembered and added to the menu, most recent at the top.
+              Only the most recent 20 are saved...
+
+              <EDIT FILTERS> (or CMD-SHIFT-G) shows the remembered list in two columns:
+                  Name            an optional friendly label for the filter - shown in the menu when set
+                  GroupIDFilter   the actual filter text that gets applied
+              Click the +/- cell on the right of a line to add or delete an entry.
+
+         IF A FILTER BLANKS THE WIDGET: no row's groupid contains that text. Check the groupids you have actually
+              set - the main row selector in the settings shows '<groupid: xxx>' against each row, and rows
+              currently filtered out are shown in red.
 
    WARNING: Only enter one of '!|&' characters as only one search type can be used within a single filter.
          NOTE:    !(not) is always implicitly also &(and) - i.e. !1;2 (means not '1' and not '2')
