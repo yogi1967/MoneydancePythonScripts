@@ -2217,6 +2217,7 @@ Visit: %s (Author's site)
 
         if not check_file_writable(copyToFile):
             myPopupInformationBox(_theFrame, "Sorry, that file/location does not appear allowed by the operating system!?")
+            return
 
         toFile = copyToFile
         try:
