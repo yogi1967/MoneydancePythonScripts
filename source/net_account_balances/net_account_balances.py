@@ -15324,7 +15324,7 @@ Visit: %s (Author's site)
                     acctJListScrollpane.putClientProperty("%s.id" %(NAB.myModuleID), "acctJListScrollpane")
                     acctJListScrollpane.setViewportBorder(EmptyBorder(5, colLeftInset, 5, colRightInset))
                     acctJListScrollpane.setOpaque(False)
-                    ctrlPnlScrollpane.setMinimumSize(Dimension(0, 200))                   # JSplitPane will respect this (just enough to show 1/2 rows)
+                    acctJListScrollpane.setMinimumSize(Dimension(0, 200))                 # JSplitPane will respect this (just enough to show 1/2 rows)
 
                     splitPane = JSplitPane(JSplitPane.VERTICAL_SPLIT)
                     splitPane.putClientProperty("%s.id" %(NAB.myModuleID), "splitPane")
