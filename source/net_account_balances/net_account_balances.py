@@ -16918,8 +16918,8 @@ Visit: %s (Author's site)
                                             lWarningDetected = True
                                             iWarningType = (16 if (iWarningType is None or iWarningType == 16) else 0)
                                             iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                                            warnTxt = ("WARNING: Row: %s >> Mixing different currencies within a single UOR chain - e.g. '%s' with '%s' (skipping further checks)"
-                                                       %(onRow, balanceObj.getCurrencyType(), otherRowBalanceObj.getCurrencyType()))
+                                            warnTxt = ("WARNING: Row: %s >> Mixing different currencies within a single UOR chain - row: %s '%s' with row: %s '%s' (skipping further checks)"
+                                                       %(onRow, onChainedUORIdx+1, balanceObj.getCurrencyType(), otherRowIdx+1, otherRowBalanceObj.getCurrencyType()))
                                             myPrint("B", warnTxt)
                                             NAB.warningMessagesTable.append(warnTxt)
 
