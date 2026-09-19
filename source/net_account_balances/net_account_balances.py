@@ -6073,10 +6073,8 @@ Visit: %s (Author's site)
         newAsOfDateInt = (minDateInt if (_balType == GlobalVars.BALTYPE_CURRENTBALANCE) else asof)
         return newAsOfDateInt
 
-    def updateParallelTableWithTxn(_txn, _table, _dateRangeArray, selectIncExp):
-        # type: (AbstractTxn, [{Account: [AbstractTxn]}], [DateRange], bool) -> None
-
-        NAB = NetAccountBalancesExtension.getNAB()
+    def updateParallelTableWithTxn(_txn, _table, _dateRangeArray, selectIncExp, NAB):
+        # type: (AbstractTxn, [{Account: [AbstractTxn]}], [DateRange], bool, NetAccountBalancesExtension) -> None
 
         for iRowIdx in range(0, len(_table)):
             if len(_table[iRowIdx]) < 1: continue            # There were no Accounts for this row - so skip...
@@ -6661,7 +6659,7 @@ Visit: %s (Author's site)
             for txn in txnSet:
                 if swClass and swClass.isCancelled(): return
                 iTxns += 1
-                updateParallelTableWithTxn(txn, asofBalanceTxnTable, _asofDateRangeArray, False)
+                updateParallelTableWithTxn(txn, asofBalanceTxnTable, _asofDateRangeArray, False, NAB)
             del txnSet
         except:
             myPrint("B", "@@ ERROR: .gatherBalanceAsOfDateBalances_FASTER() failed whilst iterating TxnSet: book.getTransactionSet().getAllTxns()")
@@ -6866,7 +6864,7 @@ Visit: %s (Author's site)
                 if swClass.isCancelled(): break
 
                 iTxns += 1
-                updateParallelTableWithTxn(txn, _parallelTxnTable, _incExpDateRangeArray, True)
+                updateParallelTableWithTxn(txn, _parallelTxnTable, _incExpDateRangeArray, True, NAB)
 
             del txnSet
 
