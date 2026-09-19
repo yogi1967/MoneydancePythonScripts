@@ -16535,6 +16535,7 @@ Visit: %s (Author's site)
 
                             if not isSecurityAcct(acct):
                                 lFoundNonSecurity = True
+                                secLabelText = ""
                             elif not lFoundNonSecurity:
                                 secLabelText = " (Securities)"
 
