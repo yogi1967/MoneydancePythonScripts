@@ -9518,7 +9518,7 @@ Visit: %s (Author's site)
 
                     # Upgrade this parameter with new offsetPeriods field (0=default / no offsetPeriods)....
                     if isinstance(self.savedBalanceAsOfDateTable[i], list) and len(self.savedBalanceAsOfDateTable[i]) == 3:
-                        oldValue = copy.deepcopy(self.savedIncludeRemindersTable[i])
+                        oldValue = copy.deepcopy(self.savedBalanceAsOfDateTable[i])
                         self.savedBalanceAsOfDateTable[i].append(0)
                         myPrint("B", "... Upgrading row: %s saved parameter 'savedBalanceAsOfDateTable' - adding 0 offset periods (from: '%s' to: '%s')" %(i+1, oldValue, self.savedBalanceAsOfDateTable[i]))
 
