@@ -4,7 +4,7 @@
 from __future__ import division    # Has to occur at the beginning of file... Changes division to always produce a float
 assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes that division of integers yields a float! Do you have this statement: 'from __future__ import division'?"
 
-# net_account_balances.py build: 2000 - September 2026 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 2001 - September 2026 - Stuart Beesley - StuWareSoftSystems
 # Display Name in MD changed to 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
 
 # Thanks and credit to Dan T Davis and Derek Kent(23) for their suggestions and extensive testing...
@@ -109,8 +109,8 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 # build: 2000 - updated CostCalculation with latest bugfixes from MD2027(5511) - 5th September 2026
 # build: 2000 - updated CostCalculation with latest bugfixes from MD2027(5512) - 18th September 2026
 # build: 2000 - fixes to leverage the two invalid cost basis states (current and future). Maintain parallel flags.
-# build: 2000 - tweaked cost calculation section to pre-sweep txns and cache calculations...
-# build: 2000 - ???
+# build: 2001 - tweaked cost calculation section to pre-sweep txns and cache calculations...
+# build: 2001 - ???
 
 # todo - tweak getConvertXBalanceRecursive() and getXBalance() to also exclude inactives from recursive balances (like apply networth rules)
 # todo - bug. Ref: https://github.com/yogi1967/MoneydancePythonScripts/issues/31 - magic @tags for securities don't handle tickers with dots - e.g. @shop.to
@@ -126,7 +126,7 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 
 # SET THESE LINES
 myModuleID = u"net_account_balances"
-version_build = "2000"
+version_build = "2001"
 MIN_BUILD_REQD = 5100  # 2024(5100) - AppDebug didn't exist before this build, and too many other CC, NW, AcctFilter changes to deal with...
 _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT = False
 
@@ -3873,10 +3873,6 @@ Visit: %s (Author's site)
 
             return True
 
-    class MyTxnSearch(TxnSearch):
-        def __init__(self):     pass
-        def matchesAll(self):   return True
-
     def html_strip_chars(_textToStrip):
         _textToStrip = StringEscapeUtils.escapeHtml4(_textToStrip)
         _textToStrip = _textToStrip.replace("  ","&nbsp;&nbsp;")
@@ -6907,7 +6903,7 @@ Visit: %s (Author's site)
         ################################################################################################################
         # One sweep big of Txns: This method returns the 'old' ParentTxn/SplitTxn records AND the TxnSet is locked....
         try:
-            txnSet = book.getTransactionSet().getTransactions(MyTxnSearch())        # using matchesAll() TRUE is faster
+            txnSet = book.getTransactionSet().getAllTxns()
 
             iTxns = 0
 
@@ -6921,7 +6917,7 @@ Visit: %s (Author's site)
             del txnSet
 
         except:
-            myPrint("B", "@@ ERROR: .returnIncExpTransactionsForAccounts() failed whilst iterating TxnSet: book.getTransactionSet().getTransactions(MyTxnSearch())")
+            myPrint("B", "@@ ERROR: .returnIncExpTransactionsForAccounts() failed whilst iterating TxnSet: book.getTransactionSet().getAllTxns()")
             dump_sys_error_to_md_console_and_errorlog()
             raise
 
