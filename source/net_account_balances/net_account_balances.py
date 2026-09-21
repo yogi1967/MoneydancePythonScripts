@@ -16511,15 +16511,15 @@ Visit: %s (Author's site)
 
                     if debug: myPrint("DB", "HomePageView: calculating balances for widget row: %s '%s' (currency to display: %s)" %(onRow, NAB.savedWidgetName[iAccountLoop], thisRowCurr))
 
+                    todayInt = DateUtil.getStrippedDateInt()
+                    lBalanceAsOfDateSelected = isBalanceAsOfDateSelected(iAccountLoop)
+
                     if len(accountsToShow[iAccountLoop]) < 1:
                         totalBalance = None
 
                     else:
 
                         totalBalance = 0
-
-                        todayInt = DateUtil.getStrippedDateInt()
-                        lBalanceAsOfDateSelected = isBalanceAsOfDateSelected(iAccountLoop)
 
                         # Iterate each selected account within the row...
                         for acct in accountsToShow[iAccountLoop]:
@@ -16639,155 +16639,155 @@ Visit: %s (Author's site)
                             totalBalance += (bal * mult)
 
 
-                        ### START WARNING CHECKS ####
-                        if (debug or NAB.savedShowWarningsTable[iAccountLoop]) and (not lFromSimulate or iAccountLoop == justIndex):
+                    ### START WARNING CHECKS ####
+                    if (debug or NAB.savedShowWarningsTable[iAccountLoop]) and (not lFromSimulate or iAccountLoop == justIndex):
 
-                            # DETECT ILLOGICAL CALCULATIONS - OR OTHER WARNINGS...
+                        # DETECT ILLOGICAL CALCULATIONS - OR OTHER WARNINGS...
 
-                            if (not isNetWorthUpgradedBuild() and NAB.savedApplyNWRules[iAccountLoop]):
+                        if (not isNetWorthUpgradedBuild() and NAB.savedApplyNWRules[iAccountLoop]):
+                            lWarningDetected = True
+                            iWarningType = (23 if (iWarningType is None or iWarningType == 23) else 0)
+                            iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                            warnTxt = ("WARNING: Row: %s >> 'Apply Net Worth rules' enabled, but Moneydance version too old! (minimum build: %s). Calculations will be ignoring this setting!"
+                                       %(onRow, GlobalVars.MD_NETWORTH_UPGRADED_BUILD))
+                            myPrint("B", warnTxt)
+                            NAB.warningMessagesTable.append(warnTxt)
+
+                        if not NAB.isValidTagNameForRowIdx(iAccountLoop, validTagDict):
+                            lWarningDetected = True
+                            iWarningType = (17 if (iWarningType is None or iWarningType == 17) else 0)
+                            iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                            warnTxt = ("WARNING: Row: %s >> tag name '%s' specified, but is invalid, or it's used elsewhere!"
+                                       %(onRow, NAB.savedTagNameTable[iAccountLoop]))
+                            myPrint("B", warnTxt)
+                            NAB.warningMessagesTable.append(warnTxt)
+
+                        asOfBalDateInt = getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[iAccountLoop], NAB.savedBalanceType[iAccountLoop])
+
+                        # Check for invalid cost basis issues - scan the row's own table, not accountsToShow. AutoSum'd
+                        # children are in here but are never iterated in the account loop above, so their flags would otherwise never be read.
+                        if isAnyCostBasisOptionTypeSelected(iAccountLoop) and isParallelBalanceTableOperational(iAccountLoop):
+                            _useCurrentFlag = (NAB.savedBalanceType[iAccountLoop] == GlobalVars.BALTYPE_CURRENTBALANCE)
+                            for _holdBal in parallelBalanceTable[iAccountLoop].values():                            # type: HoldBalance
+                                if (_holdBal.isCurrentCostBasisInvalid() if _useCurrentFlag else _holdBal.isCostBasisInvalid()):
+                                    lWarningDetected = True
+                                    iWarningType = (14 if (iWarningType is None or iWarningType == 14) else 0)
+                                    iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                                    warnTxt = ("WARNING: Row: %s >> Returning Cost Basis / ur-gains / capital gains but account '%s' is reporting 'INVALID' Cost Basis"
+                                               %(onRow, _holdBal.getFullAccountName()))
+                                    myPrint("B", warnTxt)
+                                    NAB.warningMessagesTable.append(warnTxt)
+                            del _useCurrentFlag
+
+                        if ((iCountIncomeExpense and (iCountAccounts)) or (iCountSecurities and (iCountIncomeExpense))):
+                            lWarningDetected = True
+                            iWarningType = (4 if (iWarningType is None or iWarningType == 4) else 0)
+                            iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                            warnTxt = ("WARNING: Row: %s >> Mix and match of different accounts/categories/securities detected. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
+                                       %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
+                            myPrint("B", warnTxt)
+                            NAB.warningMessagesTable.append(warnTxt)
+
+                        if ((isAnyCostBasisOptionTypeSelected(iAccountLoop) and (iCountSecurities or (isUseCostBasisCashSelected(iAccountLoop) and iCountInvestAccounts)))):
+                            if (iCountIncomeExpense or iCountNonInvestAccounts):
                                 lWarningDetected = True
-                                iWarningType = (23 if (iWarningType is None or iWarningType == 23) else 0)
+                                iWarningType = (6 if (iWarningType is None or iWarningType == 6) else 0)
                                 iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                                warnTxt = ("WARNING: Row: %s >> 'Apply Net Worth rules' enabled, but Moneydance version too old! (minimum build: %s). Calculations will be ignoring this setting!"
-                                           %(onRow, GlobalVars.MD_NETWORTH_UPGRADED_BUILD))
+                                warnTxt = ("WARNING: Row: %s >> Mix and match when returning Security's cost basis / ur-gains / capital gains with other non-security / invest(with cash) accounts detected. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
+                                           %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
                                 myPrint("B", warnTxt)
                                 NAB.warningMessagesTable.append(warnTxt)
 
-                            if not NAB.isValidTagNameForRowIdx(iAccountLoop, validTagDict):
+                            if (NAB.savedIncludeRemindersTable[iAccountLoop][AsOfDateChooser.ASOF_DRC_ENABLED_IDX]):
                                 lWarningDetected = True
-                                iWarningType = (17 if (iWarningType is None or iWarningType == 17) else 0)
+                                iWarningType = (7 if (iWarningType is None or iWarningType == 7) else 0)
                                 iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                                warnTxt = ("WARNING: Row: %s >> tag name '%s' specified, but is invalid, or it's used elsewhere!"
-                                           %(onRow, NAB.savedTagNameTable[iAccountLoop]))
+                                warnTxt = ("WARNING: Row: %s >> Mix and match when returning Security's cost basis / ur-gains / capital gains, and including reminders. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
+                                           %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
                                 myPrint("B", warnTxt)
                                 NAB.warningMessagesTable.append(warnTxt)
 
-                            asOfBalDateInt = getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[iAccountLoop], NAB.savedBalanceType[iAccountLoop])
+                            if (NAB.savedBalanceType[iAccountLoop] == GlobalVars.BALTYPE_CLEAREDBALANCE):
+                                lWarningDetected = True
+                                iWarningType = (13 if (iWarningType is None or iWarningType == 13) else 0)
+                                iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                                warnTxt = ("WARNING: Row: %s >> Security's cost basis / ur-gains / capital gains selected with Cleared Balance ILLOGICAL. Calculated 'Balance' cost basis / ur-gains / capital gains will be returned. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
+                                           %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
+                                myPrint("B", warnTxt)
+                                NAB.warningMessagesTable.append(warnTxt)
 
-                            # Check for invalid cost basis issues - scan the row's own table, not accountsToShow. AutoSum'd
-                            # children are in here but are never iterated in the account loop above, so their flags would otherwise never be read.
-                            if isAnyCostBasisOptionTypeSelected(iAccountLoop) and isParallelBalanceTableOperational(iAccountLoop):
-                                _useCurrentFlag = (NAB.savedBalanceType[iAccountLoop] == GlobalVars.BALTYPE_CURRENTBALANCE)
-                                for _holdBal in parallelBalanceTable[iAccountLoop].values():                            # type: HoldBalance
-                                    if (_holdBal.isCurrentCostBasisInvalid() if _useCurrentFlag else _holdBal.isCostBasisInvalid()):
+                            if isUseCostBasisCapitalGainsSelected(iAccountLoop):
+                                _asof = todayInt if asOfBalDateInt == 0 else asOfBalDateInt
+                                if NAB.savedUseCostBasisTable[iAccountLoop][GlobalVars.COSTBASIS_DR_KEY_IDX] != MyDateRangeChooser.KEY_DR_ALL_DATES:
+                                    dateRange = getCapitalGainsDateRangeSelected(NAB.savedUseCostBasisTable[iAccountLoop], adjForBalType=NAB.savedBalanceType[iAccountLoop])
+                                    if dateRange.getEndDateInt() > _asof:
                                         lWarningDetected = True
-                                        iWarningType = (14 if (iWarningType is None or iWarningType == 14) else 0)
+                                        iWarningType = (15 if (iWarningType is None or iWarningType == 15) else 0)
                                         iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                                        warnTxt = ("WARNING: Row: %s >> Returning Cost Basis / ur-gains / capital gains but account '%s' is reporting 'INVALID' Cost Basis"
-                                                   %(onRow, _holdBal.getFullAccountName()))
+                                        warnTxt = ("WARNING: Row: %s >> Security's capital gains date range (%s - %s) exceeds asof balance date (%s). Txns/Gains after asof date will be excluded! Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
+                                                   %(onRow, convertStrippedIntDateFormattedText(dateRange.getStartDateInt()), convertStrippedIntDateFormattedText(dateRange.getEndDateInt()), convertStrippedIntDateFormattedText(_asof),
+                                                     iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
                                         myPrint("B", warnTxt)
                                         NAB.warningMessagesTable.append(warnTxt)
-                                del _useCurrentFlag
+                                del _asof
 
-                            if ((iCountIncomeExpense and (iCountAccounts)) or (iCountSecurities and (iCountIncomeExpense))):
+                        if (lBalanceAsOfDateSelected and NAB.savedBalanceType[iAccountLoop] == GlobalVars.BALTYPE_CLEAREDBALANCE
+                                and getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[iAccountLoop]) < todayInt):
+                            lWarningDetected = True
+                            iWarningType = (11 if (iWarningType is None or iWarningType == 11) else 0)
+                            iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                            warnTxt = ("WARNING: Row: %s >> Past asof date in conjunction with Cleared Balance ILLOGICAL (will use calculated asof balance). Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
+                                       %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
+                            myPrint("B", warnTxt)
+                            NAB.warningMessagesTable.append(warnTxt)
+
+                        if NAB.savedUseTaxDates:
+                            if (NAB.savedIncludeRemindersTable[iAccountLoop][AsOfDateChooser.ASOF_DRC_ENABLED_IDX]):
                                 lWarningDetected = True
-                                iWarningType = (4 if (iWarningType is None or iWarningType == 4) else 0)
+                                iWarningType = (8 if (iWarningType is None or iWarningType == 8) else 0)
                                 iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                                warnTxt = ("WARNING: Row: %s >> Mix and match of different accounts/categories/securities detected. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
+                                warnTxt = ("WARNING: Row: %s >> Tax date cannot be derived on included reminders. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
                                            %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
                                 myPrint("B", warnTxt)
                                 NAB.warningMessagesTable.append(warnTxt)
 
-                            if ((isAnyCostBasisOptionTypeSelected(iAccountLoop) and (iCountSecurities or (isUseCostBasisCashSelected(iAccountLoop) and iCountInvestAccounts)))):
-                                if (iCountIncomeExpense or iCountNonInvestAccounts):
-                                    lWarningDetected = True
-                                    iWarningType = (6 if (iWarningType is None or iWarningType == 6) else 0)
-                                    iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                                    warnTxt = ("WARNING: Row: %s >> Mix and match when returning Security's cost basis / ur-gains / capital gains with other non-security / invest(with cash) accounts detected. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
-                                               %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
-                                    myPrint("B", warnTxt)
-                                    NAB.warningMessagesTable.append(warnTxt)
-
-                                if (NAB.savedIncludeRemindersTable[iAccountLoop][AsOfDateChooser.ASOF_DRC_ENABLED_IDX]):
-                                    lWarningDetected = True
-                                    iWarningType = (7 if (iWarningType is None or iWarningType == 7) else 0)
-                                    iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                                    warnTxt = ("WARNING: Row: %s >> Mix and match when returning Security's cost basis / ur-gains / capital gains, and including reminders. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
-                                               %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
-                                    myPrint("B", warnTxt)
-                                    NAB.warningMessagesTable.append(warnTxt)
-
-                                if (NAB.savedBalanceType[iAccountLoop] == GlobalVars.BALTYPE_CLEAREDBALANCE):
-                                    lWarningDetected = True
-                                    iWarningType = (13 if (iWarningType is None or iWarningType == 13) else 0)
-                                    iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                                    warnTxt = ("WARNING: Row: %s >> Security's cost basis / ur-gains / capital gains selected with Cleared Balance ILLOGICAL. Calculated 'Balance' cost basis / ur-gains / capital gains will be returned. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
-                                               %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
-                                    myPrint("B", warnTxt)
-                                    NAB.warningMessagesTable.append(warnTxt)
-
-                                if isUseCostBasisCapitalGainsSelected(iAccountLoop):
-                                    _asof = todayInt if asOfBalDateInt == 0 else asOfBalDateInt
-                                    if NAB.savedUseCostBasisTable[iAccountLoop][GlobalVars.COSTBASIS_DR_KEY_IDX] != MyDateRangeChooser.KEY_DR_ALL_DATES:
-                                        dateRange = getCapitalGainsDateRangeSelected(NAB.savedUseCostBasisTable[iAccountLoop], adjForBalType=NAB.savedBalanceType[iAccountLoop])
-                                        if dateRange.getEndDateInt() > _asof:
-                                            lWarningDetected = True
-                                            iWarningType = (15 if (iWarningType is None or iWarningType == 15) else 0)
-                                            iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                                            warnTxt = ("WARNING: Row: %s >> Security's capital gains date range (%s - %s) exceeds asof balance date (%s). Txns/Gains after asof date will be excluded! Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
-                                                       %(onRow, convertStrippedIntDateFormattedText(dateRange.getStartDateInt()), convertStrippedIntDateFormattedText(dateRange.getEndDateInt()), convertStrippedIntDateFormattedText(_asof),
-                                                         iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
-                                            myPrint("B", warnTxt)
-                                            NAB.warningMessagesTable.append(warnTxt)
-                                    del _asof
-
-                            if (lBalanceAsOfDateSelected and NAB.savedBalanceType[iAccountLoop] == GlobalVars.BALTYPE_CLEAREDBALANCE
-                                    and getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[iAccountLoop]) < todayInt):
+                            if isAnyCostBasisOptionTypeSelected(iAccountLoop):
                                 lWarningDetected = True
-                                iWarningType = (11 if (iWarningType is None or iWarningType == 11) else 0)
+                                iWarningType = (9 if (iWarningType is None or iWarningType == 9) else 0)
                                 iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                                warnTxt = ("WARNING: Row: %s >> Past asof date in conjunction with Cleared Balance ILLOGICAL (will use calculated asof balance). Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
+                                warnTxt = ("WARNING: Row: %s >> Tax date cannot be derived on calculated costbasis / ur-gains / capital gains. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
                                            %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
                                 myPrint("B", warnTxt)
                                 NAB.warningMessagesTable.append(warnTxt)
 
-                            if NAB.savedUseTaxDates:
-                                if (NAB.savedIncludeRemindersTable[iAccountLoop][AsOfDateChooser.ASOF_DRC_ENABLED_IDX]):
-                                    lWarningDetected = True
-                                    iWarningType = (8 if (iWarningType is None or iWarningType == 8) else 0)
-                                    iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                                    warnTxt = ("WARNING: Row: %s >> Tax date cannot be derived on included reminders. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
-                                               %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
-                                    myPrint("B", warnTxt)
-                                    NAB.warningMessagesTable.append(warnTxt)
+                            if lBalanceAsOfDateSelected:
+                                lWarningDetected = True
+                                iWarningType = (10 if (iWarningType is None or iWarningType == 10) else 0)
+                                iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                                warnTxt = ("WARNING: Row: %s >> Tax date cannot be derived on as-of calculated balances. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
+                                           %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
+                                myPrint("B", warnTxt)
+                                NAB.warningMessagesTable.append(warnTxt)
 
-                                if isAnyCostBasisOptionTypeSelected(iAccountLoop):
-                                    lWarningDetected = True
-                                    iWarningType = (9 if (iWarningType is None or iWarningType == 9) else 0)
-                                    iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                                    warnTxt = ("WARNING: Row: %s >> Tax date cannot be derived on calculated costbasis / ur-gains / capital gains. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
-                                               %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
-                                    myPrint("B", warnTxt)
-                                    NAB.warningMessagesTable.append(warnTxt)
+                        rowTagName = validTagsFormulaDict[iAccountLoop].tag
+                        if rowTagName:
+                            if rowTagName.startswith("row") or (str(onRow) in rowTagName):                          # noqa
+                                lWarningDetected = True
+                                iWarningType = (21 if (iWarningType is None or iWarningType == 21) else 0)
+                                iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                                warnTxt = ("WARNING: Row: %s >> Tag name '%s' used... Tags should not start with 'row' or contain own row number!" %(onRow, NAB.getTagVariableNameForRowIdx(iAccountLoop, returnOriginalCase=True)))
+                                myPrint("B", warnTxt)
+                                NAB.warningMessagesTable.append(warnTxt)
 
-                                if lBalanceAsOfDateSelected:
-                                    lWarningDetected = True
-                                    iWarningType = (10 if (iWarningType is None or iWarningType == 10) else 0)
-                                    iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                                    warnTxt = ("WARNING: Row: %s >> Tax date cannot be derived on as-of calculated balances. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
-                                               %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
-                                    myPrint("B", warnTxt)
-                                    NAB.warningMessagesTable.append(warnTxt)
+                            if rowTagName in NAB.FILTER_FORMULA_EXPR_ALLOWED_WORDS:
+                                lWarningDetected = True
+                                iWarningType = (22 if (iWarningType is None or iWarningType == 22) else 0)
+                                iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                                warnTxt = ("WARNING: Row: %s >> Tag name '%s' used... Tags should NOT be the same as function names (%s)!" %(onRow, NAB.getTagVariableNameForRowIdx(iAccountLoop, returnOriginalCase=True), NAB.FILTER_FORMULA_EXPR_ALLOWED_WORDS))
+                                myPrint("B", warnTxt)
+                                NAB.warningMessagesTable.append(warnTxt)
 
-                            rowTagName = validTagsFormulaDict[iAccountLoop].tag
-                            if rowTagName:
-                                if rowTagName.startswith("row") or (str(onRow) in rowTagName):                          # noqa
-                                    lWarningDetected = True
-                                    iWarningType = (21 if (iWarningType is None or iWarningType == 21) else 0)
-                                    iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                                    warnTxt = ("WARNING: Row: %s >> Tag name '%s' used... Tags should not start with 'row' or contain own row number!" %(onRow, NAB.getTagVariableNameForRowIdx(iAccountLoop, returnOriginalCase=True)))
-                                    myPrint("B", warnTxt)
-                                    NAB.warningMessagesTable.append(warnTxt)
-
-                                if rowTagName in NAB.FILTER_FORMULA_EXPR_ALLOWED_WORDS:
-                                    lWarningDetected = True
-                                    iWarningType = (22 if (iWarningType is None or iWarningType == 22) else 0)
-                                    iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                                    warnTxt = ("WARNING: Row: %s >> Tag name '%s' used... Tags should NOT be the same as function names (%s)!" %(onRow, NAB.getTagVariableNameForRowIdx(iAccountLoop, returnOriginalCase=True), NAB.FILTER_FORMULA_EXPR_ALLOWED_WORDS))
-                                    myPrint("B", warnTxt)
-                                    NAB.warningMessagesTable.append(warnTxt)
-
-                        ### END WARNING CHECKS ###
+                    ### END WARNING CHECKS ###
 
 
                     # todo - consider if nuking the balance is the right thing to do here...?
