@@ -5,7 +5,34 @@ Custom Balances (version 2000 onwards) works with Moneydance 2024(5100) onwards.
 - If you need to run Custom Balances on earlier builds of Moneydance, then you need to install
   Custom Balances version 1058 (Dec 2025) which works on Moneydance builds 2021.1(3056) onwards.
 
-DISCLAIMER: THIS EXTENSION IS READONLY (IT DOES NOT CHANGE DATA) >> YOU USE AT YOUR OWN RISK!
+
+CONTENTS: (search for the heading text to jump to a section)
+  DEFINITIONS                                       - terms used in this guide
+  INSTALLATION                                      - how to install / upgrade
+  PURPOSE                                           - what Custom Balances does
+  LET'S GET STARTED                                 - quick tour of the settings screen
+  CREATING ROWS AND SAVING                          - adding, copying, deleting and saving rows
+  CHOICES/CONFIGURATION FOR A ROW                   - all per-row settings explained
+  MATH ON CALCULATED BALANCES                       - formulas, tags, UOR, row maths, nw()
+  FORMATTING FOR ROW DISPLAY                        - formatting guide - hide row when, hide decimals, separators
+  ACCOUNT SELECTION LIST (PICKLIST)                 - selecting accounts / categories / securities
+  FILTERS FOR LIST CHOICES                          - narrowing the picklist
+  OPTIONS MENU                                      - the settings screen's own menu
+  BACKUP/RESTORE                                    - saving and restoring your configuration
+  SELECT ROW INFORMATION                            - what the row selector box is telling you
+  SEARCH BOX AND GROUPID                            - grouping rows and filtering the widget
+  TAG FIELD                                         - naming a row for use in formulas
+  WARNINGS BOX                                      - what the warnings mean
+  DATE OFFSET                                       - shifting date ranges by n periods
+  ROW NAME FORMATTING                               - html, colours, and the gray (info) text
+  KEY TO ROW FORMATTING ON SUMMARY SCREEN           - explaining the widget's colours and marks
+  DETAILS ON HOW CALCULATIONS OF BALANCES OCCURS    - the calculation sequence, rounding
+  NOTES ON NET WORTH FEATURES                       - net worth rules and nw() behaviour
+  NOTES ON COST BASIS / CAPITAL GAINS               - cost basis, u/r gains, capital gains
+  KNOWN MONEYDANCE (INTERNAL) COLOUR NAMES          - colour names usable in row name html
+  HISTORICAL UPGRADE NOTES                          - changes across versions
+  TECHNICAL/HISTORICAL NOTES                        - internals, limitations, background
+
 
 DEFINITIONS:
 - CB means this extension / Custom Balances
@@ -144,6 +171,7 @@ CHOICES/CONFIGURATION FOR A ROW:
            ... ie. once they are recorded/committed then they are already within the actual balance for that date
 
         - The 'balance asof date' setting has no bearing on (non-recorded) Reminders to include.
+        - The 'I/E date range' setting has no bearing on (non-recorded) Reminders to include.
         - Only uncommitted (ie. non-recorded) Reminders will be selected. Then...
         - Reminder date(s) will be forward calculated up to the Reminder's asof date setting. Then...
         - The normal rules will apply when calculating Balance, Current Balance, Cleared Balance balances
