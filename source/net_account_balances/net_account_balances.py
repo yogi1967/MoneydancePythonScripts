@@ -9902,6 +9902,7 @@ Visit: %s (Author's site)
             NAB = self
             validTagsDict = {}
             validTagsFormulaDict = {}
+            seenTagNames = set()
 
             ct = NAB.moneydanceContext.getCurrentAccountBook().getCurrencies()
             base = ct.getBaseType()
@@ -9928,9 +9929,10 @@ Visit: %s (Author's site)
                 if tagName is None and formula is None: continue
                 validTagsFormulaDict[i] = _StoreTagFormula(i, tagName, formula, nothis)
                 if tagName is None: continue
-                if validTagsDict.get(tagName, None) is not None:
-                    del validTagsDict[tagName]                                   # Remove all instances of duplicates...
+                if tagName in seenTagNames:
+                    validTagsDict.pop(tagName, None)                             # Remove all instances of duplicates...
                     continue
+                seenTagNames.add(tagName)
                 validTagsDict[tagName] = defaultValue
 
             for i in range(0, NAB.getNumberOfRows()):
