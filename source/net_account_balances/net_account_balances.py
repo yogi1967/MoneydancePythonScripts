@@ -109,6 +109,7 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 # build: 2000 - updated CostCalculation with latest bugfixes from MD2027(5511) - 5th September 2026
 # build: 2000 - updated CostCalculation with latest bugfixes from MD2027(5512) - 18th September 2026
 # build: 2000 - fixes to leverage the two invalid cost basis states (current and future). Maintain parallel flags.
+# build: 2000 - tweaked cost calculation section to pre-sweep txns and cache calculations...
 # build: 2000 - ???
 
 # todo - tweak getConvertXBalanceRecursive() and getXBalance() to also exclude inactives from recursive balances (like apply networth rules)
@@ -3288,7 +3289,7 @@ Visit: %s (Author's site)
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
 
-    TIMING_DEBUG = False
+    TIMING_DEBUG = True;
 
     def selectAllHomeScreens():
 
@@ -6263,6 +6264,41 @@ Visit: %s (Author's site)
                         myPrint("DB", "....", holdBal, "Key:", acct)
             myPrint("DB", "---------------------------------------------------------------------------")
 
+    def buildSecurityTxnBuckets(_parallelBalanceTable, book):
+        # type: ([{Account: HoldBalance}], AccountBook) -> {Account: TxnSet}
+        """One sweep of the book's txns, bucketed by security account, covering only the security accounts
+        the cost basis rows will actually calculate. CostCalculation re-filters and copies whatever candidate
+        set it is given (to the account, and to the as-of date), so these buckets are a performance hint only
+        - never the calculation's authoritative universe.
+        Without this, every CostCalculation() sweeps the whole book again to find one account's txns."""
+
+        buckets = {}
+        for iRowIdx in range(0, len(_parallelBalanceTable)):
+            if not isAnyCostBasisOptionTypeSelected(iRowIdx): continue
+            for acct in _parallelBalanceTable[iRowIdx]:
+                if not shouldIncludeAccountForCostBasis(iRowIdx, acct): continue
+                if not isSecurityAcct(
+                    acct): continue  # cash (investment) accts are served from their stored balances and never reach CostCalculation
+                if acct not in buckets: buckets[acct] = TxnSet()
+
+        if len(buckets) < 1: return buckets
+
+        ################################################################################################################
+        # One sweep big of Txns: This method returns the 'old' ParentTxn/SplitTxn records AND the TxnSet is locked....
+        try:
+            txnSet = book.getTransactionSet().getAllTxns()
+            for txn in txnSet:
+                _bucket = buckets.get(txn.getAccount())
+                if _bucket is not None: _bucket.addTxn(txn)
+            del txnSet
+        except:
+            myPrint("B",
+                    "@@ ERROR: .buildSecurityTxnBuckets() failed whilst iterating TxnSet: book.getTransactionSet().getAllTxns()")
+            dump_sys_error_to_md_console_and_errorlog()
+            raise
+
+        return buckets
+
     def replaceSecurityCostBasisBalances(_parallelBalanceTable, swClass):
         # type: ([{Account: HoldBalance}], SwingWorker) -> None
 
@@ -6270,6 +6306,15 @@ Visit: %s (Author's site)
 
         NAB = NetAccountBalancesExtension.getNAB()
         todayInt = DateUtil.getStrippedDateInt()
+
+        # pre-sweep txns and build a cost calculation cache
+        book = NAB.moneydanceContext.getCurrentAccountBook()
+        txnBuckets = buildSecurityTxnBuckets(_parallelBalanceTable, book)
+        ccCache = {}  # (acct, asOfDate) -> CostCalculation
+
+        # turn on cost calculation debug if required...
+        # if (isCostCalculationUpgradedBuild()): CostCalculation.LOG.isEnabled = True
+        # else: CostCalculation.COST_DEBUG = True
 
         for iRowIdx in range(0, len(_parallelBalanceTable)):
 
@@ -6318,10 +6363,11 @@ Visit: %s (Author's site)
                 else:
                     assert isSecurityAcct(acct), ("ERROR: Acct: '%s' is not a security account (type: '%s')?!'" %(acct, acct.getAccountType()))
 
-                    # if (isCostCalculationUpgradedBuild()): CostCalculation.LOG.isEnabled = True
-                    # else: CostCalculation.COST_DEBUG = True
-
-                    costCalculationBal = CostCalculation(acct, asOfDate, None, True)
+                    _ccKey = (acct, asOfDate)
+                    costCalculationBal = ccCache.get(_ccKey)
+                    if costCalculationBal is None:
+                        costCalculationBal = CostCalculation(acct, asOfDate, txnBuckets.get(acct), True)
+                        ccCache[_ccKey] = costCalculationBal
                     costCalculationCurrBal = costCalculationBal.getCurrentBalanceCostCalculation()                      # noqa
 
                     sharesAndCostBasisForAsOf = costCalculationBal.getSharesAndCostBasisForAsOf()
@@ -17682,7 +17728,7 @@ Visit: %s (Author's site)
                                     useTaxDatesText = "" if not NAB.savedUseTaxDates else "*TAX DATES* "
                                     hiddenRowsText = "" if not hiddenRows else "*HIDDEN ROW(s)* "
                                     filteredRowsText = "" if not filteredRows else "*FILTERED ROW(s)* "
-                                    CCEngineText = "" if (CostCalculation != MyCostCalculation) else "" if (not debug and not NAB.isPreview) else "*INT CC ENG* "
+                                    CCEngineText = "" if (not debug and not NAB.isPreview) else ("*INT CC ENG* " if (CostCalculation == MyCostCalculation) else "*STD CC ENG* ")
                                     filterGroupIDText = "" if NAB.savedFilterByGroupID == "" else "*Filter: '%s'* " %(NAB.savedFilterByGroupID)
                                     combinedTxt = ""
                                     _countTxtAdded = 0
