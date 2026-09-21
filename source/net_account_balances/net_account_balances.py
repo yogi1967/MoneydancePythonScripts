@@ -16923,7 +16923,8 @@ Visit: %s (Author's site)
                                             myPrint("B", warnTxt)
                                             NAB.warningMessagesTable.append(warnTxt)
 
-                                    if (otherRowBalLong is None or otherRowBalWithDecimals == 0.0):
+                                    uorOperator = NAB.savedOperateOnAnotherRowTable[onChainedUORIdx][NAB.OPERATE_OTHER_ROW_OPERATOR]
+                                    if (otherRowBalLong is None or (otherRowBalWithDecimals == 0.0 and uorOperator != "*")):
                                         if debug: myPrint("B", "...... RowIdx: %s (calc: %s - %s) otherRowIdx: %s balance (calc: %s - %s) is NOT valid (or is zero), so skipping this step!" %(i, thisRowBalLong, thisRowBalWithDecimals, otherRowIdx, otherRowBalLong, otherRowBalWithDecimals))
                                         continue
 
@@ -16936,7 +16937,7 @@ Visit: %s (Author's site)
                                             otherRowBalLong = otherRowBalanceObj.getBalance()
                                             otherRowBalWithDecimals = otherRowBalanceObj.getBalanceWithDecimalsPreserved()
 
-                                    operator = NAB.savedOperateOnAnotherRowTable[onChainedUORIdx][NAB.OPERATE_OTHER_ROW_OPERATOR]
+                                    operator = uorOperator
                                     newRowBalWithDecimals = MyHomePageView.calculateUsingSymbol(thisRowBalWithDecimals, operator, otherRowBalWithDecimals)
                                     newRowBalLong = balanceObj.getCurrencyType().getLongValue(newRowBalWithDecimals)
 
