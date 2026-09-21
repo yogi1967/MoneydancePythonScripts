@@ -17049,8 +17049,11 @@ Visit: %s (Author's site)
                         if debug: myPrint("B", "@@ row: %s has error flagged - removing %s from validTagDict" %(i+1, tagName))
                         del validTagDict[tagName]                    # None / Invalid - so remove from valid tags...
                     else:
-                        if debug: myPrint("B", "@@ row: %s updating %s with %s in validTagDict" %(i+1, tagName, balanceObj.getBalanceWithDecimalsPreserved()))
-                        validTagDict[tagName] = balanceObj.getBalanceWithDecimalsPreserved()
+                        _bal = balanceObj.getBalanceWithDecimalsPreserved()
+                        if _bal is None: _bal = 0.0                              # match the @this coercion above
+                        if debug: myPrint("B", "@@ row: %s updating %s with %s in validTagDict" %(i+1, tagName, _bal))
+                        validTagDict[tagName] = _bal
+                        del _bal
                     continue
 
                 if debug:
