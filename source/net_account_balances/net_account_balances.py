@@ -501,7 +501,7 @@ else:
     from java.lang import Runtime                                                                                       # noqa
     from java.lang import Process, ArrayIndexOutOfBoundsException, Integer, InterruptedException, Character
     from java.lang.ref import WeakReference
-    from java.util import Comparator, Iterator, Collections, Iterator, UUID
+    from java.util import Iterator, Collections, Iterator, UUID
     from java.util.concurrent import CancellationException
     # from java.util import ConcurrentModificationException
 
