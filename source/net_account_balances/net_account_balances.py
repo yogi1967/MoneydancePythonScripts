@@ -17106,7 +17106,7 @@ Visit: %s (Author's site)
                             if formula is not None:
                                 thisTag = validTagsFormulaDict[i].tag
                                 if not validTagsFormulaDict[i].nothis:
-                                    if ("this00000row" not in formula and (thisTag is None or thisTag not in formula)):
+                                    if ("this00000row" not in formula and (thisTag is None or not re.search(r"\b%s\b" %(re.escape(thisTag)), formula))):
                                         lWarningDetected = True
                                         iWarningType = (20 if (iWarningType is None or iWarningType == 20) else 0)
                                         iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
