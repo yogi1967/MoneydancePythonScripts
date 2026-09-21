@@ -3289,7 +3289,7 @@ Visit: %s (Author's site)
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
 
-    TIMING_DEBUG = True;
+    TIMING_DEBUG = False
 
     def selectAllHomeScreens():
 
@@ -6837,6 +6837,7 @@ Visit: %s (Author's site)
 
                 balanceObj.calculateAndSetAccountStartBalance(dateRange)
 
+                runningBal = runningCurBal = runningClrBal = 0
                 for txn in _parallelTxnTable[iRowIdx][acct]:
                     txnAcct = txn.getAccount()
                     if txnAcct != acct: raise Exception("ERROR: Acct:%s does not match txn acct: %s" %(acct, txnAcct))
@@ -6845,14 +6846,18 @@ Visit: %s (Author's site)
                     txnDate = txn.getDateInt() if not NAB.savedUseTaxDates else txn.getTaxDateInt()
                     txnStatus = txn.getClearedStatus()
 
-                    balanceObj.setBalance(balanceObj.getBalance() + txnVal)
+                    runningBal += txnVal
 
                     if txnDate <= today:
-                        balanceObj.setCurrentBalance(balanceObj.getCurrentBalance() + txnVal)
+                        runningCurBal += txnVal
 
                     # noinspection PyUnresolvedReferences
                     if txnStatus == AbstractTxn.ClearedStatus.CLEARED:
-                        balanceObj.setClearedBalance(balanceObj.getClearedBalance() + txnVal)
+                        runningClrBal += txnVal
+
+                balanceObj.setBalance(runningBal)
+                balanceObj.setCurrentBalance(runningCurBal)
+                balanceObj.setClearedBalance(runningClrBal)
 
                 # for debug...
                 balanceObj.incExp_balance = balanceObj.getBalance()                 # NOTE: This will also include any start Balance!
