@@ -6222,8 +6222,7 @@ Visit: %s (Author's site)
             if not isAnyCostBasisOptionTypeSelected(iRowIdx): continue
             for acct in _parallelBalanceTable[iRowIdx]:
                 if not shouldIncludeAccountForCostBasis(iRowIdx, acct): continue
-                if not isSecurityAcct(
-                    acct): continue  # cash (investment) accts are served from their stored balances and never reach CostCalculation
+                if not isSecurityAcct(acct): continue  # cash (investment) accts are served from their stored balances and never reach CostCalculation
                 if acct not in buckets: buckets[acct] = TxnSet()
 
         if len(buckets) < 1: return buckets
