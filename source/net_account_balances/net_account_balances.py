@@ -5588,67 +5588,16 @@ Visit: %s (Author's site)
 
 
     # ------------------------------------------------------------------------------------------------------------------
-    # com.infinitekind.moneydance.model.AccountUtil.ACCOUNT_TYPE_NAME_COMPARATOR : Comparator
-
-    def compareAccountType(acctType1, acctType2):
-        code1 = acctType1.code()
-        code2 = acctType2.code()
-        if code1 < code2: return -1
-        if code1 > code2: return 1
-        return 0
-
-    def compareAccountsByHierarchy(a1, a2):
-        # com.infinitekind.moneydance.model.AccountUtil.compareAccountsByHierarchy(Account, Account) : int
-        if (a1 is None and a2 is None):
-            return 0
-        elif a1 is None:
-            return -1
-        elif a2 is None:
-            return 1
-
-        depth1 = a1.getDepth()
-        depth2 = a2.getDepth()
-        maxDepth = Math.max(depth1, depth2) + 1
-
-        for i in range(0,maxDepth):
-            parent1 = a1.getParentAtDepth(i)
-            parent2 = a2.getParentAtDepth(i)
-
-            if parent1 is None and parent2 is None: return 0
-            if parent1 is None: return -1
-            if parent2 is None: return 1
-
-            if parent1 != parent2:
-                typeComparison = compareAccountType(parent1.getAccountType(), parent2.getAccountType())
-                if typeComparison != 0:
-                    return typeComparison
-
-                nameComparison = String(parent1.getAccountName()).compareToIgnoreCase(String(parent2.getAccountName()))
-                if nameComparison != 0:
-                    return nameComparison
-
-                uuidComparison = String(parent1.getUUID()).compareToIgnoreCase(String(parent2.getUUID()))
-                if uuidComparison != 0:
-                    return uuidComparison
-        return 0
-
-
-    class AccountItemSorter(Comparator):
-        def compare(self, o1, o2): return compareAccountsByHierarchy(o1, o2)
-
     class MyAccountIterator(Iterator):
         # com.infinitekind.moneydance.model.AccountIterator
 
-        accountItemSorter = AccountItemSorter()
-
         def __init__(self, book):
-
             if book is None:
                 self.allAccounts = None
                 self.nextAccount = None
             else:
                 allItems = book.getItemsWithType("acct")
-                Collections.sort(allItems, MyAccountIterator.accountItemSorter)
+                Collections.sort(allItems, AccountUtil.ACCOUNT_TYPE_NAME_CASE_INSENSITIVE_COMPARATOR)
                 self.allAccounts = allItems.iterator()
                 self.findNextItem()
 
