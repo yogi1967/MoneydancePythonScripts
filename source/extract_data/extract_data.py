@@ -3373,37 +3373,61 @@ Visit: %s (Author's site)
     # Copied from: com.infinitekind.moneydance.model.CostCalculation (quite inaccessible before build 5008, also buggy)
     ####################################################################################################################
     class MyCostCalculation:
-        """CostBasis calculation engine (v12). Copies/enhances/fixes MD CostCalculation() (asof build 5064).
-        Params asof:None or zero = asof the most recent (future)txn date that affected the shareholding/costbasis balance.
-        preparedTxns is typically used by itself to recall the class to get the current cost basis
-        obtainCurrentBalanceToo is used to request that the class calls itself to also get the current/today balance too
-        # (v2: LOT control fixes, v3: added isCostBasisValid(), v4: don't incl. fees on misc inc/exp in cbasis with lots,
-        # ...fixes for  capital gains to work, v5: added in short/long term support, v6: added unRealizedSaleTxn parameter
-        support, v7: added SharesOwnedAsOf class to match MD's upgraded CostCalculation class), v8: fixed code to match
-        MD2024(5119) - fixed endless loop, buy 60, split 7:1, sell 20, split 4:1, sell all for zero cost basis scenarios;
-        v10: MD2026(5500) applied latest fixes, v11: MD2027(5511) applied latest fixes, v12: MD2027(5512) applied latest fixes"""
-
-        ################################################################################################################
-        # This is used to calculate the cost of a security using either the average cost or lot-based method.
-        # This can be used to produce the cost and gains (both short and long-term) for the security or for individual
-        # transactions on the security.
+        """CostBasis calculation engine (v13). Backport of MD's CostCalculation().
+        # v2: LOT control fixes
+        # v3: added isCostBasisValid()
+        # v4: don't incl. fees on misc inc/exp in cbasis with lots, ...fixes for  capital gains to work
+        # v5: added in short/long term support
+        # v6: added unRealizedSaleTxn parameter support
+        # v7: added SharesOwnedAsOf class to match MD's upgraded CostCalculation class)
+        # v8: fixed code to match MD2024(5119) - fixed endless loop, buy 60, split 7:1, sell 20, split 4:1, sell all for zero cost basis scenarios
+        # v10: MD2026(5500) applied latest fixes, v11: MD2027(5511) applied latest fixes, v12: MD2027(5512) applied latest fixes
+        # v13: MD2027(5512) fixed for preparedTxns and obtainCurrentBalanceToo
+        """
+        # KDoc:
+        #Class rewritten/fixed by Stuart Beesley February 2024 - since MD2024(5100)
         #
-        # Follows U.S. IRS 'single-category' average cost method specification. Gains are split short/long-term using FIFO.
-        # From U.S. IRS Publication 564 for 2009, under Average Basis, for the 'single-category' method:
-        #           "Even though you include all unsold shares of a fund in a single category to compute average
-        #           basis, you may have both short-term and long-term gains or losses when you sell these shares.
-        #           To determine your holding period, the shares disposed of are considered to be those acquired first."
-        #           https://www.irs.gov/pub/irs-prior/p564--2009.pdf
+        #This class is used to calculate the cost of a security using either the average cost or lot-based method.
+        #This can be used to produce the cost and gains (both short and long-term) for the security or for individual transactions on the security.
         #
-        # There was a 'double-category' method which allowed you to separate short-term and long-term average cost pools,
-        # but the IRS eliminated that method on April 1, 2011. NOTE: Custom Balances does compute the available shares
-        # in both short-term and long-term pools. However this data is only shown in console when COST_DEBUG is enabled).
+        #Follows U.S. IRS 'single-category' average cost method.
+        #- Basis is pooled (single average for all shares).
+        #- long/short-term split is determined by assigning sales to purchases in FIFO order to establish each share’s holding period.
         #
-        # Notes:
-        #       - A sale's fee is never split: it goes wholly to short-term if any short-term shares were sold, else wholly to long-term.
-        ################################################################################################################
+        #From U.S. IRS Publication 564 for 2009, under Average Basis, for the 'single-category' method:
+        #          <blockquote>
+        #          "Even though you include all unsold shares of a fund in a single category to compute average
+        #          basis, you may have both short-term and long-term gains or losses when you sell these shares.
+        #          To determine your holding period, the shares disposed of are considered to be those acquired first."
+        #          https://www.irs.gov/pub/irs-prior/p564--2009.pdf </blockquote>
+        #
+        #There was a 'double-category' method which allowed you to separate short-term and long-term average cost pools,
+        #but the IRS eliminated that method on April 1, 2011. NOTE: this class does compute the available shares
+        #in both short-term and long-term pools so the user can manually run the double-category method.
+        #
+        #Notes:
+        #      - LOT controlled security accounts can have an invalid cost basis. This is primarily when sell txns are not fully/properly matched to buy txns
+        #        - when this condition is detected then results from the cost calculation should be used with care.
+        #        - the cost basis for the account will be returned as zero
+        #        - capital gains will still be calculated, but will be invalid for any sells not fully/properly matched.
+        #      - A sale's fee is never split: it goes wholly to short-term if any short-term shares were sold, else wholly to long-term.
+        #
+        #@since Moneydance 2018.8 (build 1684); Significant upgrade to unified class MD2024(5100)
+        #
+        #@property secAccount             The security account
+        #@property asOfDate               Default: null. The as-of date for this calculation. Pass null to calculate and use the balance date (which can be today or future)
+        #@param preparedTxns              Default: null. Optional. A candidate set of txns for this security account, which saves this calculation scanning the whole book.
+        #                                 It is not the authoritative universe: the txns supplied are still filtered to [secAccount] and to the as-of date, and are copied
+        #                                 into this calculation's own set, so the supplied [TxnSet] is never mutated.
+        #@param obtainCurrentBalanceToo   Default: false. When true then a second calculation will be performed using today as the date - result stored in the [currentBalanceCostCalculation] property.
+        #                                 Cannot be combined with [unRealizedSaleTxn].
+        #@property unRealizedSaleTxn      Default: null. Optional. Specify a dummy sell txn that can be used to generate un-realised gains. Will be appended to the list of transactions.
+        #                                 Always supply it here, never inside [preparedTxns] - otherwise it cannot be identified later (so cannot be excluded via excludeSyntheticTxn),
+        #                                 it would be lot validated as though it were a real sell, and it would be cut by the as-of date filter.
+        #
 
         COST_DEBUG = False
+        VERSION = 13
 
         def __init__(self, secAccount, asOfDate=None, preparedTxns=None, obtainCurrentBalanceToo=False, unRealizedSaleTxn=None):
             # type: (Account, int, TxnSet, bool, SplitTxn) -> None
@@ -3411,10 +3435,8 @@ Visit: %s (Author's site)
             if self.COST_DEBUG: myPrint("B", "** MyCostCalculation() initialising..... running asof: %s, for account: '%s' (%s) **"%(asOfDate, secAccount, "AvgCost" if secAccount.getUsesAverageCost() else "LotControl"))
 
             # prevent callers attempting to request impossible / illogical combinations of parameters
-            # if the caller has prepared the txns, then they must also prepare any unRealizedSaleTxn too if they need it etc...
-            # when calling obtainCurrentBalanceToo then cannot use preparedTxns or unRealizedSaleTxn
-            if preparedTxns is not None and unRealizedSaleTxn is not None: raise Exception("Cannot supply both preparedTxns and unRealizedSaleTxn")
-            if obtainCurrentBalanceToo and (preparedTxns is not None or unRealizedSaleTxn is not None): raise Exception("Cannot obtainCurrentBalanceToo when using preparedTxns / unRealizedSaleTxn")
+            # an unRealizedSaleTxn is synthetic and is never cut by date, so it must not leak into the current balance calculation
+            if obtainCurrentBalanceToo and unRealizedSaleTxn is not None: raise Exception("Cannot obtainCurrentBalanceToo when using unRealizedSaleTxn")
 
             if unRealizedSaleTxn is not None:
                 assert (isinstance(unRealizedSaleTxn, SplitTxn))
@@ -3438,18 +3460,18 @@ Visit: %s (Author's site)
             self.secCurr = secAccount.getCurrencyType()                                                                 # type: CurrencyType
             self.usesAverageCost = secAccount.getUsesAverageCost()
 
-            # SCB: MD2027(5512) - fix (part 1) so that the transaction universe for this calculation is limited to the requested as-of date (unless using a supplied preparedTxns list)
+            # SCB: MD2027(5512) - fix (part 1) so that the transaction universe for this calculation is limited to the requested as-of date - always, including a supplied preparedTxns list.
+            # a supplied preparedTxns is a candidate set that saves us a book scan; it is not the authoritative universe. We always apply our own account / as-of rules to it,
+            # and we always build our own TxnSet, so that the sort / insert below never reorders or modifies a set the caller may be sharing across accounts or reports.
             # note: Jython - deliberately NOT using getTransactions(TxnSearch) as MD does. That calls back into Jython once per txn in the WHOLE book,
             # per security account - which runs ~30x slower. getTransactionsForAccount() keeps that scan inside Java; we then cut by date over the small result.
             cutoff = self.asOfDate
-            if isinstance(preparedTxns, TxnSet):
-                self.txns = preparedTxns
-            else:
-                allAcctTxns = secAccount.getBook().getTransactionSet().getTransactionsForAccount(secAccount)
-                self.txns = TxnSet()
-                for _i in range(0, allAcctTxns.getSize()):
-                    _t = allAcctTxns.getTxn(_i)
-                    if (cutoff is None or _t.getDateInt() <= cutoff): self.txns.addTxn(_t)
+            allAcctTxns = preparedTxns if (isinstance(preparedTxns, TxnSet))\
+                else secAccount.getBook().getTransactionSet().getTransactionsForAccount(secAccount)
+            self.txns = TxnSet()
+            for _i in range(0, allAcctTxns.getSize()):
+                _t = allAcctTxns.getTxn(_i)
+                if (_t.getAccount() == secAccount and (cutoff is None or _t.getDateInt() <= cutoff)): self.txns.addTxn(_t)
 
             # detect invalid cost basis against THIS calculation's own universe, so a later mistake cannot
             # invalidate an earlier report. Performed before sorting, and before any unRealizedSaleTxn is added.
@@ -3481,14 +3503,10 @@ Visit: %s (Author's site)
 
             if obtainCurrentBalanceToo:
                 if self.getAsOfDate() > todayInt:
-                    # SCB: MD2027(5512) - fix (part 2) so that the transaction universe for this calculation is limited to the requested as-of date (unless using a supplied preparedTxns list)
-                    # cut to today first - a supplied preparedTxns is used exactly as given, so passing this calculation's own set would validate today's balance against transactions dated after today.
+                    # SCB: MD2027(5512) - fix (part 2) so that the transaction universe for this calculation is limited to the requested as-of date.
+                    # passing our own txns is safe: the constructor below is given a non-null as-of date of today, so it cuts them to today itself.
                     # Both routes reach here: an explicit future as-of date, and the null/balance path whenever any transaction is dated ahead, which is the common one.
-                    txnsToToday = TxnSet()
-                    for _i in range(0, self.getTxns().getSize()):
-                        _t = self.getTxns().getTxn(_i)
-                        if _t.getDateInt() <= todayInt: txnsToToday.addTxn(_t)
-                    self.currentBalanceCostCalculation = MyCostCalculation(self.getSecAccount(), todayInt, txnsToToday, False)
+                    self.currentBalanceCostCalculation = MyCostCalculation(self.getSecAccount(), todayInt, self.getTxns(), False)
                 else:
                     self.currentBalanceCostCalculation = self                                                           # type: MyCostCalculation
             else:
