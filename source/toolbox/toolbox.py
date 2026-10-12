@@ -17563,7 +17563,7 @@ after saving the file, restart Moneydance
 
             theDir = os.path.join(theDir,"EXTRACT_MD_ATTACHMENTS-%s" %(UUID.randomUUID().toString()))
             if os.path.exists(theDir):
-                myPopupInformationBox(None, "SORRY - the folder %s already exists... I need to create it myself...", _THIS_METHOD_NAME, JOptionPane.WARNING_MESSAGE)
+                myPopupInformationBox(None, "SORRY - the folder %s already exists... I need to create it myself..." %(theDir), _THIS_METHOD_NAME, JOptionPane.WARNING_MESSAGE)
                 continue
 
             break

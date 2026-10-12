@@ -3079,7 +3079,7 @@ Visit: %s (Author's site)
 
         theDir = os.path.join(theDir,"EXTRACT_MD_ATTACHMENTS-%s" %(UUID.randomUUID().toString()))
         if os.path.exists(theDir):
-            myPopupInformationBox(None, "SORRY - the folder %s already exists... I need to create it myself...", "SELECT EXTRACT FOLDER", JOptionPane.WARNING_MESSAGE)
+            myPopupInformationBox(None, "SORRY - the folder %s already exists... I need to create it myself..." %(theDir), "SELECT EXTRACT FOLDER", JOptionPane.WARNING_MESSAGE)
             continue
 
         break
