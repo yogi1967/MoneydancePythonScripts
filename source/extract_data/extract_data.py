@@ -14888,7 +14888,7 @@ Visit: %s (Author's site)
                                                                                 %(pad(str(txn.getAccount().getAccountType()), 15),
                                                                                   pad(txn.getAccount().getAccountName(), 30),
                                                                                   convertStrippedIntDateFormattedText(txn.getDateInt()),
-                                                                                  rpad(txn.getValue() / 100.0, 10),
+                                                                                  rpad(txn.getAccount().getCurrencyType().getDoubleValue(txn.getValue()), 10),
                                                                                   pad(txn.getDescription(), 20),
                                                                                   outputPath[len(GlobalVars.extractAttachmentsFolder_EATTACH):])])
                                                         except:
