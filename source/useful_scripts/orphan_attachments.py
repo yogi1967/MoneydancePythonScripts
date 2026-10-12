@@ -3106,7 +3106,7 @@ Visit: %s (Author's site)
                 if attachmentLocations.get(_mdItem.getAttachmentTag(_key)):
                     iDuplicateKeys += 1
                     x="@@ Error %s already exists in my attachment location list...!?" %_mdItem.getUUID()
-                    myPrint("B", )
+                    myPrint("B",x)
                     if debug: diagDisplay+=(x+"\n")
 
                 attachmentLocations[_mdItem.getAttachmentTag(_key)] = [
