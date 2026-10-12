@@ -3259,8 +3259,10 @@ Visit: %s (Author's site)
 
             for _f in listTheFiles:
                 if saveFiles[_f] is not None:
+                    try: _modified = datetime.datetime.fromtimestamp(os.path.getmtime(_f)).strftime('%Y-%m-%d %H:%M:%S')
+                    except: _modified = ""
                     output+=("Dataset: Mod: %s %s\n"
-                             % (pad(datetime.datetime.fromtimestamp(os.path.getmtime(_f)).strftime('%Y-%m-%d %H:%M:%S'), 11), _f))
+                             % (pad(_modified, 11), _f))
             del listTheFiles
 
             output+=("\nBACKUP FILES\n"
@@ -3268,8 +3270,10 @@ Visit: %s (Author's site)
 
             for _f in listTheArchiveFiles:
                 if saveArchiveFiles[_f] is not None:
+                    try: _modified = datetime.datetime.fromtimestamp(os.path.getmtime(_f)).strftime('%Y-%m-%d %H:%M:%S')
+                    except: _modified = ""
                     output+=("Archive: Mod: %s %s\n"
-                             % (pad(datetime.datetime.fromtimestamp(os.path.getmtime(_f)).strftime('%Y-%m-%d %H:%M:%S'), 11), _f))
+                             % (pad(_modified, 11), _f))
             del listTheArchiveFiles
 
             output+=("\nSYNC FOLDERS FOUND:\n"
