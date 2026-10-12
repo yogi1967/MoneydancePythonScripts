@@ -14877,6 +14877,8 @@ Visit: %s (Author's site)
                                                         attachmentsLog += ("Error - path: %s already exists... SKIPPING THIS ONE!\n" %(outputPath))
                                                     else:
                                                         myPrint("DB", "Exporting attachment [%s]" %(os.path.basename(outputPath)))
+                                                        outStream = None
+                                                        inStream = None
                                                         try:
                                                             outStream = FileOutputStream(File(outputPath))
                                                             inStream = convertBufferedSourceToInputStream(MD_REF.getCurrentAccountBook().getLocalStorage().openFileForReading(attachTag))
@@ -14896,6 +14898,15 @@ Visit: %s (Author's site)
                                                             myPrint("B", _msgTxt)
                                                             attachmentsLog += ("%s\n" %(_msgTxt))
                                                             iSkip += 1
+                                                            try:
+                                                                if inStream is not None: inStream.close()
+                                                            except: pass
+                                                            try:
+                                                                if outStream is not None: outStream.close()
+                                                            except: pass
+                                                            try:
+                                                                if os.path.exists(outputPath): os.remove(outputPath)
+                                                            except: pass
                                             del txnSet
 
                                             attachmentsExtractedTxt = sorted(attachmentsExtractedTxt, key=lambda _sort: (_sort[0], _sort[1], _sort[2]))
@@ -14911,7 +14922,7 @@ Visit: %s (Author's site)
                                                 log.close()
                                             except: pass
 
-                                            _msgTxt = _THIS_EXTRACT_NAME + "%s Attachments extracted to disk (%s skipped)" %(iCountAttachments, iSkip)
+                                            _msgTxt = _THIS_EXTRACT_NAME + "%s Attachments extracted to disk (%s skipped)" %(iCountAttachments - iSkip, iSkip)
                                             myPrint("B", _msgTxt)
                                             GlobalVars.AUTO_MESSAGES.append(_msgTxt)
                                             GlobalVars.countFilesCreated += 1
