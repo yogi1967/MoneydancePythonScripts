@@ -3242,8 +3242,7 @@ Visit: %s (Author's site)
                         for fileName in dirList:
                             fullPath = os.path.join(backupLocation,fileName)
                             if fileName.endswith(md_extn):
-                                if saveFiles.get(fileName) is not None:
-                                    saveFiles[fullPath] = True
+                                saveFiles[fullPath] = True
                             elif fileName.endswith(md_archive):
                                 saveArchiveFiles[fullPath] = True
                         del dirList
