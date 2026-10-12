@@ -25795,7 +25795,8 @@ after saving the file, restart Moneydance
                         lValidFile = False
 
                         fp = os.path.join(path, f)
-                        thisFileSize = os.path.getsize(fp)
+                        try: thisFileSize = os.path.getsize(fp)
+                        except: continue
 
                         total_size += thisFileSize
 

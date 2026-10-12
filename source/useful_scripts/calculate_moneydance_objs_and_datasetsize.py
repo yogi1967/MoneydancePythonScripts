@@ -3081,7 +3081,8 @@ Visit: %s (Author's site)
             lValidFile = False
 
             fp = os.path.join(path, f_file)
-            thisFileSize = os.path.getsize(fp)
+            try: thisFileSize = os.path.getsize(fp)
+            except: continue
 
             total_size += thisFileSize
 
