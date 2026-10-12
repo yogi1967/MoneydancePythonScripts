@@ -25799,7 +25799,7 @@ after saving the file, restart Moneydance
 
                         total_size += thisFileSize
 
-                        if os.path.basename(f) == "key" and path == keyDir and len:
+                        if os.path.basename(f) == "key" and path == keyDir:
                             lValidFile = True
                             keySize = thisFileSize
                         if os.path.basename(f) == "settings" and path == settingsDir:

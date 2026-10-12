@@ -3085,7 +3085,7 @@ Visit: %s (Author's site)
 
             total_size += thisFileSize
 
-            if os.path.basename(f_file) == "key" and path==keyDir and len:
+            if os.path.basename(f_file) == "key" and path==keyDir:
                 lValidFile = True
                 keySize=thisFileSize
             if os.path.basename(f_file) == "settings" and path==settingsDir:
