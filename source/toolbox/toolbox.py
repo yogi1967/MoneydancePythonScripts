@@ -17927,8 +17927,8 @@ after saving the file, restart Moneydance
         if iAttachmentsFound:
             diagDisplay += "\n\nLISTING VALID ATTACHMENTS FOR REFERENCE\n"
             diagDisplay += " ======================================\n"
-            x = "\nBase Attachment Directory is: %s" %os.path.join(MD_REF.getCurrentAccountBook().getRootFolder().getCanonicalPath(), AccountBookWrapper.SAFE_SUBFOLDER_NAME, "")
-            diagDisplay += (x + "\n-----------\n")
+            baseDirMsg = "\nBase Attachment Directory is: %s" %os.path.join(MD_REF.getCurrentAccountBook().getRootFolder().getCanonicalPath(), AccountBookWrapper.SAFE_SUBFOLDER_NAME, "")
+            diagDisplay += (baseDirMsg + "\n-----------\n")
 
             for validLocation in attachmentLocations:
                 locationRecord = attachmentLocations[validLocation]

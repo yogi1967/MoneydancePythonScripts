@@ -3300,8 +3300,8 @@ Visit: %s (Author's site)
         if iAttachmentsFound:
             diagDisplay+="\n\nLISTING VALID ATTACHMENTS FOR REFERENCE\n"
             diagDisplay+=" ======================================\n"
-            x="\nBase Attachment Directory is: %s" %os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath(), "safe","")
-            diagDisplay+=(x+"\n-----------\n")
+            baseDirMsg="\nBase Attachment Directory is: %s" %os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath(), "safe","")
+            diagDisplay+=(baseDirMsg+"\n-----------\n")
 
             for validLocation in attachmentLocations:
                 locationRecord = attachmentLocations[validLocation]
