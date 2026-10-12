@@ -14713,8 +14713,10 @@ Visit: %s (Author's site)
                                             MD_REF.getCurrentAccountBook().saveTrunkFile()
 
                                             fout = FileOutputStream(File(GlobalVars.csvfilename))
-                                            localStorage.readFile(trunkName, fout)
-                                            fout.close()
+                                            try:
+                                                localStorage.readFile(trunkName, fout)
+                                            finally:
+                                                fout.close()
 
 
                                             _msgTxt = _THIS_EXTRACT_NAME + "Trunk file decrypted and extracted to disk: '%s'" %(GlobalVars.csvfilename)
