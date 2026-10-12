@@ -17771,6 +17771,7 @@ after saving the file, restart Moneydance
         for root, dirs, files in os.walk(attachmentFullPath):
 
             for name in files:
+                if name == ".DS_Store": continue
                 theFile = os.path.join(root,name)[len(attachmentFullPath)-len(MD_REF.getCurrentAccountBook().getAttachmentsFolder()):]
                 byteSize = os.path.getsize(os.path.join(root,name))
                 modified = datetime.datetime.fromtimestamp(os.path.getmtime(os.path.join(root,name))).strftime(convertMDShortDateFormat_strftimeFormat(lForceYYMMDDHMS=True))
