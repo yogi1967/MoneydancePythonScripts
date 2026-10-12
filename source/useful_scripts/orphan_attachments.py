@@ -3094,7 +3094,7 @@ Visit: %s (Author's site)
                 _mdItem.getAccount().getAccountName(),
                 _mdItem.getAccount().getAccountType(),
                 _mdItem.getDateInt(),
-                _mdItem.getValue(),
+                _mdItem.getAccount().getCurrencyType().getDoubleValue(_mdItem.getValue()),
                 _mdItem.getAttachmentKeys()
             ]
             x="Attachment keys: %s" %_mdItem.getAttachmentKeys()
@@ -3312,7 +3312,7 @@ Visit: %s (Author's site)
                                  %(pad(repr(record[2]),12),
                                    pad(safeStr(record[1]),20),       # Avoid utf-8 issue!
                                    record[3],
-                                   rpad(record[4]/100.0,10),
+                                   rpad(record[4],10),
                                    validLocation)
 
                 except:

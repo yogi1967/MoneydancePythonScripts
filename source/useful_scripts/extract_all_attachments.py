@@ -3126,7 +3126,7 @@ Visit: %s (Author's site)
                         del inStream, outStream
                         textRecords.append([txn.getAccount().getAccountType(), txn.getAccount().getAccountName(), txn.getDateInt(),
                                            "%s %s %s %s %s .%s\n"
-                                           %(pad(str(txn.getAccount().getAccountType()),15),pad(txn.getAccount().getAccountName(),30),txn.getDateInt(),rpad(txn.getValue()/100.0,10),pad(txn.getDescription(),20),outputPath[len(exportFolder):])])
+                                           %(pad(str(txn.getAccount().getAccountType()),15),pad(txn.getAccount().getAccountName(),30),txn.getDateInt(),rpad(txn.getAccount().getCurrencyType().getDoubleValue(txn.getValue()),10),pad(txn.getDescription(),20),outputPath[len(exportFolder):])])
                     except:
                         myPrint("B","Error extracting file - will SKIP : %s" %(outputPath))
                         textLog+=("Error extracting file - will SKIP : %s\n" %(outputPath))
