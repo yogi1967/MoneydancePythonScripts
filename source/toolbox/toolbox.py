@@ -17607,6 +17607,8 @@ after saving the file, restart Moneydance
                         textLog += ("Error - path: %s already exists... SKIPPING THIS ONE!\n" %outputPath)
                     else:
                         myPrint("P", "Exporting attachment [%s]" %(os.path.basename(outputPath)))
+                        outStream = None
+                        inStream = None
                         try:
                             outStream = FileOutputStream(File(outputPath))
                             inStream = convertBufferedSourceToInputStream(MD_REF.getCurrentAccountBook().getLocalStorage().openFileForReading(attachTag))
@@ -17621,6 +17623,15 @@ after saving the file, restart Moneydance
                             myPrint("B", txt)
                             textLog += ("%s\n" %(txt))
                             iSkip += 1
+                            try:
+                                if inStream is not None: inStream.close()
+                            except: pass
+                            try:
+                                if outStream is not None: outStream.close()
+                            except: pass
+                            try:
+                                if os.path.exists(outputPath): os.remove(outputPath)
+                            except: pass
 
             textRecords = sorted(textRecords, key=lambda _sort: (_sort[0], _sort[1], _sort[2]))
             for r in textRecords:
@@ -17638,16 +17649,16 @@ after saving the file, restart Moneydance
 
             pleaseWait.kill()
 
-            txt = "%s: FINISHED: %s attachments extracted (%s skipped)..." %(_THIS_METHOD_NAME,iCountAttachments,iSkip)
+            txt = "%s: FINISHED: %s attachments extracted (%s skipped)..." %(_THIS_METHOD_NAME,iCountAttachments-iSkip,iSkip)
             setDisplayStatus(txt, "B"); myPrint("B", txt)
 
             logToolboxUpdates("extract_attachments", txt)
             play_the_money_sound()
 
             if iSkip < 1:
-                myPopupInformationBox(toolbox_frame_,"%s attachments extracted.." %(iCountAttachments), theTitle=_THIS_METHOD_NAME)
+                myPopupInformationBox(toolbox_frame_,"%s attachments extracted.." %(iCountAttachments-iSkip), theTitle=_THIS_METHOD_NAME)
             else:
-                myPopupInformationBox(toolbox_frame_,"%s attachments extracted.. AND YOU HAD %s Missing/Errors?" %(iCountAttachments,iSkip),theTitle=_THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
+                myPopupInformationBox(toolbox_frame_,"%s attachments extracted.. AND YOU HAD %s Missing/Errors?" %(iCountAttachments-iSkip,iSkip),theTitle=_THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
 
             try: MD_REF.getPlatformHelper().openDirectory(File(exportFolder))
             except: pass

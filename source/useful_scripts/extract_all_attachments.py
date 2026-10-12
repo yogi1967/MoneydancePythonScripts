@@ -3115,6 +3115,8 @@ Visit: %s (Author's site)
                     textLog+=("Error - path: %s already exists... SKIPPING THIS ONE!\n" %outputPath)
                 else:
                     myPrint("P", "Exporting attachment [%s]" %(os.path.basename(outputPath)))
+                    outStream = None
+                    inStream = None
                     try:
                         outStream = FileOutputStream(File(outputPath))
                         inStream = convertBufferedSourceToInputStream(MD_REF.getCurrentAccount().getBook().getLocalStorage().openFileForReading(attachTag))
@@ -3129,6 +3131,15 @@ Visit: %s (Author's site)
                         myPrint("B","Error extracting file - will SKIP : %s" %(outputPath))
                         textLog+=("Error extracting file - will SKIP : %s\n" %(outputPath))
                         iSkip+=1
+                        try:
+                            if inStream is not None: inStream.close()
+                        except: pass
+                        try:
+                            if outStream is not None: outStream.close()
+                        except: pass
+                        try:
+                            if os.path.exists(outputPath): os.remove(outputPath)
+                        except: pass
 
         txn = None; del txn
         del txnSet
@@ -3151,7 +3162,7 @@ Visit: %s (Author's site)
             del log
         except: pass
 
-        myPopupInformationBox(None,"I have extracted %s attachments for you.." %(iCountAttachments))
+        myPopupInformationBox(None,"I have extracted %s attachments for you.." %(iCountAttachments-iSkip))
 
         try: MD_REF.getPlatformHelper().openDirectory(File(exportFolder))
         except: pass
@@ -3159,7 +3170,7 @@ Visit: %s (Author's site)
     myPrint("P")
     myPrint("P")
     myPrint("P")
-    myPrint("B", "\n@@FINISHED: %s attachments extracted (%s skipped)...\n" %(iCountAttachments,iSkip))
+    myPrint("B", "\n@@FINISHED: %s attachments extracted (%s skipped)...\n" %(iCountAttachments-iSkip,iSkip))
     myPrint("P")
     myPrint("P")
 
