@@ -18018,6 +18018,7 @@ after saving the file, restart Moneydance
                             tmpFile = File.createTempFile(str(System.currentTimeMillis()), attachFileName, tmpDir)
                             tmpFile.deleteOnExit()
                             fout = FileOutputStream(tmpFile)
+                            # TODO: confirm whether this path needs its separators converted to "/" on Windows
                             LS.readFile(selectedOrphan[0], fout)                                                        # noqa
                             fout.close()
                             Desktop.getDesktop().open(tmpFile)
