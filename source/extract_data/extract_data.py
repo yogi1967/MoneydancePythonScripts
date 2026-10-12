@@ -14862,9 +14862,11 @@ Visit: %s (Author's site)
                                                     attachTag = txn.getAttachmentTag(attachKey)
                                                     txnDate = txn.getDateInt()
                                                     attachFile = File(attachTag).getName()
+                                                    safeAcctName = txn.getAccount().getAccountName()
+                                                    for _ch in '\\/:*?"<>|': safeAcctName = safeAcctName.replace(_ch, "_")
                                                     attachFolder = os.path.join(GlobalVars.extractAttachmentsFolder_EATTACH,
                                                                                 "ACCT-TYPE-%s" %(txn.getAccount().getAccountType()),
-                                                                                "ACCT-%s" %(txn.getAccount().getAccountName()))
+                                                                                "ACCT-%s" %(safeAcctName))
                                                     File(attachFolder).mkdirs()
                                                     outputPath = os.path.join(attachFolder, "{:04d}-{:02d}-{:02d}-{}-{}".format(txnDate / 10000, (txnDate / 100) % 100,
                                                                                                                                 txnDate % 100, str(iCountAttachments).zfill(5),
