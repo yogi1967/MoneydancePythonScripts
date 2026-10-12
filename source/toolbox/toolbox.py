@@ -17882,7 +17882,7 @@ after saving the file, restart Moneydance
             lErrors = True
             attachmentsNotInLS = sorted(attachmentsNotInLS, key=lambda _x: (_x[3]), reverse=False)
             for theOrphanRecord in attachmentsNotInLS:
-                x = "Attachment is missing from this Txn: AcctType: %s Account: %s Date: %s Value: %s AttachKey: %s" %(theOrphanRecord[1],
+                x = "Attachment is missing from this Txn: Account: %s AcctType: %s Date: %s Value: %s AttachKey: %s" %(theOrphanRecord[1],
                                                                                                                      theOrphanRecord[2],
                                                                                                                      convertStrippedIntDateFormattedText(theOrphanRecord[3]),
                                                                                                                      theOrphanRecord[4],
