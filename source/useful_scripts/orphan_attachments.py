@@ -85,7 +85,7 @@ if "debug" not in globals():
     # if Moneydance is launched with -d, or this property is set, or extension is being (re)installed with Console open.
     debug = (False or MD_REF.DEBUG or Boolean.getBoolean("moneydance.debug"))
 
-global orphan_transactions_frame_
+global orphan_attachments_frame_
 # SET LINES ABOVE ^^^^
 
 # COPY >> START
@@ -204,10 +204,10 @@ frameToResurrect = None
 try:
     # So we check own namespace first for same frame variable...
     if (u"%s_frame_"%myModuleID in globals()
-            and (isinstance(orphan_transactions_frame_, MyJFrame)                 # EDIT THIS
-                 or type(orphan_transactions_frame_).__name__ == u"MyCOAWindow")  # EDIT THIS
-            and orphan_transactions_frame_.isActiveInMoneydance):                 # EDIT THIS
-        frameToResurrect = orphan_transactions_frame_                             # EDIT THIS
+            and (isinstance(orphan_attachments_frame_, MyJFrame)                  # EDIT THIS
+                 or type(orphan_attachments_frame_).__name__ == u"MyCOAWindow")   # EDIT THIS
+            and orphan_attachments_frame_.isActiveInMoneydance):                  # EDIT THIS
+        frameToResurrect = orphan_attachments_frame_                              # EDIT THIS
     else:
         # Now check all frames in the JVM...
         getFr = getMyJFrame( myModuleID )
