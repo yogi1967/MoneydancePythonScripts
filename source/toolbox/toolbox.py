@@ -17762,7 +17762,7 @@ after saving the file, restart Moneydance
                         _mdItem.getAccount().getAccountName(),
                         _mdItem.getAccount().getAccountType(),
                         _mdItem.getDateInt(),
-                        _mdItem.getValue(),
+                        _mdItem.getAccount().getCurrencyType().getDoubleValue(_mdItem.getValue()),
                         _mdItem.getAttachmentKeys()
                     ])
 
