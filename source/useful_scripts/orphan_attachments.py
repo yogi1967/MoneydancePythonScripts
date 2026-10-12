@@ -3375,7 +3375,7 @@ Visit: %s (Author's site)
                         tmpDir = File(MD_REF.getCurrentAccount().getBook().getRootFolder(), "tmp")
                         tmpDir.mkdirs()
                         attachFileName = (File(tmpDir, selectedOrphan[0])).getName()            # noqa
-                        tmpFile = File.createTempFile(str(System.currentTimeMillis() % 10000L), attachFileName, tmpDir)
+                        tmpFile = File.createTempFile(str(System.currentTimeMillis()), attachFileName, tmpDir)
                         tmpFile.deleteOnExit()
                         fout = FileOutputStream(tmpFile)
                         LS.readFile(selectedOrphan[0], fout)                                                            # noqa
