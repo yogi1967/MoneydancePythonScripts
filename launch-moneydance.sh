@@ -17,6 +17,9 @@
 #                 with Moneydance arguments:
 #                    JAVA_TOOL_OPTIONS="-DDsomething=great" "/Applications/Moneydance.app/Contents/MacOS/Moneydance" -d -nobackup
 #
+#                 run in the background - no Dock icon, menu bar or Cmd-Tab, does not steal focus (useful for auto-run launches) (untested this way):
+#                    JAVA_TOOL_OPTIONS="-Dapple.awt.UIElement=true" "/Applications/Moneydance.app/Contents/MacOS/Moneydance" -invoke=...
+#
 #                 with Moneydance debugger attached:
 #                    first copy java JDK's libjdwp.dylib and libdt_socket.dylib into /Applications/Moneydance.app/Contents/PlugIns/vm.jdk/Contents/Home/lib/
 #                    JAVA_TOOL_OPTIONS="-XX:+StartAttachListener -XX:+UnlockDiagnosticVMOptions -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005 -Xlog:gc*:file=/tmp/mdjfr/gc.log:time,uptime,level,tags" "/Applications/Moneydance.app/Contents/MacOS/Moneydance" -d -nobackup
@@ -41,13 +44,13 @@
 
 # This has been setup for a Mac, and would need to be changed for Windows/Linux - especially the folder locations...
 
-# NOTE: from MD2027 onwards launch Moneydance with -h for help on launch parameters
+# NOTE: from MD2027 onwards launch Moneydance with -h (or --help) for the full list of launch parameters, including feature flags
 
 # Usage:
 # Execute using './launch-moneydance.sh' you can add parameters that will be passed to Moneydance
 # Parameter: '-d'                 is passed by default by this script and turns on MD DEBUG mode
 # Parameter: '-v'                 prints the current version
-# Parameter: '-nobackup'          disables backups for this MD session (from build 5047 onwards)
+# Parameter: '-nobackup'          disables backups for this MD session (from build 5047 onwards) - deprecated from MD2027, use '+ff:nobackups'
 # Parameter: datasetname          will open the specified dataset - specify the full path wrapped in "quotes"
 # Parameter: pythonscriptname.py  adds script to a list of scripts to execute (but this seems to then be ignored)
 # Parameter: importfilename       executes file import (mutually exclusive to datasetname option)
@@ -57,6 +60,10 @@
 #                                 (e.g. my own extension with an id of test defines it's own command called 'test:customevent:magic'
 #                                 (there are other variations of this parameter and with ? instead of ':' for parameters.....
 # Parameter: '-invoke=x'          Same as -invoke_and_quit but does launch the UI first and doesn't quit...!
+# Parameter: '+ff:nobackups'      (MD2027 onwards) disables backups for this MD session
+# Parameter: '-ff:ext'            (MD2027 onwards) does not load any extensions
+# Parameter: '-ff:ext:<id>'       (MD2027 onwards) does not load the extension with that id - e.g. '-ff:ext:toolbox'
+# Parameter: '+ff:ext:<id>'       (MD2027 onwards) loads that extension even when all are turned off by '-ff:ext'
 
 # Extensions: Two extensions have been updated to leverage the =invoke command. These are: Quote Loader & Extract Data.
 # The commands to use these are:
@@ -249,6 +256,7 @@ test_launch_libs=""
 # useful option for debugging what jars are actually loaded:                  -verbose:class
 # to stop icloud native library access warnings on Mac when loading manually: --enable-native-access=ALL-UNNAMED
 # disable Metal rendering                                                     -Dsun.java2d.metal=false
+# run in the background (no Dock icon, menu bar or Cmd-Tab; does not steal focus - for auto-run launches): -Dapple.awt.UIElement=true
 
 # shellcheck disable=SC2086
 # shellcheck disable=SC2048
