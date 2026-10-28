@@ -124,6 +124,8 @@
 # build: 1051 - StockGlance2020: carries on with a zero cost basis (and a warning) when Moneydance cannot calculate it (previously the extract stopped)
 # build: 1051 - BUGFIX StockGlance2020: cost basis now correct for securities priced in other currencies, and account names containing ' : ' now shown correctly (previously could be out by a power of ten, and mangled)
 # build: 1051 - BUGFIX StockGlance2020: 'Use Current Price' unticked now uses the latest price history price (previously had no effect)
+# build: 1051 - BUGFIX Investment Transactions: share rows show the amount as entered and dividend transfers show the dividend; currency filter, hidden securities, attachments, lot shares, opening balance date and split-price crash fixed
+# build: 1051 - Security Balances: carries on with a zero cost basis (and a warning) when it cannot be calculated (previously the extract stopped)
 # build: 1051 - ???
 
 # todo - EAR: Switch to 'proper' usage of DateRangeChooser() (rather than my own 'copy')
@@ -132,6 +134,10 @@
 # todo - Consider StockGlance2020 asof balance date...
 # todo - extract budget data?
 # todo - import excel writer?
+
+# KNOWN ISSUES:
+# - Investment Transactions: a relative date range (eg 'Last 12 months') is saved as two fixed dates, so auto extract
+#   keeps using the dates from the last time the screen was run (see FIXME in the parameter screen)
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -6925,6 +6931,9 @@ Visit: %s (Author's site)
 
             GlobalVars.saved_lFilterDateRange_EIT = user_filterDateRange.isSelected()
             if GlobalVars.saved_lFilterDateRange_EIT:
+                # FIXME: a relative date choice (eg 'Last 12 months') is stored as two fixed dates, so auto extract reuses stale dates.
+                #        Fix would be to save the chooser's option key and recalculate the dates when auto extract runs (check the
+                #        DateRangeChooser key methods exist in older Moneydance builds first)
                 GlobalVars.saved_filterDateRangeStart_EIT = user_dateRangeChooser.getDateRange().getStartDateInt()
                 GlobalVars.saved_filterDateRangeEnd_EIT = user_dateRangeChooser.getDateRange().getEndDateInt()
                 if user_dateRangeChooser.getAllDatesSelected():
@@ -11317,6 +11326,7 @@ Visit: %s (Author's site)
                                 GlobalVars.csvfilename = getExtractFullPath("EAR")
 
                                 GlobalVars.attachmentFolder_EAR_EIT = ""
+                                GlobalVars.lUsedAttachmentFolder_EAR_EIT = False
                                 if GlobalVars.saved_lExtractAttachments_EAR:
                                     GlobalVars.attachmentFolder_EAR_EIT = getAttachmentPath(GlobalVars.csvfilename)
 
@@ -12190,6 +12200,7 @@ Visit: %s (Author's site)
                                 GlobalVars.csvfilename = getExtractFullPath("EIT")
 
                                 GlobalVars.attachmentFolder_EAR_EIT = ""
+                                GlobalVars.lUsedAttachmentFolder_EAR_EIT = False
                                 if GlobalVars.saved_lExtractAttachments_EIT:
                                     GlobalVars.attachmentFolder_EAR_EIT = getAttachmentPath(GlobalVars.csvfilename)
 
@@ -12268,25 +12279,19 @@ Visit: %s (Author's site)
 
                                             txnCurr = txnAcct.getCurrencyType()
 
-                                            if self._lAllSecurity:
-                                                securityCurr = None                                                     # noqa
-                                                securityTxn = None                                                      # noqa
-                                                securityAcct = None                                                     # noqa
-                                            else:
+                                            securityCurr = None                                                         # noqa
+                                            securityTxn = TxnUtil.getSecurityPart(txn) if lParent else None             # noqa
+                                            if securityTxn is not None:
+                                                securityCurr = securityTxn.getAccount().getCurrencyType()               # noqa
 
-                                                if not lParent: return False
+                                            # Applies with or without a security filter
+                                            if securityCurr is not None and self._hideHiddenSecurities and securityCurr.getHideInUI():
+                                                return False
+
+                                            if not self._lAllSecurity:
 
                                                 # If we don't have a security record, then we are not interested!
-                                                securityTxn = TxnUtil.getSecurityPart(txn)                              # noqa
-                                                if securityTxn is None:
-                                                    return False
-
-                                                securityAcct = securityTxn.getAccount()                                 # noqa
-                                                securityCurr = securityAcct.getCurrencyType()                           # noqa
-
-                                                if not self._hideHiddenSecurities or (self._hideHiddenSecurities and not securityCurr.getHideInUI()):
-                                                    pass
-                                                else:
+                                                if securityCurr is None:
                                                     return False
 
                                                 # noinspection PyUnresolvedReferences
@@ -12299,56 +12304,15 @@ Visit: %s (Author's site)
                                                 else:
                                                     return False
 
+                                            # Currency filter tests the account's currency (the extract's amounts are in it), even when the security is priced in another currency
                                             if self._lAllCurrency:
                                                 pass
+                                            elif (self._filterForCurrency.upper().strip() in txnCurr.getIDString().upper().strip()):
+                                                pass
+                                            elif (self._filterForCurrency.upper().strip() in txnCurr.getName().upper().strip()):
+                                                pass
                                             else:
-                                                if securityCurr:
-                                                    # noinspection PyUnresolvedReferences
-                                                    if txnCurr.getIDString().upper().strip() != securityCurr.getRelativeCurrency().getIDString().upper().strip():
-                                                        _msgTxt = _THIS_EXTRACT_NAME + "LOGIC ERROR: I can't see how the Security's currency is different to the Account's currency?"
-                                                        myPrint("B", _msgTxt)
-                                                        # noinspection PyUnresolvedReferences
-                                                        myPrint("B", _THIS_EXTRACT_NAME, txnCurr.getIDString().upper().strip(), securityCurr.getRelativeCurrency().getIDString().upper().strip())
-                                                        myPrint("B", _THIS_EXTRACT_NAME, repr(txn))
-                                                        myPrint("B", _THIS_EXTRACT_NAME, repr(txnCurr))
-                                                        myPrint("B", _THIS_EXTRACT_NAME, repr(securityCurr))
-                                                        # noinspection PyUnresolvedReferences
-                                                        if not GlobalVars.AUTO_EXTRACT_MODE:
-                                                            DoExtractsSwingWorker.killPleaseWait()
-                                                            genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _msgTxt, "LOGIC ERROR", JOptionPane.ERROR_MESSAGE)
-                                                        # noinspection PyUnresolvedReferences
-                                                        raise Exception(_THIS_EXTRACT_NAME + "LOGIC Error - Security's currency: "
-                                                                        + securityCurr.getRelativeCurrency().getIDString().upper().strip()   # noqa
-                                                                        + " is different to txn currency: "
-                                                                        + txnCurr.getIDString().upper().strip()
-                                                                        + " Aborting")
-
-
-                                                    # All accounts and security records can have currencies
-                                                    # noinspection PyUnresolvedReferences
-                                                    if self._lAllCurrency:
-                                                        pass
-                                                    elif (self._filterForCurrency.upper().strip() in txnCurr.getIDString().upper().strip()) \
-                                                            and (
-                                                            self._filterForCurrency.upper().strip() in securityCurr.getRelativeCurrency().getIDString().upper().strip()):
-                                                        pass
-                                                    elif (self._filterForCurrency.upper().strip() in txnCurr.getName().upper().strip()) \
-                                                            and (
-                                                            self._filterForCurrency.upper().strip() in securityCurr.getRelativeCurrency().getName().upper().strip()):
-                                                        pass
-                                                    else:
-                                                        return False
-
-                                                else:
-                                                    # All accounts and security records can have currencies
-                                                    if self._lAllCurrency:
-                                                        pass
-                                                    elif (self._filterForCurrency.upper().strip() in txnCurr.getIDString().upper().strip()):
-                                                        pass
-                                                    elif (self._filterForCurrency.upper().strip() in txnCurr.getName().upper().strip()):
-                                                        pass
-                                                    else:
-                                                        return False
+                                                return False
 
                                             return True
 
@@ -12540,7 +12504,7 @@ Visit: %s (Author's site)
                                                 if acctBal not in copyValidAccountList:
                                                     copyValidAccountList.add(acctBal)
 
-                                    relativePath = os.path.splitext(os.path.basename(GlobalVars.attachmentFolder_EAR_EIT))[0]
+                                    relativePath = os.path.splitext(os.path.basename(GlobalVars.attachmentFolder_EAR_EIT or ""))[0]   # folder can be None if it could not be created
 
                                     for txn in txns:
 
@@ -12783,7 +12747,12 @@ Visit: %s (Author's site)
                                         else:
                                             _row[GlobalVars.dataKeys["_AMOUNT"][_COLUMN]] = acctCurr.getDoubleValue(txn.getValue())
 
-                                        if xfrTxn:  # Override the value set above. Why? It's the amount TXF'd out of the account....
+                                        if securityTxn and securityTxn.getValue() != 0:
+                                            pass    # rows that move shares keep the security amount as entered (fee is in its own column)
+                                        elif incTxn and lParent and str(txn.getInvestTxnType()) == "DIVIDENDXFR":
+                                            # Dividend Transfer shows the dividend like other dividends; the amount transferred is in TxnNetAmount
+                                            _row[GlobalVars.dataKeys["_AMOUNT"][_COLUMN]] = (acctCurr.getDoubleValue(incTxn.getAmount())) * -1
+                                        elif xfrTxn:  # Override the value set above. Why? It's the amount TXF'd out of the account....
                                             _row[GlobalVars.dataKeys["_AMOUNT"][_COLUMN]] = (acctCurr.getDoubleValue(xfrTxn.getAmount())) * -1
                                         elif incTxn:
                                             _row[GlobalVars.dataKeys["_AMOUNT"][_COLUMN]] = (acctCurr.getDoubleValue(incTxn.getAmount())) * -1
@@ -12852,7 +12821,7 @@ Visit: %s (Author's site)
                                             _row[GlobalVars.dataKeys["_PRICE"][_COLUMN]] = price
                                             # price = None
 
-                                            if GlobalVars.saved_lAdjustForSplits_EIT:
+                                            if GlobalVars.saved_lAdjustForSplits_EIT and _row[GlobalVars.dataKeys["_SHRSAFTERSPLIT"][_COLUMN]]:   # split-adjusted shares can round to zero
                                                 # noinspection PyUnresolvedReferences
                                                 price = ((_row[GlobalVars.dataKeys["_AMOUNT"][_COLUMN]] / (_row[GlobalVars.dataKeys["_SHRSAFTERSPLIT"][_COLUMN]])))
                                                 _row[GlobalVars.dataKeys["_PRICEAFTERSPLIT"][_COLUMN]] = price
@@ -12888,7 +12857,7 @@ Visit: %s (Author's site)
                                                                      relatedCBTxn.getTransferType(),
                                                                      relatedCBTxn.getOtherTxn(0).getInvestTxnType(),
                                                                      relatedCBTxn.getDateInt(),
-                                                                     acctCurr.formatSemiFancy(relatedCBTxn.getValue(), GlobalVars.decimalCharSep),
+                                                                     securityCurr.formatSemiFancy(relatedCBTxn.getValue(), GlobalVars.decimalCharSep),   # shares, so the security's decimals
                                                                      acctCurr.getDoubleValue(relatedCBTxn.getAmount()),
                                                                      ])
                                                 # endfor
@@ -12946,7 +12915,7 @@ Visit: %s (Author's site)
                                                 if _i > 0:  # If not on first record, update the key...
                                                     rowCopy[GlobalVars.dataKeys["_KEY"][_COLUMN]] = txnKey + "-" + str(keyIndex).zfill(3)
 
-                                                if _i == 1:
+                                                if _i > 0:
                                                     # Nuke repeated rows for Attachments (so totals are still OK)
                                                     rowCopy[GlobalVars.dataKeys["_SHARES"][_COLUMN]] = None
                                                     rowCopy[GlobalVars.dataKeys["_PRICE"][_COLUMN]] = None
@@ -12982,7 +12951,10 @@ Visit: %s (Author's site)
                                         for acctBal in copyValidAccountList:
                                             acctCurr = acctBal.getCurrencyType()  # Currency of the Investment Account
                                             openBal = acctCurr.getDoubleValue(getUnadjustedStartBalance(acctBal))
-                                            if (GlobalVars.saved_lIncludeOpeningBalances_EIT):
+                                            # Accounts can be in this list only for an adjustment, so check the opening balance date here too
+                                            if (GlobalVars.saved_lIncludeOpeningBalances_EIT
+                                                    and (not GlobalVars.saved_lFilterDateRange_EIT
+                                                         or (acctBal.getCreationDateInt() >= GlobalVars.saved_filterDateRangeStart_EIT and acctBal.getCreationDateInt() <= GlobalVars.saved_filterDateRangeEnd_EIT))):
                                                 if openBal != 0:
                                                     iBal+=1
                                                     _row = ([None] * GlobalVars.dataKeys["_END"][0])  # Create a blank row to be populated below...
@@ -13956,11 +13928,19 @@ Visit: %s (Author's site)
                                             asOfDate = GlobalVars.saved_securityBalancesDate_ESB
                                             effectiveDateInt = None if (asOfDate == todayInt) else asOfDate
 
-                                        costCalculationBal = MyCostCalculation(securityAcct, asOfDate, None, False)  # True replicates InvestUtil.getCostBasis(securityAcct) - i.e. Balance (not Current Balance)
+                                        try:
+                                            costCalculationBal = MyCostCalculation(securityAcct, asOfDate, None, False)  # True replicates InvestUtil.getCostBasis(securityAcct) - i.e. Balance (not Current Balance)
 
-                                        sharesAndCostBasisForAsOf = costCalculationBal.getSharesAndCostBasisForAsOf()
-                                        # asofSharesBal = sharesAndCostBasisForAsOf.getSharesOwnedAsOf()
-                                        asofCostBasisBal = sharesAndCostBasisForAsOf.getCostBasisAsOf()
+                                            sharesAndCostBasisForAsOf = costCalculationBal.getSharesAndCostBasisForAsOf()
+                                            # asofSharesBal = sharesAndCostBasisForAsOf.getSharesOwnedAsOf()
+                                            asofCostBasisBal = sharesAndCostBasisForAsOf.getCostBasisAsOf()
+                                        except:
+                                            # The cost calculation can fail on bad data - use zero and carry on
+                                            asofCostBasisBal = 0L
+                                            _msgTxt = _THIS_EXTRACT_NAME + "@@ WARNING: could not calculate the cost basis for '%s' in '%s' - using zero (review console)" %(securityCurr, investAcct)
+                                            myPrint("B", _msgTxt)
+                                            dump_sys_error_to_md_console_and_errorlog()
+                                            GlobalVars.AUTO_MESSAGES.append(_msgTxt)
 
                                         costBasisBal = asofCostBasisBal
                                         costBasisBalBase = convertValue(costBasisBal, investAcctCurr, GlobalVars.baseCurrency, effectiveDateInt)
