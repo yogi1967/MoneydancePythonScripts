@@ -112,7 +112,10 @@
 # build: 1050 - fix for EIT with security splits now allowing multi-same-day as of MD2026(5501)
 # build: 1050 - fix for default reminder sort, and also comparator if/elif bug
 # build: 1050 - Update MyCostCalculation with v11 from MD2027(5511); and again from 5512 (CC fixes and CapitalGainResult)
-# build: 1050 - ???
+# build: 1051 - ???
+# build: 1051 - BUGFIX Reminders: view, edit and delete now always act on the clicked reminder (previously could pick the wrong one)
+# build: 1051 - BUGFIX Reminders: amounts now in the reminder account's currency (previously base currency scale and symbol); Print, refresh, empty list, column drag, Split# sort, one-off reminders and 'future reminders' option fixed
+# build: 1051 - ???
 
 # todo - EAR: Switch to 'proper' usage of DateRangeChooser() (rather than my own 'copy')
 
@@ -127,7 +130,7 @@
 
 # SET THESE LINES
 myModuleID = u"extract_data"
-version_build = "1050"
+version_build = "1051"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT = True
 
@@ -660,6 +663,9 @@ else:
     # Setup other variables used in the program...
     GlobalVars.csvheaderline_ERTC = None
     GlobalVars.headerFormats_ERTC = None
+    GlobalVars.reminderUUIDs_ERTC = None
+    GlobalVars.reminderCurrencies_ERTC = None
+    GlobalVars.reminderSplitCurrencies_ERTC = None
 
     GlobalVars.COLKEY_SHRS_RAW_SG2020 = None
     GlobalVars.COLKEY_PRICE_FORMATTED_SG2020 = None
@@ -5123,6 +5129,9 @@ Visit: %s (Author's site)
         # from extract_reminders - converted from globals
         GlobalVars.csvheaderline_ERTC = None
         GlobalVars.headerFormats_ERTC = None
+        GlobalVars.reminderUUIDs_ERTC = None
+        GlobalVars.reminderCurrencies_ERTC = None
+        GlobalVars.reminderSplitCurrencies_ERTC = None
 
 
     resetGlobalVariables()
@@ -6019,9 +6028,9 @@ Visit: %s (Author's site)
             else:
                 GlobalVars.saved_extractDateFormat_SWSS = "%Y/%m/%d"  # PROBLEM / default
 
+            GlobalVars.saved_lExtractFutureRemindersToo_ERTC = user_selectEFR.isSelected()
             if user_selectEFR.isSelected():
                 myPrint("DB", "User asked calculate and extract Future Reminders too....")
-                GlobalVars.saved_lExtractFutureRemindersToo_ERTC = user_selectEFR.isSelected()
 
             days = user_daysLookForward.getText()
             if StringUtils.isEmpty(days): days = "0"
@@ -9925,6 +9934,15 @@ Visit: %s (Author's site)
                                             myPrint("B", _THIS_EXTRACT_NAME + "Error. Final dispose failed....?")
                                             dump_sys_error_to_md_console_and_errorlog()
 
+                                    def getReminderForTableRow(viewRow):
+                                        if viewRow < 0 or viewRow >= GlobalVars.table.getRowCount(): return None
+                                        # Read Number# from the model, as the user can reorder the columns on screen
+                                        number = GlobalVars.table.getModel().getValueAt(GlobalVars.table.convertRowIndexToModel(viewRow), 0)
+                                        reminder = MD_REF.getCurrentAccountBook().getItemForID(GlobalVars.reminderUUIDs_ERTC[number - 1])
+                                        if reminder is None:
+                                            myPopupInformationBox(extract_data_frame_, "This reminder no longer exists - please refresh", "REMINDERS", theMessageType=JOptionPane.WARNING_MESSAGE)
+                                        return reminder
+
                                     class DoTheMenu(AbstractAction):
 
                                         def __init__(self): pass
@@ -9933,14 +9951,13 @@ Visit: %s (Author's site)
                                             myPrint("D", _THIS_EXTRACT_NAME + "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
                                             if event.getActionCommand() == "show_raw_details":
-                                                reminders = MD_REF.getCurrentAccountBook().getReminders()
-                                                reminder = reminders.getAllReminders()[GlobalVars.table.getValueAt(GlobalVars.rememberTableRow, 0) - 1]
-                                                MD_REF.getUI().showRawItemDetails(reminder, extract_data_frame_)
+                                                reminder = getReminderForTableRow(GlobalVars.rememberTableRow)
+                                                if reminder is not None:
+                                                    MD_REF.getUI().showRawItemDetails(reminder, extract_data_frame_)
 
                                             if event.getActionCommand() == "delete_reminder":
-                                                reminders = MD_REF.getCurrentAccountBook().getReminders()
-                                                reminder = reminders.getAllReminders()[GlobalVars.table.getValueAt(GlobalVars.rememberTableRow, 0) - 1]
-                                                if myPopupAskQuestion(extract_data_frame_, "DELETE REMINDER", "Delete reminder?", theMessageType=JOptionPane.WARNING_MESSAGE):
+                                                reminder = getReminderForTableRow(GlobalVars.rememberTableRow)
+                                                if reminder is not None and myPopupAskQuestion(extract_data_frame_, "DELETE REMINDER", "Delete reminder: '%s'?" %(reminder.getDescription()), theMessageType=JOptionPane.WARNING_MESSAGE):
                                                     reminder.deleteItem()
                                                     RefreshMenuAction().refresh()
 
@@ -9993,8 +10010,6 @@ Visit: %s (Author's site)
                                     def build_future_reminders_table(reminderTable):
 
                                         FUTURE_MAX_END_DATE = 20991231
-
-                                        baseCurr = MD_REF.getCurrentAccount().getBook().getCurrencies().getBaseType()
 
                                         # Future Reminders Table
                                         GlobalVars.tableHeaderRowList_reminders_future = [
@@ -10064,14 +10079,15 @@ Visit: %s (Author's site)
                                                     txnparent = rem.getTransaction()
                                                     if isinstance(txnparent, ParentTxn): pass
 
-                                                    amount = baseCurr.getDoubleValue(txnparent.getValue())
+                                                    acctCurr = txnparent.getAccount().getCurrencyType()
+                                                    amount = acctCurr.getDoubleValue(txnparent.getValue())
                                                     stripacct = txnparent.getAccount().getFullAccountName().strip()     # noqa
 
                                                     catsAmounts = ""
                                                     for iRemSplit in range(0, txnparent.getOtherTxnCount()):
                                                         remSplit = txnparent.getOtherTxn(iRemSplit)
                                                         stripCat = remSplit.getAccount().getFullAccountName().strip()   # noqa
-                                                        splitValue = GlobalVars.baseCurrency.getDoubleValue(remSplit.getValue()) * -1
+                                                        splitValue = remSplit.getAccount().getCurrencyType().getDoubleValue(-remSplit.getValue())
                                                         catsAmounts += "{%s;%s}" %(stripCat, splitValue)
 
                                                     csvline = []
@@ -10096,10 +10112,17 @@ Visit: %s (Author's site)
 
                                         rems = root.getReminders().getAllReminders()
 
-                                        if rems.size() < 1:
+                                        # On a refresh carry on with no reminders, so the table is emptied
+                                        if rems.size() < 1 and ind == 0:
                                             return False
 
                                         myPrint("B", _THIS_EXTRACT_NAME + "Success: read: %s reminders" %(rems.size()))
+
+                                        # Number# is a position in this list, whose order can change, so the row actions look reminders up by UUID
+                                        GlobalVars.reminderUUIDs_ERTC = [rem.getUUID() for rem in rems]
+
+                                        # Amounts are in the reminder account's currency (None for a note reminder)
+                                        GlobalVars.reminderCurrencies_ERTC = [(rem.getTransaction().getAccount().getCurrencyType() if str(rem.getReminderType()) == 'TRANSACTION' else None) for rem in rems]
 
                                         GlobalVars.csvheaderline_ERTC = [
                                             "Number#",
@@ -10146,6 +10169,7 @@ Visit: %s (Author's site)
 
                                         # Read each reminder and create a csv line for each in the GlobalVars.csvlines_reminders array
                                         GlobalVars.csvlines_reminders = []
+                                        GlobalVars.reminderSplitCurrencies_ERTC = []    # per table row: the split's own account currency (its amount is in that currency)
 
                                         for index in range(0, int(rems.size())):
                                             rem = rems[index]  # Get the reminder
@@ -10217,7 +10241,7 @@ Visit: %s (Author's site)
                                                 countfreqs += 1
 
                                             if len(remfreq) < 1 or countfreqs == 0:
-                                                remfreq = '!ERROR! NO ACTUAL FREQUENCY OPTIONS SET PROPERLY ' + remfreq
+                                                remfreq = 'ONCE (no repeat)'
 
                                             if countfreqs > 1:
                                                 remfreq = "**MULTI** " + remfreq
@@ -10255,13 +10279,15 @@ Visit: %s (Author's site)
                                                 csvline.append('')  # SplitAmount
                                                 csvline.append('')  # Category
                                                 csvline.append('')  # Description
-                                                csvline.append('"' + memo + '"')  # Memo
+                                                csvline.append(memo)  # Memo
                                                 csvline.append('')  # tags
                                                 GlobalVars.csvlines_reminders.append(csvline)
+                                                GlobalVars.reminderSplitCurrencies_ERTC.append(None)
 
                                             elif str(remtype) == 'TRANSACTION':
                                                 txnparent = rem.getTransaction()
-                                                amount = GlobalVars.baseCurrency.getDoubleValue(txnparent.getValue())
+                                                acctCurr = txnparent.getAccount().getCurrencyType()
+                                                amount = acctCurr.getDoubleValue(txnparent.getValue())
 
                                                 for index2 in range(0, int(txnparent.getOtherTxnCount())):
                                                     splitTxn = txnparent.getOtherTxn(index2)
@@ -10301,12 +10327,14 @@ Visit: %s (Author's site)
                                                     csvline.append(stripacct)
                                                     csvline.append(maindesc)
                                                     csvline.append(str(index + 1) + '.' + str(index2 + 1))
-                                                    csvline.append(GlobalVars.baseCurrency.getDoubleValue(splitTxn.getValue()) * -1)
+                                                    splitCurr = splitTxn.getAccount().getCurrencyType()
+                                                    csvline.append(splitCurr.getDoubleValue(-splitTxn.getValue()))
                                                     csvline.append(stripcat)
                                                     csvline.append(splitdesc)
                                                     csvline.append(splitmemo)
                                                     csvline.append(splitTagsAsStr)
                                                     GlobalVars.csvlines_reminders.append(csvline)
+                                                    GlobalVars.reminderSplitCurrencies_ERTC.append(splitCurr)
 
                                             index += 1
 
@@ -10353,9 +10381,10 @@ Visit: %s (Author's site)
                                         def columnMarginChanged(self, evt):
                                             sourceModel = self.sourceTable.getColumnModel()
                                             for _iii in range(0, sourceModel.getColumnCount()):
-                                                # Saving for later... Yummy!!
-                                                GlobalVars.saved_columnWidths_ERTC[_iii] = sourceModel.getColumn(_iii).getWidth()
-                                                myPrint("D", _THIS_EXTRACT_NAME + "Saving column %s as width %s for later..." %(_iii,GlobalVars.saved_columnWidths_ERTC[_iii]))
+                                                # Saving for later... Yummy!! (by model index, as the columns can be reordered on screen)
+                                                _col = sourceModel.getColumn(_iii)
+                                                GlobalVars.saved_columnWidths_ERTC[_col.getModelIndex()] = _col.getWidth()
+                                                myPrint("D", _THIS_EXTRACT_NAME + "Saving column %s as width %s for later..." %(_col.getModelIndex(),_col.getWidth()))
 
                                     class DefaultTableHeaderCellRenderer(DefaultTableCellRenderer):
 
@@ -10423,13 +10452,13 @@ Visit: %s (Author's site)
                                             terminate_script()
 
                                     class PrintJTable(AbstractAction):
-                                        def __init__(self, _frame, _table, _title):
+                                        def __init__(self, _frame, _title):
                                             self._frame = _frame
-                                            self._table = _table
                                             self._title = _title
 
+                                        # The table is rebuilt on each refresh, so print the current one
                                         def actionPerformed(self, event):                                               # noqa
-                                            printJTable(_theFrame=self._frame, _theJTable=self._table, _theTitle=self._title)
+                                            printJTable(_theFrame=self._frame, _theJTable=GlobalVars.table, _theTitle=self._title)
 
                                     class WindowListener(WindowAdapter):
                                         def __init__(self, theFrame):
@@ -10477,9 +10506,10 @@ Visit: %s (Author's site)
                                                     build_the_data_file(1)  # Re-extract data when window focus gained - assume something changed
                                                     myPrint("DB", _THIS_EXTRACT_NAME + "back from build_the_data_file(), gained focus, row: ", GlobalVars.rememberTableRow)
                                                     GlobalVars.EditedReminderCheck_ERTC = False
-                                                GlobalVars.table.setRowSelectionInterval(0, GlobalVars.rememberTableRow)
-                                                cellRect = GlobalVars.table.getCellRect(GlobalVars.rememberTableRow, 0, True)
-                                                GlobalVars.table.scrollRectToVisible(cellRect)  # force the scrollpane to make the row visible
+                                                if GlobalVars.rememberTableRow < GlobalVars.table.getRowCount():
+                                                    GlobalVars.table.setRowSelectionInterval(0, GlobalVars.rememberTableRow)
+                                                    cellRect = GlobalVars.table.getCellRect(GlobalVars.rememberTableRow, 0, True)
+                                                    GlobalVars.table.scrollRectToVisible(cellRect)  # force the scrollpane to make the row visible
                                                 GlobalVars.table.requestFocus()
 
                                             myPrint("D", _THIS_EXTRACT_NAME + "Exiting ", inspect.currentframe().f_code.co_name, "()")
@@ -10504,18 +10534,19 @@ Visit: %s (Author's site)
 
                                             # Select the row when right-click initiated
                                             point = event.getPoint()
-                                            GlobalVars.rememberTableRow = GlobalVars.table.rowAtPoint(point)
-                                            GlobalVars.table.setRowSelectionInterval(GlobalVars.rememberTableRow, GlobalVars.rememberTableRow)
+                                            clickedRow = GlobalVars.table.rowAtPoint(point)
+                                            if clickedRow >= 0:
+                                                GlobalVars.rememberTableRow = clickedRow
+                                                GlobalVars.table.setRowSelectionInterval(GlobalVars.rememberTableRow, GlobalVars.rememberTableRow)
                                             myPrint("D", _THIS_EXTRACT_NAME + "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
                                         # noinspection PyMethodMayBeStatic
                                         def mousePressed(self, event):
                                             myPrint("D", _THIS_EXTRACT_NAME + "In ", inspect.currentframe().f_code.co_name, "()")
                                             clicks = event.getClickCount()
-                                            if clicks == 2:
+                                            if clicks == 2 and GlobalVars.table.getSelectedRow() >= 0:
                                                 GlobalVars.rememberTableRow = GlobalVars.table.getSelectedRow()
-                                                index = GlobalVars.table.getValueAt(GlobalVars.rememberTableRow, 0)
-                                                ShowEditForm(index)
+                                                ShowEditForm(GlobalVars.rememberTableRow)
                                             myPrint("D", _THIS_EXTRACT_NAME + "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
                                     ML = MouseListener()
@@ -10525,9 +10556,9 @@ Visit: %s (Author's site)
                                         # noinspection PyUnusedLocal
                                         def actionPerformed(self, event):
                                             myPrint("D", _THIS_EXTRACT_NAME + "In ", inspect.currentframe().f_code.co_name, "()")
-                                            GlobalVars.rememberTableRow = GlobalVars.table.getSelectedRow()
-                                            index = GlobalVars.table.getValueAt(GlobalVars.rememberTableRow, 0)
-                                            ShowEditForm(index)
+                                            if GlobalVars.table.getSelectedRow() >= 0:
+                                                GlobalVars.rememberTableRow = GlobalVars.table.getSelectedRow()
+                                                ShowEditForm(GlobalVars.rememberTableRow)
                                             myPrint("D", _THIS_EXTRACT_NAME + "Exiting ", inspect.currentframe().f_code.co_name, "()")
                                             return
 
@@ -10550,7 +10581,8 @@ Visit: %s (Author's site)
                                             myPrint("D", _THIS_EXTRACT_NAME + "In ", inspect.currentframe().f_code.co_name, "()", "\npre-extract details(1), GlobalVars.rememberTableRow: ", GlobalVars.rememberTableRow)
                                             build_the_data_file(1)  # Re-extract data
                                             myPrint("D", _THIS_EXTRACT_NAME + "back from extractdetails(1), GlobalVars.rememberTableRow: ", GlobalVars.rememberTableRow)
-                                            GlobalVars.table.setRowSelectionInterval(0, GlobalVars.rememberTableRow)
+                                            if GlobalVars.table.getRowCount() > 0:
+                                                GlobalVars.table.setRowSelectionInterval(0, GlobalVars.rememberTableRow)
                                             GlobalVars.table.requestFocus()
                                             myPrint("D", _THIS_EXTRACT_NAME + "Exiting ", inspect.currentframe().f_code.co_name, "()")
                                             return
@@ -10576,31 +10608,49 @@ Visit: %s (Author's site)
                                         # noinspection PyUnusedLocal
                                         # noinspection PyMethodMayBeStatic
                                         def getCellRenderer(self, row, column):											# noqa
-                                            if column == 0:
+                                            modelColumn = self.convertColumnIndexToModel(column)
+                                            if modelColumn == 0:
                                                 renderer = MyClunkyRenderer(lPlainNumber=True)
-                                            elif GlobalVars.headerFormats_ERTC[column][0] == Number:
-                                                renderer = MyClunkyRenderer(lNumber=True)
+                                            elif GlobalVars.headerFormats_ERTC[modelColumn][0] == Number:
+                                                curr = None
+                                                if 0 <= row < self.getRowCount():
+                                                    modelRow = self.convertRowIndexToModel(row)
+                                                    if modelColumn == 14:   # SplitAmount
+                                                        curr = GlobalVars.reminderSplitCurrencies_ERTC[modelRow]
+                                                    else:
+                                                        number = self.getModel().getValueAt(modelRow, 0)
+                                                        curr = GlobalVars.reminderCurrencies_ERTC[number - 1]
+                                                renderer = MyClunkyRenderer(lNumber=True, curr=curr)
                                             else:
                                                 renderer = MyClunkyRenderer()
 
-                                            renderer.setHorizontalAlignment(GlobalVars.headerFormats_ERTC[column][1])
+                                            renderer.setHorizontalAlignment(GlobalVars.headerFormats_ERTC[modelColumn][1])
 
                                             return renderer
 
                                         class MyTextNumberComparator(Comparator):
                                             lSortNumber = False
                                             lSortRealNumber = False
+                                            lSortSplitNumber = False
 
                                             def __init__(self, sortType):
                                                 if sortType == "N":
                                                     self.lSortNumber = True
                                                 elif sortType == "%":
                                                     self.lSortRealNumber = True
+                                                elif sortType == "S":
+                                                    self.lSortSplitNumber = True
                                                 else:
                                                     self.lSortNumber = False
 
                                             def compare(self, str1, str2):
                                                 validString = "-0123456789" + GlobalVars.decimalCharSep  # Yes this will strip % sign too, but that still works
+
+                                                if self.lSortSplitNumber:
+                                                    # Split# is "reminder.split" - compare each part as a number, so 1.10 sorts after 1.9
+                                                    key1 = [int(x) for x in str1.split(".")]
+                                                    key2 = [int(x) for x in str2.split(".")]
+                                                    return cmp(key1, key2)
 
                                                 if isinstance(str1, StoreDateInt) or isinstance(str2, StoreDateInt):
                                                     if str1.getDateInt() > str2.getDateInt():
@@ -10667,6 +10717,8 @@ Visit: %s (Author's site)
                                                     sorter.setComparator(_iii, self.MyTextNumberComparator("%"))
                                                 elif _iii == 9 or _iii == 14:
                                                     sorter.setComparator(_iii, self.MyTextNumberComparator("N"))
+                                                elif _iii == 13:
+                                                    sorter.setComparator(_iii, self.MyTextNumberComparator("S"))
                                                 else:
                                                     sorter.setComparator(_iii, self.MyTextNumberComparator("T"))
                                             if GlobalVars.saveRemindersSortKeys is None:
@@ -10684,10 +10736,11 @@ Visit: %s (Author's site)
 
                                     class MyClunkyRenderer(DefaultTableCellRenderer):
 
-                                        def __init__(self, lPlainNumber=False, lNumber=False):
+                                        def __init__(self, lPlainNumber=False, lNumber=False, curr=None):
                                             self.padding = BorderFactory.createEmptyBorder(0, 10, 0, 0)
                                             self.lPlainNumber = lPlainNumber
                                             self.lNumber = lNumber
+                                            self.curr = curr
                                             super(self.__class__, self).__init__()                                      # noqa
 
                                         def setValue(self, value):
@@ -10695,8 +10748,8 @@ Visit: %s (Author's site)
 
                                             if self.lNumber:
                                                 if isinstance(value, (float, int)):
-                                                    base = MD_REF.getCurrentAccountBook().getCurrencies().getBaseType()
-                                                    self.setText(base.formatFancy(int(value * 100), GlobalVars.decimalCharSep, True))
+                                                    curr = self.curr if self.curr is not None else MD_REF.getCurrentAccountBook().getCurrencies().getBaseType()
+                                                    self.setText(curr.formatFancy(curr.getLongValue(float(value)), GlobalVars.decimalCharSep, True))
                                                 else:
                                                     if isinstance(value, StoreDateInt):
                                                         self.setText(value.getDateIntFormatted())
@@ -10837,7 +10890,7 @@ Visit: %s (Author's site)
                                             printButton.setToolTipText("Prints the output displayed in this window to your printer")
                                             printButton.setOpaque(SetupMDColors.OPAQUE)
                                             printButton.setBackground(SetupMDColors.BACKGROUND); printButton.setForeground(SetupMDColors.FOREGROUND)
-                                            printButton.addActionListener(PrintJTable(extract_data_frame_, GlobalVars.table, "Extract Reminders"))
+                                            printButton.addActionListener(PrintJTable(extract_data_frame_, "Extract Reminders"))
 
                                             mb = JMenuBar()
 
@@ -10885,7 +10938,7 @@ Visit: %s (Author's site)
 
                                         # As the JTable is new each time, add this here....
                                         extract_data_frame_.getRootPane().getActionMap().remove("print-me")
-                                        extract_data_frame_.getRootPane().getActionMap().put("print-me", PrintJTable(extract_data_frame_, GlobalVars.table, "Extract Reminders"))
+                                        extract_data_frame_.getRootPane().getActionMap().put("print-me", PrintJTable(extract_data_frame_, "Extract Reminders"))
 
                                         GlobalVars.table.getTableHeader().setReorderingAllowed(True)
                                         GlobalVars.table.getTableHeader().setDefaultRenderer(DefaultTableHeaderCellRenderer())
@@ -10961,10 +11014,10 @@ Visit: %s (Author's site)
 
                                         return
 
-                                    def ShowEditForm(item):
+                                    def ShowEditForm(viewRow):
                                         myPrint("D", _THIS_EXTRACT_NAME + "In ", inspect.currentframe().f_code.co_name, "()")
-                                        reminders = MD_REF.getCurrentAccountBook().getReminders()
-                                        reminder = reminders.getAllReminders()[item-1]
+                                        reminder = getReminderForTableRow(viewRow)
+                                        if reminder is None: return
                                         myPrint("D", _THIS_EXTRACT_NAME + "Calling MD EditRemindersWindow() function...")
 
                                         # EditRemindersWindow.editReminder(None, MD_REF.getUI(), reminder)
@@ -11128,7 +11181,7 @@ Visit: %s (Author's site)
                                                                 _msgTxt = _THIS_EXTRACT_NAME + "(Future Reminders) @@ ERROR writing to CSV on row %s. Please review console" %(iRow)
                                                                 GlobalVars.AUTO_MESSAGES.append(_msgTxt)
                                                                 myPrint("B", _msgTxt)
-                                                                myPrint("B", GlobalVars.csvlines_reminders[iRow])
+                                                                myPrint("B", GlobalVars.csvlines_reminders_future[iRow])
                                                                 raise
 
                                                     _msgTxt = _THIS_EXTRACT_NAME + "(Future Reminders) CSV file: '%s' created (%s records)" %(GlobalVars.csvfilename_EFRTC, len(GlobalVars.csvlines_reminders_future))
