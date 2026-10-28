@@ -122,6 +122,8 @@
 # build: 1051 - BUGFIX Currency History: current rate now uses Moneydance's rate, and rate column headings now match Moneydance (previously used an old stored value, and R2B/B2R headings were swapped)
 # build: 1051 - BUGFIX StockGlance2020: values now use the full price, number sorting no longer fails, same-named securities stay apart, and CSV numbers keep all digits (previously rounded price, sort could crash, rows could mix, digits lost)
 # build: 1051 - StockGlance2020: carries on with a zero cost basis (and a warning) when Moneydance cannot calculate it (previously the extract stopped)
+# build: 1051 - BUGFIX StockGlance2020: cost basis now correct for securities priced in other currencies, and account names containing ' : ' now shown correctly (previously could be out by a power of ten, and mangled)
+# build: 1051 - BUGFIX StockGlance2020: 'Use Current Price' unticked now uses the latest price history price (previously had no effect)
 # build: 1051 - ???
 
 # todo - EAR: Switch to 'proper' usage of DateRangeChooser() (rather than my own 'copy')
@@ -8440,9 +8442,13 @@ Visit: %s (Author's site)
 
                                                     _roundPrice = GlobalVars.saved_maxDecimalPlacesRounding_SG2020   # Don't use currency.getDecimalPlaces() as this is for stock qty balances, not price...!
 
-                                                    priceDate = (0 if (GlobalVars.saved_lUseCurrentPrice_SG2020) else DateUtil.convertCalToInt(today))
+                                                    relativeRate = curr.getRelativeRate(0)
+                                                    if not GlobalVars.saved_lUseCurrentPrice_SG2020:
+                                                        # Latest price history entry; getRelativeRate(today) would just return the current price
+                                                        priceSnap = curr.getSnapshotForDate(DateUtil.convertCalToInt(today))
+                                                        if priceSnap is not None: relativeRate = priceSnap.getRate()
                                                     # Values use the full price; only the displayed price is rounded
-                                                    rawPrice = 1.0 / curr.adjustRateForSplitsInt(DateUtil.convertCalToInt(today),curr.getRelativeRate(priceDate))
+                                                    rawPrice = 1.0 / curr.adjustRateForSplitsInt(DateUtil.convertCalToInt(today), relativeRate)
                                                     price = round(rawPrice, _roundPrice)
 
                                                     qty = self.QtyOfSharesTable.get(curr)
@@ -8498,11 +8504,12 @@ Visit: %s (Author's site)
                                                                     balanceBaseSplit = (0.0 if (qtySplit is None) else (curr.getDoubleValue(qtySplit) * rawPrice / exchangeRate))  # Value in Base Currency
 
                                                                     # costBasisBase = (0.0 if (securityCostBasis is None) else round(self.currXrate.getDoubleValue(securityCostBasis) / exchangeRate, 2))
-                                                                    costBasisBase = (0.0 if (securityCostBasis is None) else round(self.currXrate.getDoubleValue(securityCostBasis), 2))
+                                                                    # Cost basis is already in base currency (converted in sumInfoBySecurity), so use base's decimal places
+                                                                    costBasisBase = (0.0 if (securityCostBasis is None) else round(_baseCurrency.getDoubleValue(securityCostBasis), 2))
                                                                     gainBase = round(balanceBase, 2) - costBasisBase
 
                                                                     # costBasisBaseSplit = round(self.currXrate.getDoubleValue(split_acct_array[iSplitAcctArray][2]) / exchangeRate, 2)
-                                                                    costBasisBaseSplit = round(self.currXrate.getDoubleValue(split_acct_array[iSplitAcctArray][2]), 2)
+                                                                    costBasisBaseSplit = round(_baseCurrency.getDoubleValue(split_acct_array[iSplitAcctArray][2]), 2)
                                                                     gainBaseSplit = round(balanceBaseSplit, 2) - costBasisBaseSplit
 
                                                                     if debug:
@@ -8535,14 +8542,14 @@ Visit: %s (Author's site)
                                                                     try: entry.append(round(gainBaseSplit / costBasisBaseSplit, 3))
                                                                     except ZeroDivisionError: entry.append(0.0)
 
-                                                                    entry.append(split_acct_array[iSplitAcctArray][0].replace(GlobalVars.acctSeparator_SG2020, "", 1))                     # Acct
+                                                                    entry.append(split_acct_array[iSplitAcctArray][0][:-len(GlobalVars.acctSeparator_SG2020)])                             # Acct (drop the trailing separator only)
                                                                     entry.append(curr.getDoubleValue(qtySplit))                                                         # _Shrs
                                                                     entry.append(price)                                                                                 # _Price = raw number
                                                                     entry.append(x)                                                                                     # _CValue
                                                                     entry.append(round(balanceBaseSplit, 2))                                                            # _BValue
                                                                     entry.append(costBasisBaseSplit)                                                                    # _Cost Basis
                                                                     entry.append(gainBaseSplit)                                                                         # _Gain
-                                                                    entry.append(curr.getName().upper() + "\x00" + curr.getUUID() + "000" + split_acct_array[iSplitAcctArray][0].upper().replace(GlobalVars.acctSeparator_SG2020, "", 1))  # _SORT
+                                                                    entry.append(curr.getName().upper() + "\x00" + curr.getUUID() + "000" + split_acct_array[iSplitAcctArray][0][:-len(GlobalVars.acctSeparator_SG2020)].upper())  # _SORT
                                                                     entry.append(False)                                                                                 # Never exclude
                                                                     GlobalVars.rawDataTable_SG2020.append(entry)
                                                                 # NEXT
