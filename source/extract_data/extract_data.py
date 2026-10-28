@@ -119,6 +119,7 @@
 # build: 1051 - BUGFIX Extract chooser: the auto extract warning now shows once (previously could repeat)
 # build: 1051 - BUGFIX Security Balances: cash rows now kept with an account filter, and foreign cash rows show their own currency and rate (previously dropped, and shown as base)
 # build: 1051 - BUGFIX Common: backwards text search now finds every match, and popup height uses the height limit (previously could skip a match, and used the width limit)
+# build: 1051 - BUGFIX Currency History: current rate now uses Moneydance's rate, and rate column headings now match Moneydance (previously used an old stored value, and R2B/B2R headings were swapped)
 # build: 1051 - ???
 
 # todo - EAR: Switch to 'proper' usage of DateRangeChooser() (rather than my own 'copy')
@@ -13280,11 +13281,11 @@ Visit: %s (Author's site)
                                               "DecimalPlaces",
                                               "Prefix",
                                               "Suffix",
-                                              "CurrentRateR2B",
                                               "CurrentRateB2R",
+                                              "CurrentRateR2B",
                                               "Snap_Date",
-                                              "Snap_DailyRateR2B",
-                                              "Snap_DailyRateB2R"]
+                                              "Snap_DailyRateB2R",
+                                              "Snap_DailyRateR2B"]
 
                                     def list_currency_rate_history():
                                         curr_table = []
@@ -13338,7 +13339,7 @@ Visit: %s (Author's site)
                                                 row.append((curr.getPrefix()))
                                                 row.append((curr.getSuffix()))
 
-                                                _rate = float(curr.getParameter("rate", None))
+                                                _rate = curr.getRate(None)
                                                 row.append(round(_rate,dpc))
                                                 row.append(round(1/_rate, dpc) if _rate != 0.0 else 0.0)
 
