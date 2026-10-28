@@ -116,6 +116,7 @@
 # build: 1051 - BUGFIX Reminders: view, edit and delete now always act on the clicked reminder (previously could pick the wrong one)
 # build: 1051 - BUGFIX Reminders: amounts now in the reminder account's currency (previously base currency scale and symbol); Print, refresh, empty list, column drag, Split# sort, one-off reminders and 'future reminders' option fixed
 # build: 1051 - BUGFIX Account Balances: console now lists its own settings, and an invalid 'years to include' now defaults to 0 (previously Security Balances settings, and 1)
+# build: 1051 - BUGFIX Extract chooser: the auto extract warning now shows once (previously could repeat)
 # build: 1051 - ???
 
 # todo - EAR: Switch to 'proper' usage of DateRangeChooser() (rather than my own 'copy')
@@ -5507,7 +5508,7 @@ Visit: %s (Author's site)
             def isEnableListener(self,): return self.enableListener
 
             def actionPerformed(self, event):
-                if self.isEnabled():
+                if self.isEnableListener():
                     option = event.getSource()
                     if isinstance(option, JCheckBox): pass
                     if option.isSelected():
@@ -5522,6 +5523,10 @@ Visit: %s (Author's site)
 
         _options = ["EXIT", "PROCEED"]
 
+        # Add the listener once - the dialog below can be shown several times
+        warnAlert = WarningMessage(None, user_autoExtractWhenFileClosing)
+        user_autoExtractWhenFileClosing.addActionListener(warnAlert)
+
         while True:
             setFilePathValidationMessage(statusLabel)
             rowHeight = 24
@@ -5534,8 +5539,7 @@ Visit: %s (Author's site)
             pane.setOptionType(JOptionPane.OK_CANCEL_OPTION)
             pane.setOptions(_options)
             dlg = pane.createDialog(extract_data_frame_, "EXTRACT DATA: SELECT OPTION")
-            warnAlert = WarningMessage(dlg, user_autoExtractWhenFileClosing)
-            user_autoExtractWhenFileClosing.addActionListener(warnAlert)
+            warnAlert.dialog = dlg
             dlg.setVisible(True)
 
             rtnValue = pane.getValue()
