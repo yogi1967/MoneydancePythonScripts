@@ -115,6 +115,7 @@
 # build: 1051 - ???
 # build: 1051 - BUGFIX Reminders: view, edit and delete now always act on the clicked reminder (previously could pick the wrong one)
 # build: 1051 - BUGFIX Reminders: amounts now in the reminder account's currency (previously base currency scale and symbol); Print, refresh, empty list, column drag, Split# sort, one-off reminders and 'future reminders' option fixed
+# build: 1051 - BUGFIX Account Balances: console now lists its own settings, and an invalid 'years to include' now defaults to 0 (previously Security Balances settings, and 1)
 # build: 1051 - ???
 
 # todo - EAR: Switch to 'proper' usage of DateRangeChooser() (rather than my own 'copy')
@@ -7510,8 +7511,8 @@ Visit: %s (Author's site)
                 GlobalVars.saved_yearsToInclude_EAB = int(years)
                 myPrint("DB", "Extract Account Balances - Years to look back/include set at: %s" %(GlobalVars.saved_yearsToInclude_EAB))
             else:
-                GlobalVars.saved_yearsToInclude_EAB = 1
-                myPrint("DB", "Extract Account Balances - Years to look back/include INVALID (should be 0 to 99 years) - defaulting to 1....")
+                GlobalVars.saved_yearsToInclude_EAB = 0
+                myPrint("DB", "Extract Account Balances - Years to look back/include INVALID (should be 0 to 99 years) - defaulting to 0....")
 
             GlobalVars.saved_lConvertValuesToBase_EAB = user_lConvertValuesToBase.isSelected()
 
@@ -7549,7 +7550,7 @@ Visit: %s (Author's site)
 
             debug = user_selectDEBUG.isSelected()
 
-            listExtractSecurityBalancesParameters()
+            listExtractAccountBalancesParameters()
 
         return _exit
 
