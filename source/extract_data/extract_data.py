@@ -117,6 +117,7 @@
 # build: 1051 - BUGFIX Reminders: amounts now in the reminder account's currency (previously base currency scale and symbol); Print, refresh, empty list, column drag, Split# sort, one-off reminders and 'future reminders' option fixed
 # build: 1051 - BUGFIX Account Balances: console now lists its own settings, and an invalid 'years to include' now defaults to 0 (previously Security Balances settings, and 1)
 # build: 1051 - BUGFIX Extract chooser: the auto extract warning now shows once (previously could repeat)
+# build: 1051 - BUGFIX Security Balances: cash rows now kept with an account filter, and foreign cash rows show their own currency and rate (previously dropped, and shown as base)
 # build: 1051 - ???
 
 # todo - EAR: Switch to 'proper' usage of DateRangeChooser() (rather than my own 'copy')
@@ -13769,7 +13770,9 @@ Visit: %s (Author's site)
                                                 if (acct.getAccountOrParentIsInactive()): return False
                                                 if (acct.getHideOnHomePage() and acct.getBalance() == 0): return False
 
-                                            theAcct = acct.getParentAccount()
+                                            # Filter on the investment account: a security's parent, or the account itself for cash rows
+                                            # noinspection PyUnresolvedReferences
+                                            theAcct = acct.getParentAccount() if (acct.getAccountType() == Account.AccountType.SECURITY) else acct
 
                                             if (self._lAllAccounts
                                                     or (self._filterForAccounts.upper().strip() in theAcct.getFullAccountName().upper().strip())):
@@ -14081,9 +14084,9 @@ Visit: %s (Author's site)
                                                 cashBalCurrDbl = investAcctCurr.getDoubleValue(cashBalCurrLong)
                                                 cashBalBaseDbl = GlobalVars.baseCurrency.getDoubleValue(cashBalBaseLong)
 
-                                                if GlobalVars.saved_lHideZeroBalances_ESB and cashBalCurrDbl == 0.0: continue
+                                                cashPriceToBase = 1.0 / investAcctCurr.getRate(None, (GlobalVars.saved_securityBalancesDate_ESB if (not GlobalVars.saved_lAlwaysUseCurrentPosition_ESB) else 0))
 
-                                                if cashBalCurrDbl != 0.0:
+                                                if cashBalCurrDbl != 0.0 or not GlobalVars.saved_lHideZeroBalances_ESB:
                                                     _row = ([None] * GlobalVars.dataKeys["_END"][0])                    # Create a blank row to be populated below...
                                                     _row[GlobalVars.dataKeys["_KEY"][_COLUMN]] = ""
                                                     _row[GlobalVars.dataKeys["_ASOFDATE"][_COLUMN]] = GlobalVars.saved_securityBalancesDate_ESB if (not GlobalVars.saved_lAlwaysUseCurrentPosition_ESB) else todayInt
@@ -14092,13 +14095,13 @@ Visit: %s (Author's site)
                                                     _row[GlobalVars.dataKeys["_BASECURR"][_COLUMN]] = GlobalVars.baseCurrency.getIDString()
                                                     _row[GlobalVars.dataKeys["_SECURITY"][_COLUMN]] = "Cash Balance"
                                                     _row[GlobalVars.dataKeys["_SECURITYID"][_COLUMN]] = "CASH"
-                                                    _row[GlobalVars.dataKeys["_SECRELCURR"][_COLUMN]] = GlobalVars.baseCurrency.getIDString()
+                                                    _row[GlobalVars.dataKeys["_SECRELCURR"][_COLUMN]] = investAcctCurr.getIDString()
                                                     _row[GlobalVars.dataKeys["_SECMSTRUUID"][_COLUMN]] = ""
                                                     _row[GlobalVars.dataKeys["_TICKER"][_COLUMN]] = "__CASH BALANCE__"
                                                     _row[GlobalVars.dataKeys["_SECSHRHOLDING"][_COLUMN]] = 0.0
                                                     _row[GlobalVars.dataKeys["_CURRENTPRICE"][_COLUMN]] = 1.0
                                                     _row[GlobalVars.dataKeys["_MOSTRECENTPRICE"][_COLUMN]] = 1.0
-                                                    _row[GlobalVars.dataKeys["_CURRENTPRICETOBASE"][_COLUMN]] = 1.0
+                                                    _row[GlobalVars.dataKeys["_CURRENTPRICETOBASE"][_COLUMN]] = round(cashPriceToBase, 5)
                                                     _row[GlobalVars.dataKeys["_CURRENTPRICEINVESTCURR"][_COLUMN]] = 1.0
                                                     _row[GlobalVars.dataKeys["_ACCTCOSTBASIS"][_COLUMN]] = round(cashBalCurrDbl, 2)
                                                     _row[GlobalVars.dataKeys["_BASECOSTBASIS"][_COLUMN]] = round(cashBalBaseDbl, 2)
