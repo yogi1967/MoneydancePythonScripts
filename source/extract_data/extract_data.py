@@ -126,6 +126,7 @@
 # build: 1051 - BUGFIX StockGlance2020: 'Use Current Price' unticked now uses the latest price history price (previously had no effect)
 # build: 1051 - BUGFIX Investment Transactions: share rows show the amount as entered and dividend transfers show the dividend; currency filter, hidden securities, attachments, lot shares, opening balance date and split-price crash fixed
 # build: 1051 - Security Balances: carries on with a zero cost basis (and a warning) when it cannot be calculated (previously the extract stopped)
+# build: 1051 - BUGFIX Account Registers: hidden accounts, foreign currency totals and decimals, split ID and index, opening balance date, attachment links with a dot in the name, tag filter, auto extract single account, sub accounts box and first-use date choice fixed
 # build: 1051 - ???
 
 # todo - EAR: Switch to 'proper' usage of DateRangeChooser() (rather than my own 'copy')
@@ -138,6 +139,8 @@
 # KNOWN ISSUES:
 # - Investment Transactions: a relative date range (eg 'Last 12 months') is saved as two fixed dates, so auto extract
 #   keeps using the dates from the last time the screen was run (see FIXME in the parameter screen)
+# - Account Registers: the same - a relative date range is saved as two fixed dates, so auto extract keeps using the dates
+#   from the last time the screen was run
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -6291,7 +6294,7 @@ Visit: %s (Author's site)
             user_includeSubAccounts.setSelected(False)
 
         else:
-            user_includeSubAccounts.setSelected(True)
+            user_includeSubAccounts.setEnabled(True)
             user_hideInactiveAccounts.setEnabled(False)
             user_hideHiddenAccounts.setEnabled(False)
             user_selectAccounts.setEnabled(False)
@@ -6367,6 +6370,8 @@ Visit: %s (Author's site)
             try:
                 dateDropdown.setSelectedItem(GlobalVars.saved_dropDownDateRangeKey_EAR)
             except: pass
+        else:
+            dateDropdown.setSelectedItem("all_dates")   # first use: no saved choice means all dates, so show that
 
         labelDateDropDown = JLabel("Select Date Range:")
 
@@ -11365,6 +11370,8 @@ Visit: %s (Author's site)
                                                 if (acct.getAccountOrParentIsInactive()): return False
                                                 if (acct.getHideOnHomePage() and acct.getBalance() == 0): return False
 
+                                            if self._hideHiddenAccounts and acct.getHideOnHomePage(): return False
+
                                             if self._lAllAccounts or (self._filterForAccounts.upper().strip() in acct.getFullAccountName().upper().strip()):
                                                 pass
                                             else:
@@ -11397,6 +11404,12 @@ Visit: %s (Author's site)
                                             return True
 
                                         return False
+
+                                    # Auto extract never runs the screen, so pick up the saved single account here
+                                    if GlobalVars.dropDownAccount_EAR is None and GlobalVars.saved_dropDownAccountUUID_EAR:
+                                        GlobalVars.dropDownAccount_EAR = AccountUtil.findAccountWithID(MD_REF.getRootAccount(), GlobalVars.saved_dropDownAccountUUID_EAR)
+                                        if GlobalVars.dropDownAccount_EAR is None:
+                                            myPrint("B", _THIS_EXTRACT_NAME + "@@ WARNING: saved account (UUID: %s) not found - using the account filters instead" %(GlobalVars.saved_dropDownAccountUUID_EAR))
 
                                     if GlobalVars.dropDownAccount_EAR:
                                         if GlobalVars.saved_lIncludeSubAccounts_EAR:
@@ -11491,7 +11504,8 @@ Visit: %s (Author's site)
 
                                     def tag_search( searchForTags, theTagListToSearch ):
 
-                                        searchTagList = searchForTags.upper().strip().split(",")
+                                        # strip spaces after commas, and ignore empty entries (eg a trailing comma) which would match every tag
+                                        searchTagList = [_t.strip() for _t in searchForTags.upper().split(",") if _t.strip() != ""]
 
                                         for tag in theTagListToSearch:
                                             for searchTag in searchTagList:
@@ -11500,11 +11514,18 @@ Visit: %s (Author's site)
 
                                         return False
 
+                                    def toBaseDouble(value, valueCurr, dateInt):
+                                        # value is in valueCurr's units; convert to base when needed, then scale with base's decimals
+                                        if valueCurr != GlobalVars.baseCurrency:
+                                            value = CurrencyUtil.convertValue(value, valueCurr, GlobalVars.baseCurrency, dateInt)
+                                        return GlobalVars.baseCurrency.getDoubleValue(value)
+
                                     def getTotalLocalValue(theTxn):
                                         lValue = 0
                                         _p = theTxn.getParentTxn()
                                         for _iSplit in range(0, (theTxn.getOtherTxnCount())):
-                                            lValue += GlobalVars.baseCurrency.getDoubleValue(_p.getOtherTxn(_iSplit).getValue()) * -1
+                                            _split = _p.getOtherTxn(_iSplit)
+                                            lValue += toBaseDouble(_split.getValue(), _split.getAccount().getCurrencyType(), _p.getDateInt()) * -1
                                         return lValue
 
                                     copyValidAccountList = ArrayList()
@@ -11520,7 +11541,7 @@ Visit: %s (Author's site)
                                                 if acctBal not in copyValidAccountList:
                                                     copyValidAccountList.add(acctBal)
 
-                                    relativePath = os.path.splitext(os.path.basename(GlobalVars.attachmentFolder_EAR_EIT))[0]
+                                    relativePath = os.path.basename(GlobalVars.attachmentFolder_EAR_EIT or "")   # a folder name has no extension (splitext would cut at a dot in the name); None if not created
 
                                     for txn in txns:
 
@@ -11647,7 +11668,8 @@ Visit: %s (Author's site)
                                                 _row[GlobalVars.dataKeys["_TOTALAMOUNT"][_COLUMN]] = localValue
                                             else:
                                                 _row[GlobalVars.dataKeys["_FOREIGNTOTALAMOUNT"][_COLUMN]] = acctCurr.getDoubleValue(txn.getValue())
-                                                _row[GlobalVars.dataKeys["_TOTALAMOUNT"][_COLUMN]] = acctCurr.getDoubleValue(txn.getAmount())
+                                                # a split's amount is in the parent account's currency
+                                                _row[GlobalVars.dataKeys["_TOTALAMOUNT"][_COLUMN]] = toBaseDouble(txn.getAmount(), parent_Txn.getAccount().getCurrencyType(), txn.getDateInt())
 
                                         _row[GlobalVars.dataKeys["_PARENTHASATTACHMENTS"][_COLUMN]] = parent_Txn.hasAttachments()
                                         if str(parent_Txn.getKeywords()) != "[]": _row[GlobalVars.dataKeys["_PARENTTAGS"][_COLUMN]] = safeStr(parent_Txn.getKeywords())
@@ -11693,7 +11715,7 @@ Visit: %s (Author's site)
 
                                                 splitFAmount = None
                                                 if otherSideTxn.getAmount() != otherSideTxn.getValue():
-                                                    splitFAmount = acctCurr.getDoubleValue(otherSideTxn.getValue()) * -1
+                                                    splitFAmount = otherSideTxn.getAccount().getCurrencyType().getDoubleValue(otherSideTxn.getValue()) * -1   # the split account's currency
                                                     splitAmount = acctCurr.getDoubleValue(otherSideTxn.getAmount()) * -1
                                                 else:
                                                     splitAmount = acctCurr.getDoubleValue(otherSideTxn.getValue()) * -1
@@ -11751,7 +11773,7 @@ Visit: %s (Author's site)
                                                 splitFAmount = None
                                                 if txn.getAmount() != txn.getValue():
                                                     splitFAmount = acctCurr.getDoubleValue(txn.getValue())
-                                                    splitAmount = acctCurr.getDoubleValue(txn.getAmount())
+                                                    splitAmount = parent_Txn.getAccount().getCurrencyType().getDoubleValue(txn.getAmount())   # the parent account's currency
                                                 else:
                                                     splitAmount = acctCurr.getDoubleValue(txn.getValue())
 
@@ -11789,7 +11811,7 @@ Visit: %s (Author's site)
                                             splitRowCopy[GlobalVars.dataKeys["_ISTRANSFERTOACCT"][_COLUMN]] = isTransfer
                                             splitRowCopy[GlobalVars.dataKeys["_ISTRANSFERSELECTED"][_COLUMN]] = isTransferWithinExtract
                                             splitRowCopy[GlobalVars.dataKeys["_ISPARENTTXN"][_COLUMN]] = lParent
-                                            splitRowCopy[GlobalVars.dataKeys["_SPLITUUID"][_COLUMN]] = otherSideTxn.getUUID()
+                                            splitRowCopy[GlobalVars.dataKeys["_SPLITUUID"][_COLUMN]] = otherSideTxn.getUUID() if lParent else txn.getUUID()   # on a split row, the split itself
 
                                             holdTheKeys = ArrayList()
                                             holdTheLocations = ArrayList()
@@ -11862,7 +11884,6 @@ Visit: %s (Author's site)
                                                         for _c in range(GlobalVars.dataKeys["_PARENTHASATTACHMENTS"][_COLUMN]+1,GlobalVars.dataKeys["_ATTACHMENTLINK"][_COLUMN]):
                                                             rowCopy[_c] = None
 
-                                                    rowCopy[GlobalVars.dataKeys["_SPLITIDX"][_COLUMN]] = _ii
                                                     rowCopy[GlobalVars.dataKeys["_ATTACHMENTLINK"][_COLUMN]] = '=HYPERLINK("'+attachmentFileList[_i] + '","FILE: ' + os.path.basename(attachmentFileList[_i])[len(uniqueFileString)+1:]+'")'
                                                     rowCopy[GlobalVars.dataKeys["_ATTACHMENTLINKREL"][_COLUMN]] = '=HYPERLINK("'+os.path.join(".", relativePath, os.path.basename(attachmentFileList[_i]))+'","FILE: '+os.path.basename(attachmentFileList[_i])[len(uniqueFileString)+1:]+'")'
                                                     GlobalVars.transactionTable.append(rowCopy)
@@ -11877,7 +11898,9 @@ Visit: %s (Author's site)
 
                                             acctCurr = acctBal.getCurrencyType()  # Currency of the acct
 
-                                            if (GlobalVars.saved_lIncludeOpeningBalances_EAR):
+                                            # Accounts can be in this list only for an adjustment, so check the opening balance date here too
+                                            if (GlobalVars.saved_lIncludeOpeningBalances_EAR
+                                                    and GlobalVars.saved_filterDateRangeStart_EAR <= acctBal.getCreationDateInt() <= GlobalVars.saved_filterDateRangeEnd_EAR):
                                                 openBal = acctCurr.getDoubleValue(getUnadjustedStartBalance(acctBal))
                                                 if openBal != 0:
                                                     iBal += 1
@@ -12116,7 +12139,7 @@ Visit: %s (Author's site)
                                                 if not Platform.isWindows():
                                                     theCommand = 'zip -v -r "%s" "%s" "%s"' %(os.path.splitext(baseName)[0] + ".zip",
                                                                                               baseName,
-                                                                                              os.path.join(os.path.splitext(baseAttachFolder)[0], ""))
+                                                                                              os.path.join(baseAttachFolder, ""))
 
                                                     lShell = True
                                                 else:
@@ -12124,7 +12147,7 @@ Visit: %s (Author's site)
                                                         if float(System.getProperty("os.version")) >= 10:
                                                             theCommand = 'tar -a -cvf "%s" "%s" "%s"' %(os.path.splitext(baseName)[0] + ".zip",
                                                                                                         baseName,
-                                                                                                        os.path.join(os.path.splitext(baseAttachFolder)[0], "*.*"))
+                                                                                                        os.path.join(baseAttachFolder, "*.*"))
 
                                                             lShell = False
                                                     except: pass
@@ -12504,7 +12527,7 @@ Visit: %s (Author's site)
                                                 if acctBal not in copyValidAccountList:
                                                     copyValidAccountList.add(acctBal)
 
-                                    relativePath = os.path.splitext(os.path.basename(GlobalVars.attachmentFolder_EAR_EIT or ""))[0]   # folder can be None if it could not be created
+                                    relativePath = os.path.basename(GlobalVars.attachmentFolder_EAR_EIT or "")   # a folder name has no extension (splitext would cut at a dot in the name); None if not created
 
                                     for txn in txns:
 
@@ -13186,7 +13209,7 @@ Visit: %s (Author's site)
                                                 if not Platform.isWindows():
                                                     theCommand = 'zip -v -r "%s" "%s" "%s"' %(os.path.splitext(baseName)[0]+".zip",
                                                                                               baseName,
-                                                                                              os.path.join(os.path.splitext(baseAttachFolder)[0],""))
+                                                                                              os.path.join(baseAttachFolder,""))
 
                                                     lShell = True
                                                 else:
@@ -13194,7 +13217,7 @@ Visit: %s (Author's site)
                                                         if float(System.getProperty("os.version")) >= 10:
                                                             theCommand = 'tar -a -cvf "%s" "%s" "%s"' %(os.path.splitext(baseName)[0]+".zip",
                                                                                                         baseName,
-                                                                                                        os.path.join(os.path.splitext(baseAttachFolder)[0],"*.*"))
+                                                                                                        os.path.join(baseAttachFolder,"*.*"))
 
                                                             lShell = False
                                                     except: pass
