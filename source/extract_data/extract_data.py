@@ -120,6 +120,8 @@
 # build: 1051 - BUGFIX Security Balances: cash rows now kept with an account filter, and foreign cash rows show their own currency and rate (previously dropped, and shown as base)
 # build: 1051 - BUGFIX Common: backwards text search now finds every match, and popup height uses the height limit (previously could skip a match, and used the width limit)
 # build: 1051 - BUGFIX Currency History: current rate now uses Moneydance's rate, and rate column headings now match Moneydance (previously used an old stored value, and R2B/B2R headings were swapped)
+# build: 1051 - BUGFIX StockGlance2020: values now use the full price, number sorting no longer fails, same-named securities stay apart, and CSV numbers keep all digits (previously rounded price, sort could crash, rows could mix, digits lost)
+# build: 1051 - StockGlance2020: carries on with a zero cost basis (and a warning) when Moneydance cannot calculate it (previously the extract stopped)
 # build: 1051 - ???
 
 # todo - EAR: Switch to 'proper' usage of DateRangeChooser() (rather than my own 'copy')
@@ -8439,7 +8441,9 @@ Visit: %s (Author's site)
                                                     _roundPrice = GlobalVars.saved_maxDecimalPlacesRounding_SG2020   # Don't use currency.getDecimalPlaces() as this is for stock qty balances, not price...!
 
                                                     priceDate = (0 if (GlobalVars.saved_lUseCurrentPrice_SG2020) else DateUtil.convertCalToInt(today))
-                                                    price = round(1.0 / curr.adjustRateForSplitsInt(DateUtil.convertCalToInt(today),curr.getRelativeRate(priceDate)), _roundPrice)
+                                                    # Values use the full price; only the displayed price is rounded
+                                                    rawPrice = 1.0 / curr.adjustRateForSplitsInt(DateUtil.convertCalToInt(today),curr.getRelativeRate(priceDate))
+                                                    price = round(rawPrice, _roundPrice)
 
                                                     qty = self.QtyOfSharesTable.get(curr)
                                                     if qty is None: qty = 0
@@ -8466,8 +8470,8 @@ Visit: %s (Author's site)
                                                                 for iSplitAcctArray in range(0, len(split_acct_array)):
                                                                     qtySplit = split_acct_array[iSplitAcctArray][1]
 
-                                                                    balance = (0.0 if (qty is None) else curr.getDoubleValue(qty) * price)  # Value in Currency
-                                                                    balanceSplit = (0.0 if (qtySplit is None) else curr.getDoubleValue(qtySplit) * price)  # Value in Currency
+                                                                    balance = (0.0 if (qty is None) else curr.getDoubleValue(qty) * rawPrice)  # Value in Currency
+                                                                    balanceSplit = (0.0 if (qtySplit is None) else curr.getDoubleValue(qtySplit) * rawPrice)  # Value in Currency
                                                                     exchangeRate = 1.0
                                                                     securityIsBase = True
                                                                     ct = curr.getTable()
@@ -8490,8 +8494,8 @@ Visit: %s (Author's site)
                                                                         if self.sameCurrency is None:               self.sameCurrency = self.currXrate
                                                                         if self.sameCurrency != self.currXrate:     self.allOneCurrency = False
 
-                                                                    balanceBase = (0.0 if (qty is None) else (curr.getDoubleValue(qty) * price / exchangeRate))                 # Value in Base Currency
-                                                                    balanceBaseSplit = (0.0 if (qtySplit is None) else (curr.getDoubleValue(qtySplit) * price / exchangeRate))  # Value in Base Currency
+                                                                    balanceBase = (0.0 if (qty is None) else (curr.getDoubleValue(qty) * rawPrice / exchangeRate))                 # Value in Base Currency
+                                                                    balanceBaseSplit = (0.0 if (qtySplit is None) else (curr.getDoubleValue(qtySplit) * rawPrice / exchangeRate))  # Value in Base Currency
 
                                                                     # costBasisBase = (0.0 if (securityCostBasis is None) else round(self.currXrate.getDoubleValue(securityCostBasis) / exchangeRate, 2))
                                                                     costBasisBase = (0.0 if (securityCostBasis is None) else round(self.currXrate.getDoubleValue(securityCostBasis), 2))
@@ -8538,7 +8542,7 @@ Visit: %s (Author's site)
                                                                     entry.append(round(balanceBaseSplit, 2))                                                            # _BValue
                                                                     entry.append(costBasisBaseSplit)                                                                    # _Cost Basis
                                                                     entry.append(gainBaseSplit)                                                                         # _Gain
-                                                                    entry.append(curr.getName().upper() + "000" + split_acct_array[iSplitAcctArray][0].upper().replace(GlobalVars.acctSeparator_SG2020, "", 1))  # _SORT
+                                                                    entry.append(curr.getName().upper() + "\x00" + curr.getUUID() + "000" + split_acct_array[iSplitAcctArray][0].upper().replace(GlobalVars.acctSeparator_SG2020, "", 1))  # _SORT
                                                                     entry.append(False)                                                                                 # Never exclude
                                                                     GlobalVars.rawDataTable_SG2020.append(entry)
                                                                 # NEXT
@@ -8563,7 +8567,7 @@ Visit: %s (Author's site)
                                                                     blankEntry.append("----------")
                                                                     blankEntry.append("----------")
                                                                     blankEntry.append("----------")
-                                                                    blankEntry.append(curr.getName().upper() + "555")
+                                                                    blankEntry.append(curr.getName().upper() + "\x00" + curr.getUUID() + "555")
                                                                     blankEntry.append(GlobalVars.saved_lExcludeTotalsFromCSV_SG2020)
                                                                     GlobalVars.rawDataTable_SG2020.append(blankEntry)
 
@@ -8602,7 +8606,8 @@ Visit: %s (Author's site)
                                                                 entry.append(round(balanceBase, 2))                                                             # _BValue =  (raw number)
                                                                 entry.append(costBasisBase)                                                                     # _Cost Basis
                                                                 entry.append(gainBase)                                                                          # _Gain
-                                                                entry.append(curr.getName().upper() + "888")                                                    # _SORT
+                                                                # _SORT: name, then "\x00" and the UUID, so two securities with the same (or similar) name never interleave
+                                                                entry.append(curr.getName().upper() + "\x00" + curr.getUUID() + "888")                         # _SORT
                                                                 entry.append((False if (not GlobalVars.saved_lSplitSecuritiesByAccount_SG2020) else GlobalVars.saved_lExcludeTotalsFromCSV_SG2020))
                                                                 GlobalVars.rawDataTable_SG2020.append(entry)
 
@@ -8625,7 +8630,7 @@ Visit: %s (Author's site)
                                                                     blankEntry.append(None)
                                                                     blankEntry.append(None)
                                                                     blankEntry.append(None)
-                                                                    blankEntry.append(curr.getName().upper() + "999")
+                                                                    blankEntry.append(curr.getName().upper() + "\x00" + curr.getUUID() + "999")
                                                                     blankEntry.append(GlobalVars.saved_lExcludeTotalsFromCSV_SG2020)
                                                                     GlobalVars.rawDataTable_SG2020.append(blankEntry)
 
@@ -9025,7 +9030,15 @@ Visit: %s (Author's site)
                                                     totals[curr] = total
 
                                                     # getTheCostBasis = InvestUtil.getCostBasis(acct)
-                                                    getTheCostBasis = CurrencyUtil.convertValue(InvestUtil.getCostBasis(acct), acct.getParentAccount().getCurrencyType(), base)
+                                                    try:
+                                                        getTheCostBasis = CurrencyUtil.convertValue(InvestUtil.getCostBasis(acct), acct.getParentAccount().getCurrencyType(), base)
+                                                    except:
+                                                        # Moneydance's cost calculation can fail on bad data (fixed from MD2027(5512)) - use zero and carry on
+                                                        getTheCostBasis = 0L
+                                                        _msgTxt = _THIS_EXTRACT_NAME + "@@ WARNING: Moneydance could not calculate the cost basis for '%s' in '%s' - using zero (review console)" %(curr, acct.getParentAccount())
+                                                        myPrint("B", _msgTxt)
+                                                        dump_sys_error_to_md_console_and_errorlog()
+                                                        GlobalVars.AUTO_MESSAGES.append(_msgTxt)
                                                     costbasis = (0L if (costbasis is None) else costbasis) + getTheCostBasis
                                                     cbbasistotals[curr] = costbasis
 
@@ -9115,23 +9128,27 @@ Visit: %s (Author's site)
                                                     else:
                                                         self.lSortNumber = False
 
-                                                def compare(self, str1, str2):
-                                                    validString = "-0123456789" + GlobalVars.decimalCharSep  # Yes this will strip % sign too, but that still works
-                                                    if self.lSortNumber:
-                                                        # strip non numerics from string so can convert back to float - yes, a bit of a reverse hack
-                                                        conv_string1 = ""
-                                                        if str1 is None or str1 == "": str1 = "0"
-                                                        if str2 is None or str2 == "": str2 = "0"
-                                                        for char in str1:
-                                                            if char in validString:
-                                                                conv_string1 = conv_string1 + char
+                                                @staticmethod
+                                                def textToNumber(theText):
+                                                    # Displayed numbers carry thousands separators and currency text (eg 'Fr.'), so read just the number; 0 if none
+                                                    if theText is None: return 0.0
+                                                    if isinstance(theText, (int, float)): return float(theText)
+                                                    decimalChar = GlobalVars.decimalCharSep
+                                                    text = theText.replace("," if decimalChar == "." else ".", "")
+                                                    digits = ""
+                                                    for char in text:
+                                                        if char.isdigit() or (char == decimalChar and digits and decimalChar not in digits):
+                                                            digits += char
+                                                        elif digits:
+                                                            break
+                                                    if not digits: return 0.0
+                                                    number = float(digits.replace(decimalChar, "."))
+                                                    return -number if ("-" in text) else number
 
-                                                        conv_string2 = ""
-                                                        for char in str2:
-                                                            if char in validString:
-                                                                conv_string2 = conv_string2 + char
-                                                        str1 = float(conv_string1)
-                                                        str2 = float(conv_string2)
+                                                def compare(self, str1, str2):
+                                                    if self.lSortNumber:
+                                                        str1 = self.textToNumber(str1)
+                                                        str2 = self.textToNumber(str2)
 
                                                         if str1 > str2:
                                                             return 1
@@ -9847,7 +9864,8 @@ Visit: %s (Author's site)
                                                 theString = "{:.1%}".format(theString)
                                                 return theString
 
-                                            if lNumber: return str(theString)
+                                            # str() keeps only 12 significant digits; round to 8dp (drops float noise) then repr() keeps the rest
+                                            if lNumber: return repr(round(theString, 8)) if isinstance(theString, float) else str(theString)
 
                                             theString = theString.strip()  # remove leading and trailing spaces
 
