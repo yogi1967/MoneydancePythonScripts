@@ -118,6 +118,7 @@
 # build: 1051 - BUGFIX Account Balances: console now lists its own settings, and an invalid 'years to include' now defaults to 0 (previously Security Balances settings, and 1)
 # build: 1051 - BUGFIX Extract chooser: the auto extract warning now shows once (previously could repeat)
 # build: 1051 - BUGFIX Security Balances: cash rows now kept with an account filter, and foreign cash rows show their own currency and rate (previously dropped, and shown as base)
+# build: 1051 - BUGFIX Common: backwards text search now finds every match, and popup height uses the height limit (previously could skip a match, and used the width limit)
 # build: 1051 - ???
 
 # todo - EAR: Switch to 'proper' usage of DateRangeChooser() (rather than my own 'copy')
@@ -1375,7 +1376,7 @@ Visit: %s (Author's site)
                         maxDimension = Dimension(maxDialogWidth,maxDialogHeight)
                     else:
                         maxDialogWidth = min(screenSize.width-20, max(GetFirstMainFrame.DEFAULT_MAX_WIDTH, int(round(GetFirstMainFrame.getSize().width *.9,0))))
-                        maxDialogHeight = min(screenSize.height-40, max(GetFirstMainFrame.DEFAULT_MAX_WIDTH, int(round(GetFirstMainFrame.getSize().height *.9,0))))
+                        maxDialogHeight = min(screenSize.height-40, max(GetFirstMainFrame.DEFAULT_MAX_HEIGHT, int(round(GetFirstMainFrame.getSize().height *.9,0))))
                         maxDimension = Dimension(maxDialogWidth,maxDialogHeight)
 
                     # noinspection PyUnresolvedReferences
@@ -2211,10 +2212,10 @@ Visit: %s (Author's site)
 
             else:
                 direction = "[backwards]"
-                endPos = len(theText)-1
+                endPos = len(theText)      # rfind()'s end is exclusive, so use the full length to find a match at the very end
 
                 if searchWhat == self.lastSearch:
-                    if self.previousEndPosn < 0: self.previousEndPosn = len(theText)-1
+                    if self.previousEndPosn < 0: self.previousEndPosn = len(theText)
                     endPos = max(0,self.previousEndPosn)
                     if lSwitch: endPos = max(0,self.lastPosn-1)
 
@@ -2230,13 +2231,13 @@ Visit: %s (Author's site)
                 except: pass
                 if response == 0:
                     self.lastPosn = pos+len(searchWhat)
-                    self.previousEndPosn = len(theText)-1
+                    self.previousEndPosn = len(theText)
                 else:
                     self.lastPosn = pos-len(searchWhat)
-                    self.previousEndPosn = pos-1
+                    self.previousEndPosn = pos+len(searchWhat)-1     # next backwards search finds any match starting before this one
             else:
                 self.lastPosn = 0
-                self.previousEndPosn = len(theText)-1
+                self.previousEndPosn = len(theText)
                 myPopupInformationBox(self.theFrame,"Searching %s text not found" %direction)
 
             return
