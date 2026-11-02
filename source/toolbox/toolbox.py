@@ -14556,6 +14556,7 @@ Visit: %s (Author's site)
                                         if iCountSnapsPrinted > 10: break
                                     del dummySyncR
                                 del snaps
+                                output += "\nNOTE: Moneydance should ideally be restarted after this function (to reduce memory consumption from changing data en-mass)\n"
                                 output += "<END>\n"
                             except:
                                 output += dump_sys_error_to_md_console_and_errorlog( True )
@@ -17106,7 +17107,8 @@ after saving the file, restart Moneydance
             myPopupInformationBox(toolbox_frame_, txt)
             return
 
-        jif = QuickJFrame(_THIS_METHOD_NAME, output + "\n<END>", copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
+        restartNote = "NOTE: Moneydance should ideally be restarted after this function (to reduce memory consumption from changing data en-mass)\n"
+        jif = QuickJFrame(_THIS_METHOD_NAME, output + "\n" + restartNote + "<END>", copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
 
         if not lUpdate:
             txt = "DRY RUN: %s price history records would be pruned (%s) - no changes made" %(len(snapsToPrune), whatTxt)
@@ -17160,7 +17162,7 @@ after saving the file, restart Moneydance
         myPrint("B", txt); output += "%s\n" %(txt)
         logToolboxUpdates("prune_price_history_vol_hi_lo", txt)
 
-        output += "\n<END>"
+        output += "\n" + restartNote + "<END>"
 
         setDisplayStatus(txt, "R")
         play_the_money_sound()
