@@ -124,6 +124,7 @@
 # build: 2001 - Kotlin'isation of Moneydance's Main class (12th August 2026) - MD2026.0(5505)
 # build: 2001 - MD2026.0(5509) alpha became / jumped to MD2027.0(5510) alpha (5th Sept 2026) - 2025/2026 were never released
 # build: 2001 - BUGFIX Common: backwards text search now finds every match, and popup height uses the height limit (previously could skip a match, and used the width limit)
+# build: 2001 - BUGFIX: no NameError at launch when run without the precompiled $py.class (previously the extra code loader deleted the bootstrap's _pyi)
 # build: 2001 - ???
 
 # NOTE: 'The domain/default pair of (kCFPreferencesAnyApplication, AppleInterfaceStyle) does not exist' means that Dark mode is NOT in force
@@ -3481,13 +3482,13 @@ Visit: %s (Author's site)
         _extraCodeString = myModuleID + "_extra_code" + ".py"
         if MD_EXTENSION_LOADER is not None:
             # Try launching the extra code from within the MXT...
-            _pyi = getFieldByReflection(MD_REF.getModuleForID(myModuleID), "python")
+            _pyiExtra = getFieldByReflection(MD_REF.getModuleForID(myModuleID), "python")
             extraCodeScriptStream = MD_EXTENSION_LOADER.getResourceAsStream("/%s" %(_extraCodeString))
             if extraCodeScriptStream is not None:
                 myPrint("DB", "About to launch extra code initialiser (via mxt)....")
-                _pyi.execfile(extraCodeScriptStream)
+                _pyiExtra.execfile(extraCodeScriptStream)
                 extraCodeScriptStream.close()
-            del _pyi, extraCodeScriptStream
+            del _pyiExtra, extraCodeScriptStream
 
         if not GlobalVars.EXTRA_CODE_INITIALISED and "__file__" in globals():
             # OK, so try launching the extra code from disk if running as a script....
