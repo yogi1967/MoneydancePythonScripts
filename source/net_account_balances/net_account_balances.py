@@ -4476,6 +4476,23 @@ Visit: %s (Author's site)
             if (evt.getKeyCode() == KeyEvent.VK_ENTER):
                 evt.getSource().transferFocus()
 
+    class FixStuckDragSelectionKeyAdapter(KeyAdapter):
+        """macOS (on Java without the JetBrains JBR-5762 fix): after a drag-select past the field's edge the mouse
+        release can miss the field, leaving Swing's autoscroll re-selecting the text so each key typed replaces the
+        last. Ends any such autoscroll when a key is pressed in the field.
+        Oracle Java bugs: JDK-8325052, JDK-8370002, JDK-8311949, JDK-8319880"""
+        def keyPressed(self, evt):
+            theComponent = evt.getSource()
+            if theComponent.getAutoscrolls():
+                theComponent.setAutoscrolls(False)      # setAutoscrolls(False) stops the autoscroll
+                theComponent.setAutoscrolls(True)
+
+    def fixStuckDragSelection(*theComponents):
+        """Applies FixStuckDragSelectionKeyAdapter to each JTextComponent given; returns the component (or all of them)"""
+        for theComponent in theComponents:
+            theComponent.addKeyListener(FixStuckDragSelectionKeyAdapter())
+        return theComponents[0] if len(theComponents) == 1 else theComponents
+
     class MyJTextField(JTextField):
 
         def __init__(self, *args, **kwargs):
