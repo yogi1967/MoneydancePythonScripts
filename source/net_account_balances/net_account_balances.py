@@ -15415,6 +15415,9 @@ Visit: %s (Author's site)
                     # NAB.theFrame.setPreferredSize(dimFrame)
                     splitPane.setPreferredSize(dimFrame)
 
+                    # apply fix to prevent mouse dragged, left, select all, over-typing bug...
+                    fixStuckDragSelection(NAB.quickSearchField, NAB.filterByGroupID_JTF, NAB.widgetNameField_JTF, NAB.tagName_JTF, NAB.groupIDField_JTF, NAB.formula_JTF)
+
                     dumpScreenSizes(NAB, NAB.theFrame, "PRE-PACK", splitPane, ctrlPnlScrollpane, controlPnl, acctJListScrollpane, NAB.jlst)
                     NAB.theFrame.pack()
                     setJSplitPaneDivider(splitPane, controlPnl)
