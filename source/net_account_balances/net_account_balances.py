@@ -3464,13 +3464,13 @@ Visit: %s (Author's site)
         _extraCodeString = myModuleID + "_extra_code" + ".py"
         if MD_EXTENSION_LOADER is not None:
             # Try launching the extra code from within the MXT...
-            _pyi = getFieldByReflection(MD_REF.getModuleForID(myModuleID), "python")
+            _pyiExtra = getFieldByReflection(MD_REF.getModuleForID(myModuleID), "python")
             extraCodeScriptStream = MD_EXTENSION_LOADER.getResourceAsStream("/%s" %(_extraCodeString))
             if extraCodeScriptStream is not None:
                 myPrint("DB", "About to launch extra code initialiser (via mxt)....")
-                _pyi.execfile(extraCodeScriptStream)
+                _pyiExtra.execfile(extraCodeScriptStream)
                 extraCodeScriptStream.close()
-            del _pyi, extraCodeScriptStream
+            del _pyiExtra, extraCodeScriptStream
 
         if not GlobalVars.EXTRA_CODE_INITIALISED and "__file__" in globals():
             # OK, so try launching the extra code from disk if running as a script....
