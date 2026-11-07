@@ -136,7 +136,7 @@ md_version=" 2027.0 (5510)"
 # NOTE:   MD2026.0(5503) Java 25.0.2 (LTS)
 # NOTE:   MD2026.0(5509) alpha renamed to MD2027(5510) alpha
 
-# NOTE:   MD2027.0(5512) Java JetBrains JBR 25.0.4.1
+# NOTE:   MD2027.0(5512) Java JetBrains JBR 25.0.4.1 & VAQua 14
 
 # Edit the necessary install locations for JDK, JavaFX and Java Native Frameworks below
 # Edit the necessary settings and your folder locations below
