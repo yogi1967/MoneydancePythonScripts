@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# security_performance_graph.py build: 1015 - July 2024 - Stuart Beesley StuWareSoftSystems
+# security_performance_graph.py build: 1016 - November 2026 - Stuart Beesley StuWareSoftSystems
 
 # requires: MD 2021.1(3069) due to NPE on SwingUtilities - something to do with 'theGenerator.setInfo(reportSpec)'
 
@@ -51,7 +51,8 @@
 # build: 1014 - MD2024.2(5142) - moneydance_extension_loader was nuked and moneydance_this_fm with getResourceAsStream() was provided.
 # build: 1014 - Switching to CurrencyUtil.convertValue()
 # build: 1015 - BUGFIX Common: backwards text search now finds every match, and popup height uses the height limit (previously could skip a match, and used the width limit)
-# build: 1015 - ???
+# build: 1016 - Security list now scrolls at a normal speed with the mouse wheel (previously one pixel per step on Windows)
+# build: 1016 - ???
 
 #######
 # NOTE: You cannot access protected fields on a subclassed class from python, only protected methods!
@@ -68,7 +69,7 @@
 
 # SET THESE LINES
 myModuleID = u"security_performance_graph"
-version_build = "1015"
+version_build = "1016"
 MIN_BUILD_REQD = 3069
 _I_CAN_RUN_AS_DEVELOPER_CONSOLE_SCRIPT = True
 
@@ -3647,6 +3648,7 @@ Visit: %s (Author's site)
 
             self.setViewportView(self.pnlJCheckBoxList)
             self.setViewportBorder(EmptyBorder(5, 5, 5, 5))
+            self.getVerticalScrollBar().setUnitIncrement(16)
 
         def recreateJCheckBoxListPnl(self):
             y = 1
