@@ -170,7 +170,6 @@ load times (avoids initial compile on launch). If the bootstrap fails to load th
 
 - <a href="https://infinitekind.com/developer"><strong>Moneydance Developer Resources</strong>: Infinite Kind's developer guide</a>
 - <a href="https://infinitekind.com/developer-python"><strong>Moneydance Python Developer Resources</strong>: Infinite Kind's guide to Python scripts and extensions</a>
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/extension_tester/readme.txt"><strong>Extension tips</strong>: A readme.txt file that contains my tips on creating Python extensions and some coding tips....</a>
 - Custom Balances is also a demo of how to create a true runtime Python extension and a HomePageView (Summary Page) widget.
 - There is a mini api inside the Custom Balances extension whereby you can retrieve the results of the calculations by row to use in your own extensions. Contact me for details...
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/launch-moneydance.sh"><strong>Moneydance Mac Launch Shell Script</strong>: A MacOS shell script that launches Moneydance replicating the standard App launch sequence.... But without Apple sandboxing restrictions... You can also therefore change much of the underlying 'environment' and java libraries...</a>
