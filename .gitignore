@@ -6,7 +6,6 @@
 *.pyc
 
 *.mxt
-!/signed_builds/*.mxt
 
 _PREVIEW_BUILD_
 
