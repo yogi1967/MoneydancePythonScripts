@@ -81,6 +81,7 @@ Needs Moneydance 2021.1 (build 3056) or later.
 
 #### Security Performance Graph
 Graphs selected securities, calculating relative price performance as a percentage. Popup table and other useful info too.<br>
+<a href="security_performance_graph.pdf">(View the Security Performance Graph user guide - PDF)</a><br>
 Needs Moneydance 2021.1 (build 3069) or later.
 - Latest version (unsigned): <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/security_performance_graph.zip">download zip</a>
 - Preview version (signed by Infinite Kind, may be older): <a href="https://infinitekind.com/app/md/extensions/preview/security_performance_graph.mxt">download</a>
