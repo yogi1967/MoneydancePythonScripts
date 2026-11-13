@@ -926,6 +926,29 @@ tasks.register("useful_scripts", Zip) {
   doLast { if (debug) logger.lifecycle("${path} END") }
 }
 
+def cmtOpenPath = "${rootDir}/../MoneydanceOpen"
+def cmtMxt      = file("${cmtOpenPath}/dist/contextmenutools.mxt")
+def cmtReadme   = file("${cmtOpenPath}/src/com/moneydance/modules/features/contextmenutools/readme.txt")
+
+tasks.register("copy_contextmenutools", Zip) {
+  group = "BUILD EXTENSION"
+  description = "Copy Context Menu Tools .mxt from MoneydanceOpen into dist and create its zip bundle"
+
+  dependsOn("ensureDist")
+
+  archiveFileName.set("contextmenutools.zip")
+  destinationDirectory.set(file(distPath))
+
+  from(cmtMxt)
+  from(cmtReadme) { rename { "contextmenutools_readme.txt" } }
+
+  doFirst {
+    if (!cmtMxt.exists()) throw new GradleException("Build Context Menu Tools in MoneydanceOpen first - missing: ${cmtMxt}")
+    copy { from(cmtMxt); into(distPath) }
+  }
+  doLast { logger.lifecycle("Copied ${cmtMxt} and created ${distPath}/contextmenutools.zip") }
+}
+
 // register tasks to allow push to IK's Open project folders - don't do this unless you really know what you are doing!
 if (allowPushIKOpen) {
 
