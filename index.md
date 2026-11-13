@@ -34,7 +34,7 @@ NOTE: Also installs two new Extensions Menu options:
 Needs Moneydance 2021.1 (build 3056) or later.
 - Latest version (unsigned): <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/toolbox.zip">download zip</a>
 - Preview version (signed by Infinite Kind, may be older): <a href="https://infinitekind.com/app/md/extensions/preview/toolbox.mxt">download</a>
-- Official version (signed, may be older): Moneydance menu: Extensions > Manage Extensions
+- Official version (signed, may be older): Moneydance menu: Extensions > Manage Extensions (<a href="https://infinitekind.com/app/md/extensions/toolbox.mxt">direct download</a>)
 
 #### Custom Balances (Net Account Balances)
 Puts a small 'widget' on the Summary Page (Home Page). Displays the total of selected account balances. Multi-row, display currency, and you can select Accounts/Categories/Securities per row.<br>
@@ -42,7 +42,7 @@ Puts a small 'widget' on the Summary Page (Home Page). Displays the total of sel
 Needs Moneydance 2024.1 (build 5100) or later.
 - Latest version (unsigned): <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/net_account_balances.zip">download zip</a>
 - Preview version (signed by Infinite Kind, may be older): <a href="https://infinitekind.com/app/md/extensions/preview/net_account_balances.mxt">download</a>
-- Official version (signed, may be older): Moneydance menu: Extensions > Manage Extensions
+- Official version (signed, may be older): Moneydance menu: Extensions > Manage Extensions (<a href="https://infinitekind.com/app/md/extensions/net_account_balances.mxt">direct download</a>)
 
 #### Context Menu Tools
 Adds extra right-click (context menu) options. Pure Kotlin extension - source is on the Infinite Kind open source site (see [Source code](#source-code) below).<br>
@@ -58,7 +58,7 @@ Needs Moneydance 2024.4 (build 5253) or later.
 
 - Latest version (unsigned): <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/contextmenutools.zip">download zip</a>
 - Preview version (signed by Infinite Kind, may be older): <a href="https://infinitekind.com/app/md/extensions/preview/contextmenutools.mxt">download</a>
-- Official version (signed, may be older): Moneydance menu: Extensions > Manage Extensions
+- Official version (signed, may be older): Moneydance menu: Extensions > Manage Extensions (<a href="https://infinitekind.com/app/md/extensions/contextmenutools.mxt">direct download</a>)
 
 #### Extract Data
 Extract various data to screen or CSV (also auto-extract mode). Includes:
@@ -70,21 +70,21 @@ Extract various data to screen or CSV (also auto-extract mode). Includes:
 Needs Moneydance 2021.1 (build 3056) or later.
 - Latest version (unsigned): <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/extract_data.zip">download zip</a>
 - Preview version (signed by Infinite Kind, may be older): <a href="https://infinitekind.com/app/md/extensions/preview/extract_data.mxt">download</a>
-- Official version (signed, may be older): Moneydance menu: Extensions > Manage Extensions
+- Official version (signed, may be older): Moneydance menu: Extensions > Manage Extensions (<a href="https://infinitekind.com/app/md/extensions/extract_data.mxt">direct download</a>)
 
 #### List Future Reminders
 Lists your future dated reminders to screen, and allows you to select how far forward to look.<br>
 Needs Moneydance 2021.1 (build 3056) or later.
 - Latest version (unsigned): <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/list_future_reminders.zip">download zip</a>
 - Preview version (signed by Infinite Kind, may be older): <a href="https://infinitekind.com/app/md/extensions/preview/list_future_reminders.mxt">download</a>
-- Official version (signed, may be older): Moneydance menu: Extensions > Manage Extensions
+- Official version (signed, may be older): Moneydance menu: Extensions > Manage Extensions (<a href="https://infinitekind.com/app/md/extensions/list_future_reminders.mxt">direct download</a>)
 
 #### Security Performance Graph
 Graphs selected securities, calculating relative price performance as a percentage. Popup table and other useful info too.<br>
 Needs Moneydance 2021.1 (build 3069) or later.
 - Latest version (unsigned): <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/security_performance_graph.zip">download zip</a>
 - Preview version (signed by Infinite Kind, may be older): <a href="https://infinitekind.com/app/md/extensions/preview/security_performance_graph.mxt">download</a>
-- Official version (signed, may be older): Moneydance menu: Extensions > Manage Extensions
+- Official version (signed, may be older): Moneydance menu: Extensions > Manage Extensions (<a href="https://infinitekind.com/app/md/extensions/security_performance_graph.mxt">direct download</a>)
 
 ***
 
