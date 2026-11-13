@@ -1,4 +1,4 @@
-## Welcome to my site for Moneydance Extensions and Scripts written in Python
+## Welcome to my site for Moneydance Extensions and Scripts
 
 _Author: Stuart Beesley - StuWareSoftSystems_
 
@@ -6,28 +6,110 @@ _NOTE: I AM JUST A USER - I HAVE NO COMMERCIAL AFFILIATION WITH MONEYDANCE_
 
 **DISCLAIMER**: ALWAYS BACKUP YOUR DATA BEFORE MAKING ANY CHANGES - I cannot accept any responsibility from the use of my code
 
-Moneydance allows you to run Python scripts and access its functions via their API.
+New here? See [How to install](#how-to-install) at the bottom of this page.
 
-Python is actually Jython 2.7 and accesses the Moneydance Java codebase and data model.
+***
 
-My scripts and extensions are identical(ish). The extension version(s) are simply 'packaged' script version. 
-InfiniteKind (the creators of Moneydance) have signed my Extensions.
+### Getting updates
 
-NOTE: The signed versions hosted at the IK/MD site may be a few builds behind my latest versions.
-If you require a signed version, then download links are towards the bottom of this page (these also appear in the Extensions>Manage Extensions menu))
+Check Moneydance's Extensions > Manage Extensions menu first for updates.
 
-The Extensions will only run properly on Moneydance version 2021.1 (build 3056 onwards)...
-The minimum version to run as standalone scripts is 2019.4 (build 1904)...
-_(if you have installed the extension, but nothing happens when you click the menu, then check your MD version/build)_
-_(if you see 'outdated extension:' in Moneydance's console log, then look for an update, or perhaps I have obsoleted the extension)_
+New versions are released in three steps:
+1. Latest - here on this site (unsigned) - always the newest
+2. Preview - on Infinite Kind's preview site (signed) - may be a little older
+3. Official - in Moneydance: Extensions > Manage Extensions (signed) - may be older still
 
-**NOTE: All extensions listed below (except marked with ^^) are listed within the Moneydance Manage Extensions menu - Check there first for updates**
+***
 
-**ANY NEWER VERSIONS LISTED HERE SHOULD BE CONSIDERED PREVIEW (LATEST) VERSIONS (FULLY WORKING, WITH ENHANCEMENTS, FIXES, AND PREVIEW FEATURES)**
+### Extensions
 
-**AS OF 2026 HAVE STARTED BUILDING PURE JAVA EXTENSIONS TOO - THESE EXTENSIONS ARE AVAILABLE HERE FOR DOWNLOAD TOO**
+#### Toolbox
+View Moneydance settings, diagnostics, fix issues, change settings and much more...<br>
+NOTE: Toolbox has the ability to update your dataset/settings in Update and Advanced mode(s). In the default Basic mode it's READONLY and VERY useful!<br>
+NOTE: Also installs two new Extensions Menu options:
+  - Move Investment Transactions: Allows you to move the txns you have selected in the visible Investment Register.
+  - Zap md+/ofx/qif (default) memo fields: Will search for and zap memo fields on downloaded txns when memo matches the downloaded data.
 
-Click a link below to download a ZIP file. The ZIP file contains both the Extension (if available) and Script version for you to choose from....
+<a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/toolbox/toolbox_readme.txt">(View the Toolbox HELPFILE)</a><br>
+Needs Moneydance 2021.1 (build 3056) or later.
+- Latest version (unsigned): <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/toolbox.zip">download zip</a>
+- Preview version (signed by Infinite Kind, may be older): <a href="https://infinitekind.com/app/md/extensions/preview/toolbox.mxt">download</a>
+- Official version (signed, may be older): Moneydance menu: Extensions > Manage Extensions
+
+#### Custom Balances (Net Account Balances)
+Puts a small 'widget' on the Summary Page (Home Page). Displays the total of selected account balances. Multi-row, display currency, and you can select Accounts/Categories/Securities per row.<br>
+<a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/net_account_balances/net_account_balances_readme.txt">(View the Custom Balances HELPFILE)</a><br>
+Needs Moneydance 2024.1 (build 5100) or later.
+- Latest version (unsigned): <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/net_account_balances.zip">download zip</a>
+- Preview version (signed by Infinite Kind, may be older): <a href="https://infinitekind.com/app/md/extensions/preview/net_account_balances.mxt">download</a>
+- Official version (signed, may be older): Moneydance menu: Extensions > Manage Extensions
+
+#### Context Menu Tools
+Adds extra right-click (context menu) options. Pure Kotlin extension - source is on the Infinite Kind open source site (see [Source code](#source-code) below).<br>
+Needs Moneydance 2024.4 (build 5253) or later.
+  - Show Share Balance; Show Value of Selected Transactions
+  - Duplicate Transactions (same date, new date, adjust dates, or one month on)
+  - Copy / Paste Splits; Apply Splits Template; Rebalance Splits
+  - Update a Reminder's value, or update it from a selected transaction
+  - Edit Originating Reminder; Edit Reminder One-off Instances (needs build 5512)
+  - Zap/Clean Memo; Edit Date Entered
+  - Show Other Side: Select Split; Jump to Date in Register
+  - Show Raw Details; Copy Raw Details to Clipboard
+
+- Latest version (unsigned): <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/contextmenutools.zip">download zip</a>
+- Preview version (signed by Infinite Kind, may be older): <a href="https://infinitekind.com/app/md/extensions/preview/contextmenutools.mxt">download</a>
+- Official version (signed, may be older): Moneydance menu: Extensions > Manage Extensions
+
+#### Extract Data
+Extract various data to screen or CSV (also auto-extract mode). Includes:
+  - StockGlance2020: Securities/stocks, total by security across investment accounts;
+  - Reminders; Account register transactions (attachments optional);
+  - Investment transactions (attachments optional); Security Balances; Currency price history; Category Info;
+  - Decrypt / extract raw 'Trunk' file; Extract raw data as JSON file; All attachments;
+
+Needs Moneydance 2021.1 (build 3056) or later.
+- Latest version (unsigned): <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/extract_data.zip">download zip</a>
+- Preview version (signed by Infinite Kind, may be older): <a href="https://infinitekind.com/app/md/extensions/preview/extract_data.mxt">download</a>
+- Official version (signed, may be older): Moneydance menu: Extensions > Manage Extensions
+
+#### List Future Reminders
+Lists your future dated reminders to screen, and allows you to select how far forward to look.<br>
+Needs Moneydance 2021.1 (build 3056) or later.
+- Latest version (unsigned): <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/list_future_reminders.zip">download zip</a>
+- Preview version (signed by Infinite Kind, may be older): <a href="https://infinitekind.com/app/md/extensions/preview/list_future_reminders.mxt">download</a>
+- Official version (signed, may be older): Moneydance menu: Extensions > Manage Extensions
+
+#### Security Performance Graph
+Graphs selected securities, calculating relative price performance as a percentage. Popup table and other useful info too.<br>
+Needs Moneydance 2021.1 (build 3069) or later.
+- Latest version (unsigned): <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/security_performance_graph.zip">download zip</a>
+- Preview version (signed by Infinite Kind, may be older): <a href="https://infinitekind.com/app/md/extensions/preview/security_performance_graph.mxt">download</a>
+- Official version (signed, may be older): Moneydance menu: Extensions > Manage Extensions
+
+***
+
+### Other useful ad-hoc scripts (*.py format only) - Very latest code versions
+<a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/useful_scripts.zip"><strong>Useful_Scripts</strong>: A zip collection of ad-hoc scripts that can be run individually. Including:</a>
+  - calculate_moneydance_objs_and_datasetsize.py: Analyse your Moneydance dataset, report on objects, internal file size(s), and list other known datasets...
+  - extract_all_attachments.py: extract all your attachments out of Moneydance to a folder of your choice
+  - orphan_attachments.py: scans your attachments and detects if any are orphaned (and other related errors)
+  - demo_account_currency_rates.py: demo script for beginner coders with some simple Moneydance API calls etc
+  - demo_calling_import_functions.py: demo script to show how to call deep API importFile() method and bypass UI popups (for headless running)
+  - ofx_create_new_usaa_bank_custom_profile.py: script that creates a new custom USAA bank logon profile so that it can connect within Moneydance (also built into Toolbox)
+  - ofx_populate_multiple_userids.py: script that allows you to modify a working OFX profile and populate with multiple UserIDs (also built into Toolbox)
+  - import_categories.py: script that allows you to import from a CSV file to create new Categories
+
+***
+
+### Links to all developers' extensions hosted by Moneydance at InfiniteKind
+- <a href="https://infinitekind.com/app/md/extensions/">Directory of all extensions hosted at InfiniteKind (these appear in the Extensions/Manage Extensions... menu)</a>
+- <a href="https://infinitekind.com/app/md/extensions/preview/">Directory of all PREVIEW extensions hosted at InfiniteKind (these are preview versions)</a>
+
+***
+
+### How to install
+
+Click a link above to download a ZIP file. The ZIP file contains the Extension (and Script version where available) for you to choose from....
 - Extensions have a file extension of *.mxt
 - Scripts have a file extension of *.py
 
@@ -57,102 +139,23 @@ Click a link below to download a ZIP file. The ZIP file contains both the Extens
 
 4) That's it.... Repeat these steps each time.
 
-_^^^Refer to "Script Notes:" at the bottom of this page for details on the new .pyc and $py.class files...._
+The minimum version to run as standalone scripts is 2019.4 (build 1904)...<br>
+_(if you have installed the extension, but nothing happens when you click the menu, then check your MD version/build)_<br>
+_(if you see 'outdated extension:' in Moneydance's console log, then look for an update, or perhaps I have obsoleted the extension)_
 
-### Extension ONLY format (contains only *.mxt file) - Very latest PREVIEW (unsigned) build
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/toolbox.zip"><strong>Toolbox</strong>: View Moneydance settings, diagnostics, fix issues, change settings and much more...</a><br>
-NOTE: Toolbox has the ability to update your dataset/settings in Update and Advanced mode(s). In the default Basic mode it's READONLY and VERY useful!<br>
-NOTE: Also installs three new Extensions Menu options:
-  - Move Investment Transactions: Allows you to move the txns you have selected in the visible Investment Register.
-  - Zap md+/ofx/qif (default) memo fields: Will search for and zap memo fields on downloaded txns when memo matches the downloaded data.
+***
 
-    <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/toolbox/toolbox_readme.txt">(View the Toolbox HELPFILE)</a>
+### Technical notes
 
+Moneydance allows you to run Python scripts and access its functions via their API.
 
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/net_account_balances.zip"><strong>Custom Balances(Net Account Balances)</strong>: Puts a small 'widget' on the Summary Page (Home Page). Displays the total of selected account balances. Now multi-row, display currency, and you can select Accounts/Categories/Securities per row.</a><br>
-NOTE: It's also a demo of how to create a true runtime Python extension and a HomePageView (Summary Page) widget<br>
-    <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/net_account_balances/net_account_balances_readme.txt">(View the Custom Balances HELPFILE)</a>
+Python is actually Jython 2.7 and accesses the Moneydance Java codebase and data model.
 
+My scripts and extensions are identical(ish). The extension version(s) are simply 'packaged' script version.
 
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/contextmenutools.mxt"><strong>Context Menu Tools (signed)</strong>: Adds to right-click context menu options on certain objects.</a><br>
-NOTE: This is a pure kotlin(on JVM) extension - the source code is hosted on the IK Open Source repo (see below)
-  - transactions: new duplicate transaction(s) option(s)
-  - transactions: new Show value of selected transactions option
-  - transactions: new copy/paste/apply template/rebalance splits option(s)
-  - transactions: new copy raw details to clipboard option
-  - transaction register: new jump to date in register
-    
-### Extension (and Scripts formats) (*.mxt and *.py format) - Very latest PREVIEW (unsigned) builds
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/extract_data.zip"><strong>Extract Data</strong>: Extract Data: Extract various data to screen / or csv.. (also auto-extract mode): Includes:</a>
-    - StockGlance2020: Securities/stocks, total by security across investment accounts;
-    - Reminders; Account register transaction (attachments optional);
-    - Investment transactions (attachments optional); Security Balances; Currency price history;
-    - Decrypt / extract raw 'Trunk' file; Extract raw data as JSON file; All attachments;
+As of 2026 I have also started building pure Java/Kotlin extensions (for example Context Menu Tools).
 
-
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/accounts_categories_mega_search_window.zip"><strong>^^Accounts & Categories Mega Search Window</strong>: Clones MD Menu> Tools>Accounts/Categories (combined) and adds a Quick Search box/capability - NOT SUPPORTED POST MD2023.3(5064)</a>
-
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/list_future_reminders.zip"><strong>List Future Reminders</strong>: Lists your future dated reminders to screen, and allows you to select how far forward to look.</a>
-
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/security_performance_graph.zip"><strong>Security Performance Graph</strong>: Graphs selected securities, calculating relative price performance as a percentage. Popup table and other useful info too.</a>
-
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/extension_tester.zip"><strong>extension_tester</strong>: Demo extension/scripts for coders wanting to build Moneydance Python extensions.</a>
-
-### Signed Versions (hosted by Moneydance at InfiniteKind - These builds appear in the Extensions/Manage Extensions... menu)
-- <a href="https://infinitekind.com/app/md/extensions/toolbox.mxt">Toolbox (signed)</a>
-- <a href="https://infinitekind.com/app/md/extensions/extract_data.mxt">Extract Data (signed)</a>
-- <a href="https://infinitekind.com/app/md/extensions/list_future_reminders.mxt">List Future Reminders (signed)</a>
-- <a href="https://infinitekind.com/app/md/extensions/net_account_balances.mxt">Custom Balances (net_account_balances) (signed)</a>
-
-### VERY LATEST signed Versions (hosted on this site - i.e. NOT InfiniteKind's site - **may be newer than appear (or not available) in Moneydance's Extensions menu**)
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/tree/master/signed_builds">Directory listing of all current and previously official (IK) signed builds</a>
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/toolbox.mxt">Toolbox (signed)</a>
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/extract_data.mxt">Extract Data (signed)</a>
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/list_future_reminders.mxt">List Future Reminders (signed)</a>
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/net_account_balances.mxt">Custom Balances (signed)</a>
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/accounts_categories_mega_search_window.mxt">Accounts Categories Mega Search Window (signed) - NOT SUPPORTED POST MD2023.3(5064)</a>
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/security_performance_graph.mxt">Security Performance Graph (signed)</a>
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/contextmenutools.mxt">Context Menu Tools (signed)</a>
-
-### INFO - Links to all developer's extensions hosted by Moneydance at InfiniteKind
-- <a href="https://infinitekind.com/app/md/extensions/">Directory of all extensions hosted at InfiniteKind (these appear in the Extensions/Manage Extensions... menu)</a>
-- <a href="https://infinitekind.com/app/md/extensions/preview/">Directory of all PREVIEW extensions hosted at InfiniteKind (these are preview versions)</a>
-
-
-### Other useful ad-hoc scripts (*.py format only) - Very latest code versions
-<a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/useful_scripts.zip"><strong>Useful_Scripts</strong>: A zip collection of ad-hoc scripts that can be run individually. Including:</a>
-  - calculate_moneydance_objs_and_datasetsize.py: Analyse your Moneydance dataset, report on objects, internal file size(s), and list other known datasets...
-  - extract_all_attachments.py: extract all your attachments out of Moneydance to a folder of your choice
-  - orphan_attachments.py: scans your attachments and detects if any are orphaned (and other related errors)
-  - demo_account_currency_rates.py: demo script for beginner coders with some simple Moneydance API calls etc
-  - demo_calling_import_functions.py: demo script to show how to call deep API importFile() method and bypass UI popups (for headless running)
-  - ofx_create_new_usaa_bank_custom_profile.py: script that creates a new custom USAA bank logon profile so that it can connect within Moneydance (also built into Toolbox)
-  - ofx_populate_multiple_userids.py: script that allows you to modify a working OFX profile and populate with multiple UserIDs (also built into Toolbox)
-  - import_categories.py: script that allows you to import from a CSV file to create new Categories
-
-
-### My Python Extension and coding tips:
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/extension_tester/readme.txt"><strong>Extension tips</strong>: A readme.txt file that contains my tips on creating Python extensions and some coding tips....</a>
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/launch-moneydance.sh"><strong>Moneydance Mac Launch Shell Script</strong>: A MacOS shell script that launches Moneydance replicating the standard App launch sequence.... But without Apple sandboxing restrictions... You can also therefore change much of the underlying 'environment' and java libraries...</a>
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/launch-moneydance.bat"><strong>Moneydance basic Windows Launch Shell Script</strong>: A basic Windows batch file that launches Moneydance - update with the relevant bits you need from the more complete Mac sh version...</a>
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/launch-moneydance.scpt"><strong>Moneydance Mac Apple Script Launch Script</strong>: A basic Applescript to launch Moneydance...</a>
-
-
-### Experimental / advanced:
-It's possible to load Moneydance components externally. This would not be supported by IK and you do so at your own risk._
-
-As of MD2021.2(3088) you can set an environment variable 'md_passphrase=' or 'md_passphrase_\<lowercase\_filename\>' and this will bypass the popup 'Enter your password' prompt.
-This means that the headless methods, to access MD data externally will work much more seamlessly. There are examples below on how to do this (with 'environment_passphrase' in filename):_
-
-Method 1: Using Jython (for true Java integration) (with a launch script to set up the JVM properly) - See folder contents:
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/external-access-jython"><strong>external-access-jython</strong>: Folder containing Jython launch script, and Jython examples accessing Moneydance externally....</a>
-
-Method 2: Using Python and JPype (sets up the JVM as part of the script) - See folder contents:
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/external-access-python-jpype"><strong>open-mdheadless-jpype</strong>: Folder containing Python script using JPype to access Moneydance externally....</a>
-
-########################################################################################################################
-
-^^^Script Notes: *.pyc files are CPython byte code files generated from the .py script. These are "helpers" to the Jython
+Script Notes: *.pyc files are CPython byte code files generated from the .py script. These are "helpers" to the Jython
 interpreter. Within the .mxt file you may also find a *$py.class file. This is a compiled version of the script
 for faster launch times. Some of my scripts are large and these "helpers" prevent a "method too large" RuntimeException.
 You don't normally need to worry about all this, but if you want to run the .py script manually (e.g. in Moneybot),
@@ -161,25 +164,41 @@ then please ensure the .pyc file is placed in the same location as the .py scrip
 As of Feb 2023 the precompiled versions (*$py.class files) are included with a bootstrap.py loader for faster
 load times (avoids initial compile on launch). If the bootstrap fails to load this, then it will just run the script...
 
-########################################################################################################################
+***
 
+### For developers
 
-########################################################################################################################
+- <a href="https://infinitekind.com/developer"><strong>Moneydance Developer Resources</strong>: Infinite Kind's developer guide</a>
+- <a href="https://infinitekind.com/developer-python"><strong>Moneydance Python Developer Resources</strong>: Infinite Kind's guide to Python scripts and extensions</a>
+- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/extension_tester/readme.txt"><strong>Extension tips</strong>: A readme.txt file that contains my tips on creating Python extensions and some coding tips....</a>
+- Custom Balances is also a demo of how to create a true runtime Python extension and a HomePageView (Summary Page) widget.
+- There is a mini api inside the Custom Balances extension whereby you can retrieve the results of the calculations by row to use in your own extensions. Contact me for details...
+- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/launch-moneydance.sh"><strong>Moneydance Mac Launch Shell Script</strong>: A MacOS shell script that launches Moneydance replicating the standard App launch sequence.... But without Apple sandboxing restrictions... You can also therefore change much of the underlying 'environment' and java libraries...</a>
+- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/launch-moneydance.bat"><strong>Moneydance basic Windows Launch Shell Script</strong>: A basic Windows batch file that launches Moneydance - update with the relevant bits you need from the more complete Mac sh version...</a>
+- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/launch-moneydance.scpt"><strong>Moneydance Mac Apple Script Launch Script</strong>: A basic Applescript to launch Moneydance...</a>
 
-DEVELOPERS - There is a mini api inside the Custom Balances extension whereby you can retrieve the results of the calculations by row
-to use in your own extensions. Contact me for details...
+#### Experimental / advanced:
+It's possible to load Moneydance components externally. This would not be supported by IK and you do so at your own risk.
 
-########################################################################################################################
+As of MD2021.2(3088) you can set an environment variable 'md_passphrase=' or 'md_passphrase_\<lowercase\_filename\>' and this will bypass the popup 'Enter your password' prompt.
+This means that the headless methods, to access MD data externally will work much more seamlessly. There are examples below on how to do this (with 'environment_passphrase' in filename):
 
+Method 1: Using Jython (for true Java integration) (with a launch script to set up the JVM properly) - See folder contents:
+-  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/external-access-jython"><strong>external-access-jython</strong>: Folder containing Jython launch script, and Jython examples accessing Moneydance externally....</a>
 
-### Source Code sites - you can freely read / review all my code
-<a href="https://github.com/yogi1967/MoneydancePythonScripts"><strong>Author's code site</strong>: https://github.com/yogi1967/MoneydancePythonScripts</a>
+Method 2: Using Python and JPype (sets up the JVM as part of the script) - See folder contents:
+-  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/external-access-python-jpype"><strong>external-access-python-jpype</strong>: Folder containing Python script using JPype to access Moneydance externally....</a>
+
+***
+
+### Source code
+You can freely read / review all my code.
+
+<a href="https://github.com/yogi1967/MoneydancePythonScripts"><strong>Author's code site</strong>: github.com/yogi1967/MoneydancePythonScripts</a>
 <BR><BR>
 **URL to clone my repo:** `https://github.com/yogi1967/MoneydancePythonScripts.git`
 <BR><BR>
-<a href="https://github.com/TheInfiniteKind/moneydance_open/tree/main/python_scripts/"><strong>Moneydance's site for code</strong>: https://github.com/TheInfiniteKind/moneydance_open/tree/main/python_scripts/</a>
-<BR><BR>
-<a href="https://github.com/TheInfiniteKind/moneydance_open"><strong>GitHub link for moneydance_open</strong>: https://github.com/TheInfiniteKind/moneydance_open</a>
+<a href="https://github.com/TheInfiniteKind/moneydance_open"><strong>GitHub link for moneydance_open</strong>: github.com/TheInfiniteKind/moneydance_open</a>
 <BR><BR>
 **URL to clone IK/Moneydance open source repo:** `https://github.com/TheInfiniteKind/moneydance_open.git`
 <BR><BR>
@@ -194,4 +213,4 @@ _Or perhaps just buy me a "beer" (also via PayPal)_<BR>
 
 _<b>If you would like me to code a Moneydance extension, report, script, or fix for you, (for a fee) then contact me: written_drizzle_0v @ icloud.com (no spaces)</b>_<BR>
 
-_(site last updated 5th February 2026)_
+_(site last updated 13th November 2026)_
