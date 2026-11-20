@@ -115,6 +115,7 @@ assert isinstance(0/1, float), "LOGIC ERROR: Custom Balances extension assumes t
 # build: 2002 - Include reminders now uses each deferred reminder's own date and amount on MD2027 (previously used the scheduled date and master amount)
 # build: 2002 - vaqua14 fixes
 # build: 2002 - Settings window now scrolls at a normal speed with the mouse wheel (previously one pixel per step on Windows)
+# build: 2002 - Settings window now opens wide enough for large fonts (previously the left side, with the row labels, was cut off)
 # build: 2002 - ???
 
 # todo - tweak getConvertXBalanceRecursive() and getXBalance() to also exclude inactives from recursive balances (like apply networth rules)
@@ -4407,7 +4408,7 @@ Visit: %s (Author's site)
         # Used to constrain the main control panel (that sits inside a JScrollPane)...
         def getPreferredSize(self):
             dim = super(self.__class__, self).getPreferredSize()                                                        # noqa
-            if self.fixedWidth is not None: dim.width = self.fixedWidth
+            if self.fixedWidth is not None: dim.width = max(self.fixedWidth, self.getLayout().minimumLayoutSize(self).width)
             return dim
 
         def doubleClicked(self, source, atPoint): pass
