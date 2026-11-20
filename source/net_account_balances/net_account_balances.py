@@ -15258,7 +15258,7 @@ Visit: %s (Author's site)
 
                     filterLabel = MyJLabel(wrap_HTML_BIG_small("","FILTERS:", NAB.moneydanceContext.getUI().getColors().defaultTextForeground))
                     filterLabel.putClientProperty("%s.id" %(NAB.myModuleID), "filterLabel")
-                    filterLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    filterLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "false")
                     controlPnl.add(filterLabel, GridC.getc(onCol, onRow).southEast().fillx().insets(topInset,colInsetFiller,bottomInset,colRightInset))
                     onRow += 1
 
@@ -15269,7 +15269,7 @@ Visit: %s (Author's site)
                     onFiltersRow = 0
                     onFiltersCol = 0
                     filters_pnl = MyJPanel(GridBagLayout())
-                    filters_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    filters_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "false")
 
                     includeInactiveOptions = ["Active Only", "Include Inactive", "Inactive Only"]
                     NAB.includeInactive_COMBO = MyJComboBox(includeInactiveOptions)
