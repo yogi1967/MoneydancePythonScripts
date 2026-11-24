@@ -52,6 +52,8 @@ repositories {
   mavenCentral()
 }
 
+tasks.withType(AbstractArchiveTask).configureEach { preserveFileTimestamps = true }
+
 // detect 1.9.x vs 2.x plugin...
 def kotlinPluginVersion = plugins.getPlugin("org.jetbrains.kotlin.jvm").class.package.implementationVersion
 def isKotlin2 = kotlinPluginVersion?.startsWith("2.")
